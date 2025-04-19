@@ -1,0 +1,6 @@
+[workspace]
+members = [
+    "message-rs",
+    "clientlib-rs",
+    "server-rs",
+]
