@@ -1,22 +1,11 @@
-# DPS
+# Message Sequence
 
-DPS: Deterministic Process Scheduler - schedules user processes considering periodic cycles and process dependencies.
+This software employs a Client-Server architecture utilizing simple UDP messaging.
 
-## Features
+The client passively waits for a start trigger from the server.
+The server then sends a start trigger based on the periodic cycles and dependencies between the clients.
 
-- Periodic process execution with pre-defined dependencies (single, sequential, parallel)
-  - example: Image processing using camera frame
-- Simple messaging for various implementation languages
-  - this repository includes sample client for Rust, Python
-- Simulation and Visualization tools (currently under planning)
-
-## Process scheduling
-
-This section describes how DPS schedules your processes using a sequence diagram.
-
-This is a simplified diagram, see also detailed documents for a complete understanding.
-
-### example scenario: A -> B, C
+## Basic Sequence
 
 - Process A starts periodically
 - Process B and C start when A completes
@@ -42,6 +31,7 @@ sequenceDiagram
   Note over A: received trigger, ok to process
   A ->> A: process
   A -) M: DONE
+  M --) A: OK
 
   Note over M: check dependency -> run Process B and C
   M --) B: OK
@@ -56,25 +46,17 @@ sequenceDiagram
   C ->> C: process
 
   B -) M: DONE
+  M --) B: OK
   B -) M: READY
     Note over B: waiting for trigger
 
   C -) M: DONE
+  M --) C: OK
   C -) M: READY
     Note over C: waiting for trigger
 
   M ->> M: trigger (time-based)
   Note over M,C: same pattern as before
 ```
-
-## Components of this repository
-
-- this repository
-  - messages-rs
-    - Common message types and structures for Rust server/scheduler and client/process.
-  - server-rs
-    - Server/Scheduler program implemented in Rust.
-  - clientlib-rs
-    - Client library for Rust client/process. Handles communication with the server/scheduler.
 
 EOF
