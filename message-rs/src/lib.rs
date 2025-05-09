@@ -26,6 +26,7 @@ pub enum ParseError {
 /// Message types.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MessageType {
+    Join,
     Ready,
     Done,
     Exit,
@@ -38,6 +39,7 @@ impl MessageType {
     /// Convert message type to string.
     pub fn to_str(&self) -> String {
         match self {
+            MessageType::Join => "JOIN".to_string(),
             MessageType::Ready => "READY".to_string(),
             MessageType::Done => "DONE".to_string(),
             MessageType::Exit => "EXIT".to_string(),
@@ -50,6 +52,7 @@ impl MessageType {
     /// Convert string to message type.
     pub fn from_str(s: &str) -> Result<Self, ParseError> {
         match s {
+            "JOIN" => Ok(MessageType::Join),
             "READY" => Ok(MessageType::Ready),
             "DONE" => Ok(MessageType::Done),
             "EXIT" => Ok(MessageType::Exit),
@@ -162,6 +165,7 @@ mod tests {
 
     #[test]
     fn test_message_type_to_str() {
+        assert_eq!(MessageType::Join.to_str(), "JOIN".to_string());
         assert_eq!(MessageType::Ready.to_str(), "READY".to_string());
         assert_eq!(MessageType::Done.to_str(), "DONE".to_string());
         assert_eq!(MessageType::Exit.to_str(), "EXIT".to_string());
@@ -172,6 +176,7 @@ mod tests {
 
     #[test]
     fn test_message_type_from_str() {
+        assert_eq!(MessageType::from_str("JOIN"), Ok(MessageType::Join));
         assert_eq!(MessageType::from_str("READY"), Ok(MessageType::Ready));
         assert_eq!(MessageType::from_str("DONE"), Ok(MessageType::Done));
         assert_eq!(MessageType::from_str("EXIT"), Ok(MessageType::Exit));
