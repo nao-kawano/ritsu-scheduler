@@ -23,6 +23,8 @@ MessageType is divided into requests from the client and responses from the serv
 
 ### Client Requests
 
+- "JOIN"
+  - The client requests to join the scheduling group.
 - "READY"
   - The client notifies the server that it's ready to start the process.
   - The client must wait for a response from the server.
@@ -37,7 +39,7 @@ MessageType is divided into requests from the client and responses from the serv
 ### Server Responses
 
 - "OK"
-  - Returned for "READY", "DONE", "EXIT".
+  - Returned for "JOIN", "READY", "DONE", "EXIT".
   - Indicates that the request was successful.
   - The client can continue processing.
 - "SKIP"
@@ -45,8 +47,8 @@ MessageType is divided into requests from the client and responses from the serv
   - Indicates that the trigger has been canceled.
   - The client needs to send "READY" again to request the next trigger.
 - "ERROR"
-  - Returned for "READY", "DONE".
+  - Returned for "JOIN", "READY", "DONE".
   - Indicates that the request is invalid or the server is in an invalid state.
-  - The client must send "EXIT" to the server and exit.
+  - Except for "JOIN" errors, The client must send "EXIT" to the server and exit.
 
 EOF
