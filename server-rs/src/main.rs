@@ -5,15 +5,15 @@
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
-mod generator;
+mod cycle;
 
-use generator::PeriodicTriggerGenerator;
+use cycle::CycleGenerator;
 
 /* -------------------------------------------------------------------------- */
 
 pub enum Event {
     Abort,
-    FrameStart(u64),
+    CycleStart(u64),
 }
 
 /* -------------------------------------------------------------------------- */
@@ -25,8 +25,8 @@ fn main() {
 
     // start thread.
     let tx_cycle = tx.clone();
-    let mut trigger = PeriodicTriggerGenerator::new(1000);
-    trigger.start(tx_cycle);
+    let mut cycle = CycleGenerator::new(1000);
+    cycle.start(tx_cycle);
 
     // install Ctrl+C handler for shutdown.
     let tx_abort = tx.clone();
@@ -41,11 +41,11 @@ fn main() {
         let event = rx.recv().unwrap();
         match event {
             Event::Abort => break,
-            Event::FrameStart(frame_number) => print!("FrameStart: {}\n", frame_number),
+            Event::CycleStart(cycle_number) => print!("CycleStart: {}\n", cycle_number),
         };
         // send response if needed.
     }
 
     // stop thread.
-    trigger.stop();
+    cycle.stop();
 }
