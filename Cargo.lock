@@ -43,6 +43,7 @@ name = "dps-server"
 version = "0.1.0"
 dependencies = [
  "ctrlc",
+ "dps-message",
 ]
 
 [[package]]

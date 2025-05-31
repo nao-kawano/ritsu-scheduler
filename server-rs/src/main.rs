@@ -5,9 +5,13 @@
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
+use dps_message::{Message, MessageType};
+
+mod client_connector;
 mod config;
 mod cycle;
 
+use client_connector::ClientConnector;
 use config::{ClientConfig, SchedulerConfig, ServerConfig, TriggerType};
 use cycle::CycleGenerator;
 
@@ -16,6 +20,7 @@ use cycle::CycleGenerator;
 pub enum Event {
     Abort,
     CycleStart(u64),
+    ClientMsg(Message),
 }
 
 /* -------------------------------------------------------------------------- */
@@ -71,6 +76,9 @@ fn main() {
     // setup manager.
 
     // setup client connector.
+    let tx_client = tx.clone();
+    let mut client_connector = ClientConnector::new(config.server_config.port);
+    client_connector.start(tx_client);
 
     // setup cycle generator.
     let tx_cycle = tx.clone();
@@ -91,6 +99,12 @@ fn main() {
         match event {
             Event::Abort => break,
             Event::CycleStart(cycle_number) => print!("CycleStart: {}\n", cycle_number),
+            Event::ClientMsg(msg) => {
+                print!("Message: {:?}\n", msg);
+                client_connector.send_responses(vec![
+                    Message::new(MessageType::Ok, msg.client_id, None).unwrap(),
+                ]);
+            }
         };
         // process event in manager.
 
@@ -99,4 +113,5 @@ fn main() {
 
     // stop thread.
     cycle.stop();
+    client_connector.stop();
 }
