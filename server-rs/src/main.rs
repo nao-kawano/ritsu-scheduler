@@ -31,33 +31,18 @@ fn load_sample_config() -> SchedulerConfig {
         cycle_time: 1000,
     };
     let client_configs = vec![
-        ClientConfig {
-            client_id: 0,
-            trigger_type: TriggerType::Cycle(1),
-            cycle_offset: 0,
-        },
-        ClientConfig {
-            client_id: 1,
-            trigger_type: TriggerType::Depends { clients: vec![0] },
-            cycle_offset: 0,
-        },
-        ClientConfig {
-            client_id: 2,
-            trigger_type: TriggerType::Depends { clients: vec![0] },
-            cycle_offset: 0,
-        },
-        ClientConfig {
-            client_id: 3,
-            trigger_type: TriggerType::Depends {
+        ClientConfig::new(0, TriggerType::Cycle(1), 0).unwrap(),
+        ClientConfig::new(1, TriggerType::Depends { clients: vec![0] }, 0).unwrap(),
+        ClientConfig::new(2, TriggerType::Depends { clients: vec![0] }, 0).unwrap(),
+        ClientConfig::new(
+            3,
+            TriggerType::Depends {
                 clients: vec![1, 2],
             },
-            cycle_offset: 0,
-        },
-        ClientConfig {
-            client_id: 10,
-            trigger_type: TriggerType::Cycle(2),
-            cycle_offset: 1,
-        },
+            0,
+        )
+        .unwrap(),
+        ClientConfig::new(5, TriggerType::Cycle(2), 1).unwrap(),
     ];
     SchedulerConfig {
         server_config,
