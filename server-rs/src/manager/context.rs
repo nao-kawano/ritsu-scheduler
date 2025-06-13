@@ -9,6 +9,10 @@ use super::ManagerState;
 use super::client_status::ClientStatus;
 use crate::config::{ClientConfig, TriggerType};
 
+#[cfg(test)]
+#[path = "context_test.rs"]
+mod context_test;
+
 /* -------------------------------------------------------------------------- */
 
 pub struct ManagerContext {
