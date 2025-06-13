@@ -4,11 +4,11 @@
 
 mod client_status;
 mod context;
-mod proccess_starting;
 mod process;
 mod process_exitted;
 mod process_exitting;
 mod process_running;
+mod process_starting;
 
 use std::collections::HashMap;
 
@@ -17,11 +17,11 @@ use dps_message::{Message, MessageType};
 use crate::Event;
 use crate::config::ClientConfig;
 use context::ManagerContext;
-use proccess_starting::ManagerProcStarting;
 use process::ManagerProc;
 use process_exitted::ManagerProcExitted;
 use process_exitting::ManagerProcExitting;
 use process_running::ManagerProcRunning;
+use process_starting::ManagerProcStarting;
 
 /* -------------------------------------------------------------------------- */
 
