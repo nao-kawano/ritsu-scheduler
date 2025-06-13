@@ -2,9 +2,11 @@
 //! Manager state.
 //!
 
-use dps_message::Message;
+use dps_message::{Message, MessageType};
 
 use super::EventResult;
+use super::ManagerState;
+use super::client_status::ClientState;
 use super::context::ManagerContext;
 use super::process::ManagerProc;
 
@@ -48,6 +50,26 @@ impl ManagerProc for ManagerProcStarting {
     fn on_shutdown(&self, context: &mut ManagerContext) -> EventResult {
         // TODO: implements.
         print!("{:?} on_shutdown\n", context.state);
-        Ok(vec![])
+        let mut responses: Vec<Message> = Vec::new();
+        // send "ERROR" to ready clients.
+        if context.num_active_clients == 0 {
+            print!("{:?} no clients connected, go to exitted\n", context.state);
+            context.set_state(ManagerState::Exitted);
+        } else {
+            print!(
+                "{:?} {} clients connected, go to exitting\n",
+                context.state, context.num_active_clients
+            );
+            for client in context.clients.values_mut() {
+                if client.state == ClientState::Ready {
+                    responses.push(
+                        Message::new(MessageType::Error, client.config.client_id, None).unwrap(),
+                    );
+                    client.set_client_state(ClientState::Exitting);
+                }
+            }
+            context.set_state(ManagerState::Exitting);
+        }
+        Ok(responses)
     }
 }

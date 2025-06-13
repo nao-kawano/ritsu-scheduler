@@ -8,7 +8,7 @@ use std::collections::HashMap;
 /* -------------------------------------------------------------------------- */
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
-enum ClientState {
+pub enum ClientState {
     None,                   // disconnected.
     Idle,                   // not in ready.
     Ready,                  // waiting for trigger(cycle or depends).
@@ -18,8 +18,8 @@ enum ClientState {
 
 #[derive(Debug, Clone)]
 pub struct ClientStatus {
-    config: ClientConfig,
-    state: ClientState,
+    pub config: ClientConfig,
+    pub state: ClientState,
     depends_on: HashMap<u16, bool>,
 }
 

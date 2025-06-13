@@ -2,18 +2,20 @@
 //! Entry point.
 //!
 
-use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
-
-use dps_message::{Message, MessageType};
-
 mod client_connector;
 mod config;
 mod cycle;
+mod manager;
+
+use std::sync::mpsc;
+use std::sync::mpsc::{Receiver, Sender};
+
+use dps_message::Message;
 
 use client_connector::ClientConnector;
 use config::{ClientConfig, SchedulerConfig, ServerConfig, TriggerType};
 use cycle::CycleGenerator;
+use manager::{EventManager, ManagerState};
 
 /* -------------------------------------------------------------------------- */
 
@@ -59,6 +61,7 @@ fn main() {
     let (tx, rx): (Sender<Event>, Receiver<Event>) = mpsc::channel();
 
     // setup manager.
+    let mut event_manager = EventManager::new(config.client_configs);
 
     // setup client connector.
     let tx_client = tx.clone();
@@ -73,6 +76,7 @@ fn main() {
     // install Ctrl+C handler for shutdown.
     let tx_abort = tx.clone();
     ctrlc::set_handler(move || {
+        print!("Got Ctrl+C\n");
         tx_abort.send(Event::Abort).unwrap();
     })
     .expect("Error setting Ctrl-C handler");
@@ -81,19 +85,18 @@ fn main() {
     loop {
         // receive event.
         let event = rx.recv().unwrap();
-        match event {
-            Event::Abort => break,
-            Event::CycleStart(cycle_number) => print!("CycleStart: {}\n", cycle_number),
-            Event::ClientMsg(msg) => {
-                print!("Message: {:?}\n", msg);
-                client_connector.send_responses(vec![
-                    Message::new(MessageType::Ok, msg.client_id, None).unwrap(),
-                ]);
-            }
-        };
         // process event in manager.
-
+        let result = event_manager.process(event);
         // send response if needed.
+        if let Ok(result) = result {
+            client_connector.send_responses(result);
+        } else {
+            print!("Error while processing, continue\n");
+        }
+        // check if exit.
+        if event_manager.get_state() == ManagerState::Exitted {
+            break;
+        }
     }
 
     // stop thread.

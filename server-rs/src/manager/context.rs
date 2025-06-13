@@ -14,8 +14,8 @@ use crate::config::{ClientConfig, TriggerType};
 pub struct ManagerContext {
     pub state: ManagerState,
     pub state_changed: bool,
-    clients: HashMap<u16, ClientStatus>,
-    num_active_clients: usize,
+    pub clients: HashMap<u16, ClientStatus>,
+    pub num_active_clients: usize,
     cycle_current: u32,
     cycle_max: u32,
 }
