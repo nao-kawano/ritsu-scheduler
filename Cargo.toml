@@ -1,6 +1,10 @@
 [workspace]
+resolver = "3"
 members = [
     "message-rs",
     "clientlib-rs",
     "server-rs",
 ]
+
+[workspace.dependencies]
+dps-message = { path = "message-rs" }
