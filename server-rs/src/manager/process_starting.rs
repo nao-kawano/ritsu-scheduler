@@ -2,6 +2,10 @@
 //! Manager state.
 //!
 
+extern crate log;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
+
 use dps_message::{Message, MessageType};
 
 use super::EventResult;
@@ -10,55 +14,57 @@ use super::client_status::ClientState;
 use super::context::ManagerContext;
 use super::process::ManagerProc;
 
+const LOG_TAG: &str = "StateStarting";
+
 pub struct ManagerProcStarting;
 impl ManagerProc for ManagerProcStarting {
     fn enter_state(&self, context: &mut ManagerContext) {
         // TODO: implements.
-        print!("{:?} enter_state\n", context.state);
+        trace!("{}: enter_state", LOG_TAG);
     }
 
     fn on_cycle_start(&self, context: &mut ManagerContext, _cycle: u64) -> EventResult {
         // TODO: implements.
-        print!("{:?} on_cycle_start\n", context.state);
+        trace!("{}: on_cycle_start", LOG_TAG);
         Ok(vec![])
     }
 
     fn on_client_join(&self, context: &mut ManagerContext, _message: &Message) -> EventResult {
         // TODO: implements.
-        print!("{:?} on_client_join\n", context.state);
+        trace!("{}: on_client_join", LOG_TAG);
         Ok(vec![])
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, _message: &Message) -> EventResult {
         // TODO: implements.
-        print!("{:?} on_client_ready\n", context.state);
+        trace!("{}: on_client_ready", LOG_TAG);
         Ok(vec![])
     }
 
     fn on_client_done(&self, context: &mut ManagerContext, _message: &Message) -> EventResult {
         // TODO: implements.
-        print!("{:?} on_client_done\n", context.state);
+        trace!("{}: on_client_done", LOG_TAG);
         Ok(vec![])
     }
 
     fn on_client_exit(&self, context: &mut ManagerContext, _message: &Message) -> EventResult {
         // TODO: implements.
-        print!("{:?} on_client_exit\n", context.state);
+        trace!("{}: on_client_exit", LOG_TAG);
         Ok(vec![])
     }
 
     fn on_shutdown(&self, context: &mut ManagerContext) -> EventResult {
         // TODO: implements.
-        print!("{:?} on_shutdown\n", context.state);
+        trace!("{}: on_shutdown", LOG_TAG);
         let mut responses: Vec<Message> = Vec::new();
         // send "ERROR" to ready clients.
         if context.num_active_clients == 0 {
-            print!("{:?} no clients connected, go to exitted\n", context.state);
+            debug!("no clients connected, go to exitted");
             context.set_state(ManagerState::Exitted);
         } else {
-            print!(
-                "{:?} {} clients connected, go to exitting\n",
-                context.state, context.num_active_clients
+            debug!(
+                "{} clients connected, go to exitting",
+                context.num_active_clients
             );
             for client in context.clients.values_mut() {
                 if client.state == ClientState::Ready {

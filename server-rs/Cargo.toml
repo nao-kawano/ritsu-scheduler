@@ -5,4 +5,7 @@ edition = "2024"
 
 [dependencies]
 dps-message.workspace = true
+chrono.workspace = true
+log.workspace = true
+env_logger.workspace = true
 ctrlc = "3.4.6"

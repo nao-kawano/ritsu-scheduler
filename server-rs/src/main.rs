@@ -2,11 +2,18 @@
 //! Entry point.
 //!
 
+extern crate chrono;
+extern crate env_logger;
+extern crate log;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
+
 mod client_connector;
 mod config;
 mod cycle;
 mod manager;
 
+use std::io::Write;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
@@ -53,6 +60,21 @@ fn load_sample_config() -> SchedulerConfig {
 }
 
 fn main() {
+    // setup logger.
+    unsafe { std::env::set_var("RUST_LOG", "trace") }; // for debugging.
+    env_logger::Builder::from_default_env()
+        .format(|buf, record| {
+            writeln!(
+                buf,
+                "{} [{:5}] {}",
+                chrono::Local::now().format("%Y/%m/%d %H:%M:%S%.6f"),
+                record.level(),
+                record.args()
+            )
+        })
+        .init();
+    info!("Starting dps scheduler {}", env!("CARGO_PKG_VERSION"));
+
     // load configuration from file.
     // currently, configuration is hardcoded in the code.
     let config = load_sample_config();
@@ -76,7 +98,7 @@ fn main() {
     // install Ctrl+C handler for shutdown.
     let tx_abort = tx.clone();
     ctrlc::set_handler(move || {
-        print!("Got Ctrl+C\n");
+        warn!("Got Ctrl+C");
         tx_abort.send(Event::Abort).unwrap();
     })
     .expect("Error setting Ctrl-C handler");
@@ -88,10 +110,9 @@ fn main() {
         // process event in manager.
         let result = event_manager.process(event);
         // send response if needed.
-        if let Ok(result) = result {
-            client_connector.send_responses(result);
-        } else {
-            print!("Error while processing, continue\n");
+        match result {
+            Ok(responses) => client_connector.send_responses(responses),
+            Err(e) => warn!("Error while processing, continue: {}", e),
         }
         // check if exit.
         if event_manager.get_state() == ManagerState::Exitted {

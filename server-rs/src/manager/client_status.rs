@@ -2,6 +2,10 @@
 //! Client status in manager.
 //!
 
+extern crate log;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
+
 use crate::config::{ClientConfig, TriggerType};
 use std::collections::HashMap;
 
@@ -43,7 +47,7 @@ impl ClientStatus {
     }
 
     pub fn set_client_state(&mut self, state: ClientState) -> bool {
-        println!(
+        info!(
             "client state: client={}, state {:?} -> {:?}",
             self.config.client_id, self.state, state
         );

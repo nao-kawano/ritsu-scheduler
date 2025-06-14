@@ -2,16 +2,23 @@
 //! Manager state.
 //!
 
+extern crate log;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
+
 use dps_message::Message;
 
 use super::EventResult;
 use super::context::ManagerContext;
 use super::process::ManagerProc;
 
+const LOG_TAG: &str = "StateExitted";
+
 pub struct ManagerProcExitted;
 impl ManagerProc for ManagerProcExitted {
+
     fn enter_state(&self, context: &mut ManagerContext) {
-        print!("{:?} enter_state\n", context.state);
+        trace!("{}: enter_state", LOG_TAG);
     }
 
     fn on_cycle_start(&self, _context: &mut ManagerContext, _cycle: u64) -> EventResult {

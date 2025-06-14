@@ -2,6 +2,10 @@
 //! Time-based Cycle Generator
 //!
 
+extern crate log;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
@@ -30,13 +34,14 @@ impl CycleGenerator {
         // setup thread data and launch thread.
         let cycle_ms = self.cycle_ms as u64;
         let stop_flag = Arc::clone(&(self.stop_flag));
+        info!("CycleGen: start cycle={}ms", cycle_ms);
         self.thread_handle = Some(thread::spawn(move || {
             let mut cycle_count: u64 = 0;
-            println!("CycleGen: start cycle={}ms", cycle_ms);
+            debug!("CycleGen: cycle thread started.");
             loop {
                 // check stop request.
                 if stop_flag.load(Ordering::Relaxed) == true {
-                    println!("CycleGen: stop request detected, exitting");
+                    info!("CycleGen: stop request detected, exitting");
                     break;
                 }
                 // send event.
@@ -45,18 +50,19 @@ impl CycleGenerator {
                 // wait next.
                 thread::sleep(time::Duration::from_millis(cycle_ms));
             }
+            debug!("CycleGen: cycle thread stopped.");
         }));
     }
 
     pub fn stop(&mut self) {
         if let Some(h) = self.thread_handle.take() {
-            println!("CycleGen: stop requested");
+            info!("CycleGen: stop requested");
             self.stop_flag.store(true, Ordering::Relaxed);
             h.join().unwrap();
-            println!("CycleGen: stopped");
+            info!("CycleGen: stopped");
             self.stop_flag.store(false, Ordering::Relaxed);
         } else {
-            println!("CycleGen: not started");
+            warn!("CycleGen: not started");
         }
     }
 }

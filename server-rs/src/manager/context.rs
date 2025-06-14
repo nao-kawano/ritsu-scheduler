@@ -2,6 +2,10 @@
 //! Manager context.
 //!
 
+extern crate log;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
+
 use std::cmp::max;
 use std::collections::HashMap;
 
@@ -38,7 +42,7 @@ impl ManagerContext {
     }
 
     pub fn set_state(&mut self, state: ManagerState) -> bool {
-        println!("state: {:?} -> {:?}", self.state, state);
+        info!("state: {:?} -> {:?}", self.state, state);
         if self.state != state {
             self.state = state;
             self.state_changed = true;
