@@ -15,24 +15,37 @@ mod client_status_test;
 
 /* -------------------------------------------------------------------------- */
 
+/// Represents the state of a client.
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum ClientState {
-    None,                   // disconnected.
-    Idle,                   // not in ready.
-    Ready,                  // waiting for trigger(cycle or depends).
-    Running { cycle: u32 }, // running.
-    Exitting,               // exit requested.
+    /// Initial or Final state. Client will send `Join`.
+    None,
+    /// Before Ready. Client will send `Ready`.
+    Idle,
+    /// Client is waiting for trigger(cycle or depends).
+    Ready,
+    /// Client is processing started in `cycle`. Client will send `Done` after processing.
+    Running { cycle: u32 },
+    /// Client received `Error` and will send `Exit`.
+    Exitting,
 }
 
+/// Manages the state of a client.
 #[derive(Debug, Clone)]
 pub struct ClientStatus {
+    /// Client information such as id, trigger, etc.
     pub config: ClientConfig,
+    /// Current state of the client.
     pub state: ClientState,
+    /// Dependency status for 'Depends' trigger.
+    /// Client can start when all value is true.
     depends_on: HashMap<u16, bool>,
 }
 
 impl ClientStatus {
+    /// Constructor.
     pub fn new(config: ClientConfig) -> Self {
+        // If the `TriggerType` is `Depends`, initialize the dependency status.
         let mut depends_on: HashMap<u16, bool> = HashMap::new();
         if let TriggerType::Depends { clients } = &&config.trigger_type {
             for client in clients {
@@ -46,6 +59,7 @@ impl ClientStatus {
         }
     }
 
+    /// Set the state of the client.
     pub fn set_client_state(&mut self, state: ClientState) -> bool {
         info!(
             "client state: client={}, state {:?} -> {:?}",
@@ -55,17 +69,19 @@ impl ClientStatus {
         return true; /* always ok */
     }
 
+    /// Check if the client is ready to start.
     pub fn is_depends_ok(&self) -> bool {
-        let mut ok = true;
+        let mut is_ready = true;
         for depend_value in self.depends_on.values() {
             if *depend_value == false {
-                ok = false;
+                is_ready = false;
                 break;
             }
         }
-        return ok;
+        return is_ready;
     }
 
+    /// Clear the dependency status.
     pub fn clear_depends(&mut self) {
         for depend_value in self.depends_on.values_mut() {
             *depend_value = false;
