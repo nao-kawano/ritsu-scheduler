@@ -11,6 +11,7 @@ mod process_running;
 mod process_starting;
 
 use std::collections::HashMap;
+use std::hash::Hash;
 
 use dps_message::{Message, MessageType};
 
@@ -38,34 +39,26 @@ pub enum ManagerState {
 /* -------------------------------------------------------------------------- */
 
 pub struct EventManager {
-    states: HashMap<ManagerState, Box<dyn ManagerProc>>,
     context: ManagerContext,
+    procs: HashMap<ManagerState, Box<dyn ManagerProc>>,
 }
 
 impl EventManager {
     pub fn new(client_configs: Vec<ClientConfig>) -> Self {
-        let mut manager = EventManager {
-            states: HashMap::new(),
-            context: ManagerContext::new(client_configs),
-        };
-        // create manager state.
-        manager
-            .states
-            .insert(ManagerState::Starting, Box::new(ManagerProcStarting));
-        manager
-            .states
-            .insert(ManagerState::Running, Box::new(ManagerProcRunning));
-        manager
-            .states
-            .insert(ManagerState::Exitting, Box::new(ManagerProcExitting));
-        manager
-            .states
-            .insert(ManagerState::Exitted, Box::new(ManagerProcExitted));
+        // create context.
+        let mut context: ManagerContext = ManagerContext::new(client_configs);
+        // create procs.
+        let mut procs: HashMap<ManagerState, Box<dyn ManagerProc>> = HashMap::new();
+        procs.insert(ManagerState::Starting, Box::new(ManagerProcStarting));
+        procs.insert(ManagerState::Running, Box::new(ManagerProcRunning));
+        procs.insert(ManagerState::Exitting, Box::new(ManagerProcExitting));
+        procs.insert(ManagerState::Exitted, Box::new(ManagerProcExitted));
         // enter initial state.
-        if let Some(initial_state) = manager.states.get(&manager.context.state) {
-            initial_state.enter_state(&mut manager.context);
+        if let Some(initial_state) = procs.get(&context.state) {
+            initial_state.enter_state(&mut context);
         }
-        return manager;
+        // return object.
+        EventManager { context, procs }
     }
 
     pub fn get_state(&self) -> ManagerState {
@@ -74,20 +67,32 @@ impl EventManager {
 
     pub fn process(&mut self, event: Event) -> EventResult {
         // get current processor.
-        let Some(current_state) = self.states.get(&self.context.state) else {
+        let Some(proc) = self.procs.get(&self.context.state) else {
             return Err(format!("state not found for {:?}", &self.context.state));
         };
         // process event.
         let result = match event {
-            Event::Abort => current_state.on_shutdown(&mut self.context),
-            Event::CycleStart(cycle) => current_state.on_cycle_start(&mut self.context, cycle),
-            Event::ClientMsg(msg) => match msg.message_type {
-                MessageType::Join => current_state.on_client_join(&mut self.context, &msg),
-                MessageType::Ready => current_state.on_client_ready(&mut self.context, &msg),
-                MessageType::Done => current_state.on_client_done(&mut self.context, &msg),
-                MessageType::Exit => current_state.on_client_exit(&mut self.context, &msg),
-                _ => Err("invalid message type".to_string()),
-            },
+            Event::Abort => proc.on_shutdown(&mut self.context),
+            Event::CycleStart(cycle) => proc.on_cycle_start(&mut self.context, cycle),
+            Event::ClientMsg(msg) => {
+                if !self.context.clients.contains_key(&msg.client_id) {
+                    Err(format!(
+                        "unknown client message type={:?}, id={}",
+                        msg.message_type, msg.client_id
+                    ))
+                } else {
+                    match msg.message_type {
+                        MessageType::Join => proc.on_client_join(&mut self.context, &msg),
+                        MessageType::Ready => proc.on_client_ready(&mut self.context, &msg),
+                        MessageType::Done => proc.on_client_done(&mut self.context, &msg),
+                        MessageType::Exit => proc.on_client_exit(&mut self.context, &msg),
+                        _ => Err(format!(
+                            "not a client message type={:?}, id={}",
+                            msg.message_type, msg.client_id
+                        )),
+                    }
+                }
+            }
         };
         // state change.
         if let Err(e) = self.change_state() {
@@ -103,8 +108,8 @@ impl EventManager {
     fn change_state(&mut self) -> Result<(), String> {
         if self.context.state_changed {
             self.context.state_changed = false;
-            if let Some(next_state) = self.states.get(&self.context.state) {
-                next_state.enter_state(&mut self.context);
+            if let Some(next_proc) = self.procs.get(&self.context.state) {
+                next_proc.enter_state(&mut self.context);
             } else {
                 return Err(format!("state not found for {:?}", &self.context.state));
             }
