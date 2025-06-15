@@ -90,6 +90,9 @@ impl ClientConfig {
             cycle_offset,
         })
     }
+
+    // -----
+    // private methods.
 }
 
 pub struct SchedulerConfig {

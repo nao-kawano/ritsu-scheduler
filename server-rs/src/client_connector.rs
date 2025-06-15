@@ -40,6 +40,70 @@ impl ClientConnector {
         }
     }
 
+    pub fn start(&mut self, tx_channel: Sender<Event>) -> bool {
+        info!(
+            "ClientConnector: start port={}, t/o={}",
+            self.port,
+            ClientConnector::TIMEOUT_MS
+        );
+
+        // clear connected clients.
+        {
+            let mut clients = self.clients.lock().unwrap();
+            clients.clear();
+        }
+
+        // setup socket.
+        let s = match ClientConnector::create_socket(self.port) {
+            Ok(socket) => socket,
+            Err(e) => {
+                error!("ClientConnector: Failed to create socket: {:?}", e);
+                return false;
+            }
+        };
+        self.socket = Some(s.try_clone().unwrap());
+
+        // setup thread data and launch thread.
+        let socket = s;
+        let clients = Arc::clone(&(self.clients));
+        let stop_flag = Arc::clone(&self.stop_flag);
+        self.thread_handle = Some(thread::spawn(move || {
+            ClientConnector::thread_receiver(stop_flag, socket, clients, tx_channel);
+        }));
+
+        return true;
+    }
+
+    pub fn stop(&mut self) {
+        if let Some(handle) = self.thread_handle.take() {
+            info!("ClientConnector: stop requested");
+            self.stop_flag.store(true, Ordering::Relaxed);
+            handle.join().unwrap();
+            info!("ClientConnector: stopped");
+            self.stop_flag.store(false, Ordering::Relaxed);
+        } else {
+            warn!("ClientConnector: not started");
+        }
+    }
+
+    pub fn send_responses(&mut self, msgs: Vec<Message>) {
+        if let Some(socket) = &self.socket {
+            let clients = self.clients.lock().unwrap();
+            for msg in msgs {
+                if let Some(to_addr) = clients.get(&msg.client_id) {
+                    self.send_message(&msg, socket, to_addr);
+                } else {
+                    warn!("Connector: client is not connected id={}", msg.client_id);
+                }
+            }
+        } else {
+            warn!("Connector: not started");
+        }
+    }
+
+    // -----
+    // private methods.
+
     fn create_socket(port: u16) -> Result<UdpSocket, std::io::Error> {
         let socket = UdpSocket::bind(format!("127.0.0.1:{}", port))?;
         socket.set_read_timeout(Some(ClientConnector::TIMEOUT))?;
@@ -112,69 +176,7 @@ impl ClientConnector {
         debug!("ClientConnector: receive thread stopped.");
     }
 
-    pub fn start(&mut self, tx_channel: Sender<Event>) -> bool {
-        info!(
-            "ClientConnector: start port={}, t/o={}",
-            self.port,
-            ClientConnector::TIMEOUT_MS
-        );
-
-        // clear connected clients.
-        {
-            let mut clients = self.clients.lock().unwrap();
-            clients.clear();
-        }
-
-        // setup socket.
-        let s = match ClientConnector::create_socket(self.port) {
-            Ok(socket) => socket,
-            Err(e) => {
-                error!("ClientConnector: Failed to create socket: {:?}", e);
-                return false;
-            }
-        };
-        self.socket = Some(s.try_clone().unwrap());
-
-        // setup thread data and launch thread.
-        let socket = s;
-        let clients = Arc::clone(&(self.clients));
-        let stop_flag = Arc::clone(&self.stop_flag);
-        self.thread_handle = Some(thread::spawn(move || {
-            ClientConnector::thread_receiver(stop_flag, socket, clients, tx_channel);
-        }));
-
-        return true;
-    }
-
-    pub fn stop(&mut self) {
-        if let Some(handle) = self.thread_handle.take() {
-            info!("ClientConnector: stop requested");
-            self.stop_flag.store(true, Ordering::Relaxed);
-            handle.join().unwrap();
-            info!("ClientConnector: stopped");
-            self.stop_flag.store(false, Ordering::Relaxed);
-        } else {
-            warn!("ClientConnector: not started");
-        }
-    }
-
-    pub fn send_responses(&mut self, msgs: Vec<Message>) {
-        if let Some(socket) = &self.socket {
-            let clients = self.clients.lock().unwrap();
-            for msg in msgs {
-                if let Some(to_addr) = clients.get(&msg.client_id) {
-                    self.send_message(&msg, socket, to_addr);
-                } else {
-                    warn!("Connector: client is not connected id={}", msg.client_id);
-                }
-            }
-        } else {
-            warn!("Connector: not started");
-        }
-    }
-
-    // -----
-    // private methods.
+    // ---
 
     fn send_message(&self, msg: &Message, socket: &UdpSocket, to_addr: &SocketAddr) {
         match msg.to_msg() {

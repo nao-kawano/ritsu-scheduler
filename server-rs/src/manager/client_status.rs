@@ -87,4 +87,7 @@ impl ClientStatus {
             *depend_value = false;
         }
     }
+
+    // -----
+    // private methods.
 }

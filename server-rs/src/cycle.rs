@@ -65,4 +65,7 @@ impl CycleGenerator {
             warn!("CycleGen: not started");
         }
     }
+
+    // -----
+    // private methods.
 }

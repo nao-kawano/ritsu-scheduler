@@ -119,6 +119,9 @@ impl ManagerProc for ManagerProcStarting {
 }
 
 impl ManagerProcStarting {
+    // -----
+    // private methods.
+
     fn going_to_exit(&self, context: &mut ManagerContext) -> Vec<Message> {
         let mut responses: Vec<Message> = Vec::new();
         // send "ERROR" to ready clients.
