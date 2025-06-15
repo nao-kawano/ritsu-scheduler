@@ -48,18 +48,12 @@ impl ClientConnector {
         );
 
         // clear connected clients.
-        {
-            let mut clients = self.clients.lock().unwrap();
-            clients.clear();
-        }
+        self.clients.lock().unwrap().clear();
 
         // setup socket.
-        let s = match ClientConnector::create_socket(self.port) {
-            Ok(socket) => socket,
-            Err(e) => {
-                error!("ClientConnector: Failed to create socket: {:?}", e);
-                return false;
-            }
+        let Ok(s) = ClientConnector::create_socket(self.port) else {
+            error!("ClientConnector: Failed to create socket");
+            return false;
         };
         self.socket = Some(s.try_clone().unwrap());
 
