@@ -48,11 +48,10 @@ impl ClientConnector {
 
     fn thread_receiver_process_udp_msg(
         src_addr: SocketAddr,
-        recv_buf: &[u8],
+        recv_msg: &str,
         clients: &Mutex<HashMap<u16, SocketAddr>>,
         tx_channel: &Sender<Event>,
     ) {
-        let recv_msg = std::str::from_utf8(recv_buf).unwrap(); // todo: error handling.
         // convert packet to message.
         let recv_msg = Message::from_msg(recv_msg);
         if let Ok(msg) = recv_msg {
@@ -87,15 +86,19 @@ impl ClientConnector {
             }
             // wait client w/ timeout for checking stop request.
             match socket.recv_from(&mut recv_buf) {
-                Ok((buf_size, src_addr)) => {
-                    let recv_buf = &recv_buf[..buf_size];
-                    ClientConnector::thread_receiver_process_udp_msg(
-                        src_addr,
-                        recv_buf,
-                        clients.as_ref(),
-                        &tx_channel,
-                    );
-                }
+                Ok((buf_size, src_addr)) => match str::from_utf8(&recv_buf[..buf_size]) {
+                    Ok(recv_msg) => {
+                        ClientConnector::thread_receiver_process_udp_msg(
+                            src_addr,
+                            recv_msg,
+                            clients.as_ref(),
+                            &tx_channel,
+                        );
+                    }
+                    Err(e) => {
+                        warn!("Connector: invalid UTF-8 from {}, {:?}", src_addr, e);
+                    }
+                },
                 Err(e) => {
                     if e.kind() == std::io::ErrorKind::TimedOut {
                         // keep going.
@@ -160,14 +163,32 @@ impl ClientConnector {
             let clients = self.clients.lock().unwrap();
             for msg in msgs {
                 if let Some(to_addr) = clients.get(&msg.client_id) {
-                    let udpmsg = msg.to_msg().unwrap(); // todo: error handling.
-                    _ = socket.send_to(udpmsg.as_bytes(), to_addr);
+                    self.send_message(&msg, socket, to_addr);
                 } else {
                     warn!("Connector: client is not connected id={}", msg.client_id);
                 }
             }
         } else {
             warn!("Connector: not started");
+        }
+    }
+
+    // -----
+    // private methods.
+
+    fn send_message(&self, msg: &Message, socket: &UdpSocket, to_addr: &SocketAddr) {
+        match msg.to_msg() {
+            Ok(udpmsg) => {
+                if let Err(e) = socket.send_to(udpmsg.as_bytes(), to_addr) {
+                    error!("Failed to send to {}: {:?}", to_addr, e);
+                }
+            }
+            Err(e) => {
+                error!(
+                    "Failed to serialize message for client {}: {:?}",
+                    msg.client_id, e
+                );
+            }
         }
     }
 }
