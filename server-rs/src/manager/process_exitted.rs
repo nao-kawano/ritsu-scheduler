@@ -12,12 +12,17 @@ use super::EventResult;
 use super::context::ManagerContext;
 use super::process::ManagerProc;
 
+#[cfg(test)]
+#[path = "process_exitted_test.rs"]
+mod process_exitted_test;
+
+/* -------------------------------------------------------------------------- */
+
 const LOG_TAG: &str = "StateExitted";
 
 pub struct ManagerProcExitted;
 impl ManagerProc for ManagerProcExitted {
-
-    fn enter_state(&self, context: &mut ManagerContext) {
+    fn enter_state(&self, _context: &mut ManagerContext) {
         trace!("{}: enter_state", LOG_TAG);
     }
 
