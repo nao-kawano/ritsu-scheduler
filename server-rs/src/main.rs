@@ -39,18 +39,12 @@ fn load_sample_config() -> SchedulerConfig {
         port: 7878,
         cycle_time: 1000,
     };
+    #[rustfmt::skip]
     let client_configs = vec![
         ClientConfig::new(0, TriggerType::Cycle(1), 0).unwrap(),
         ClientConfig::new(1, TriggerType::Depends { clients: vec![0] }, 0).unwrap(),
         ClientConfig::new(2, TriggerType::Depends { clients: vec![0] }, 0).unwrap(),
-        ClientConfig::new(
-            3,
-            TriggerType::Depends {
-                clients: vec![1, 2],
-            },
-            0,
-        )
-        .unwrap(),
+        ClientConfig::new(3, TriggerType::Depends { clients: vec![1, 2] }, 0).unwrap(),
         ClientConfig::new(5, TriggerType::Cycle(2), 1).unwrap(),
     ];
     SchedulerConfig {
