@@ -18,7 +18,12 @@ fn test_manager_context_new() {
     assert_eq!(context.clients.len(), 2);
     assert_eq!(context.num_active_clients, 0);
     assert_eq!(context.cycle_current, 0);
-    assert_eq!(context.cycle_max, 20); // 2 * 10
+    assert_eq!(context.graph_start.len(), 1);
+    assert_eq!(context.graph_start.contains(&0), true);
+    assert_eq!(context.graph_forward.len(), 1);
+    assert_eq!(context.graph_forward.contains_key(&0), true);
+    assert_eq!(context.graph_forward.get(&0).unwrap().len(), 1);
+    assert_eq!(context.graph_forward.get(&0).unwrap().contains(&1), true);
 }
 
 #[test]
@@ -64,19 +69,30 @@ fn test_manager_context_new_no_cycle_trigger() {
 }
 
 #[test]
-fn test_create_client_status() {
+fn test_create_graph() {
     // Given
+    #[rustfmt::skip]
     let configs = vec![
         ClientConfig::new(0, TriggerType::Cycle(1), 0).unwrap(),
         ClientConfig::new(1, TriggerType::Depends { clients: vec![0] }, 0).unwrap(),
+        ClientConfig::new(2, TriggerType::Depends { clients: vec![0] }, 0).unwrap(),
+        ClientConfig::new(3, TriggerType::Depends { clients: vec![1, 2] }, 0).unwrap(),
+        ClientConfig::new(5, TriggerType::Cycle(2), 1).unwrap(),
     ];
 
     // When
-    let (clients, cycle_max) = ManagerContext::create_client_status(configs);
+    let (graph_start, graph_forward) = ManagerContext::create_graph(&configs);
 
     // Then
-    assert_eq!(clients.len(), 2);
-    assert_eq!(cycle_max, 10);
-    assert!(clients.contains_key(&0));
-    assert!(clients.contains_key(&1));
+    assert_eq!(graph_start.len(), 2);
+    assert_eq!(graph_start.contains(&0), true);
+    assert_eq!(graph_start.contains(&5), true);
+    assert_eq!(graph_forward.len(), 3);
+    assert_eq!(graph_forward.get(&0).unwrap().len(), 2);
+    assert_eq!(graph_forward.get(&0).unwrap().contains(&1), true);
+    assert_eq!(graph_forward.get(&0).unwrap().contains(&2), true);
+    assert_eq!(graph_forward.get(&1).unwrap().len(), 1);
+    assert_eq!(graph_forward.get(&1).unwrap().contains(&3), true);
+    assert_eq!(graph_forward.get(&2).unwrap().len(), 1);
+    assert_eq!(graph_forward.get(&2).unwrap().contains(&3), true);
 }

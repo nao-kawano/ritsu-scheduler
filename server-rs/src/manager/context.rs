@@ -7,7 +7,8 @@ extern crate log;
 use log::{debug, error, info, trace, warn};
 
 use std::cmp::max;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
+use std::process::id;
 
 use super::ManagerState;
 use super::client_status::ClientStatus;
@@ -24,20 +25,29 @@ pub struct ManagerContext {
     pub state_changed: bool,
     pub clients: HashMap<u16, ClientStatus>,
     pub num_active_clients: usize,
-    cycle_current: u32,
-    cycle_max: u32,
+    cycle_current: u32, // 0..CYCLE_MAX
+    // dependency graph.
+    pub graph_start: HashSet<u16>,
+    pub graph_forward: HashMap<u16, HashSet<u16>>,
 }
 
 impl ManagerContext {
+    const CYCLE_MAX: u32 = 9999; // must be odd value for wrap-around.
+
     pub fn new(configs: Vec<ClientConfig>) -> Self {
-        let (clients, cycle_max) = ManagerContext::create_client_status(configs);
+        let (graph_start, graph_forward) = ManagerContext::create_graph(&configs);
+        let clients: HashMap<u16, ClientStatus> = configs
+            .into_iter()
+            .map(|config| (config.client_id, ClientStatus::new(config)))
+            .collect();
         ManagerContext {
             state: ManagerState::Starting,
             state_changed: false,
             clients,
             num_active_clients: 0,
             cycle_current: 0,
-            cycle_max,
+            graph_start,
+            graph_forward,
         }
     }
 
@@ -53,30 +63,43 @@ impl ManagerContext {
     // -----
     // private methods.
 
-    fn create_client_status(configs: Vec<ClientConfig>) -> (HashMap<u16, ClientStatus>, u32) {
-        // at least one client config must be provided.
+    fn create_graph(configs: &Vec<ClientConfig>) -> (HashSet<u16>, HashMap<u16, HashSet<u16>>) {
+        // at least one client must be provided.
         if configs.len() < 1 {
             panic!("client config is empty");
         }
-        // at least one client has a trigger=Cycle.
-        if !configs
+        // build id list for verify.
+        let id_list: HashSet<u16> = HashSet::from_iter(configs.iter().map(|c| c.client_id));
+        // find start points.
+        let mut start_points: HashSet<u16> = HashSet::new();
+        for config in configs
             .iter()
-            .any(|c| matches!(c.trigger_type, TriggerType::Cycle(_)))
+            .filter(|c| matches!(c.trigger_type, TriggerType::Cycle(_)))
         {
+            start_points.insert(config.client_id);
+        }
+        // - verify that at least one start point is exist.
+        if start_points.len() < 1 {
             panic!("client config has no trigger=Cycle");
         }
-        // create status.
-        let mut clients: HashMap<u16, ClientStatus> = HashMap::with_capacity(configs.len());
-        let mut cycle_max: u32 = 0;
+        // create forward dependency by reverse.
+        let mut forward_dependencies: HashMap<u16, HashSet<u16>> = HashMap::new();
         for config in configs {
-            if let TriggerType::Cycle(c) = config.trigger_type {
-                let cmax = c as u32 * 10; // with mergin.
-                cycle_max = max(cycle_max, cmax);
+            if let TriggerType::Depends { clients } = &config.trigger_type {
+                for client in clients {
+                    // - verify that dependent client exists.
+                    if !id_list.contains(client) {
+                        panic!("dependent client {} does not exist", client);
+                    }
+                    // add forward dependency.
+                    forward_dependencies
+                        .entry(*client)
+                        .or_insert(HashSet::new())
+                        .insert(config.client_id);
+                }
             }
-            clients.insert(config.client_id, ClientStatus::new(config));
         }
-        // TODO: verify that depend id is exist.
-        // TODO: verify that dependencies are initiated by a cycle trigger.
-        return (clients, cycle_max);
+        // ok.
+        return (start_points, forward_dependencies);
     }
 }
