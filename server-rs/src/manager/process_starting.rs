@@ -89,60 +89,11 @@ impl ManagerProc for ManagerProcStarting {
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
         trace!("{}: on_client_exit id={}", LOG_TAG, message.client_id);
-        let mut responses: Vec<Message> = Vec::new();
-        // update client state.
-        if let Some(client) = context.clients.get_mut(&message.client_id) {
-            if client.state != ClientState::None {
-                debug!("{}: client {} is exitted", LOG_TAG, message.client_id);
-                client.set_client_state(ClientState::None);
-                context.num_active_clients -= 1;
-                responses.push(Message::new(MessageType::Ok, message.client_id, None).unwrap());
-            } else {
-                warn!(
-                    "{}: client {} is already disconnected, dropped.",
-                    LOG_TAG, message.client_id
-                );
-            }
-        }
-        // send "ERROR" to ready clients for exit.
-        let responses2 = self.going_to_exit(context);
-        responses.extend(responses2);
-        //
-        Ok(responses)
+        return self.handle_client_exit(context, message);
     }
 
     fn on_shutdown(&self, context: &mut ManagerContext) -> EventResult {
         trace!("{}: on_shutdown", LOG_TAG);
-        let responses = self.going_to_exit(context);
-        return Ok(responses);
-    }
-}
-
-impl ManagerProcStarting {
-    // -----
-    // private methods.
-
-    fn going_to_exit(&self, context: &mut ManagerContext) -> Vec<Message> {
-        let mut responses: Vec<Message> = Vec::new();
-        // send "ERROR" to ready clients.
-        if context.num_active_clients == 0 {
-            debug!("no clients connected, go to exitted");
-            context.set_state(ManagerState::Exitted);
-        } else {
-            debug!(
-                "{} clients connected, go to exitting",
-                context.num_active_clients
-            );
-            for client in context.clients.values_mut() {
-                if client.state == ClientState::Ready {
-                    responses.push(
-                        Message::new(MessageType::Error, client.config.client_id, None).unwrap(),
-                    );
-                    client.set_client_state(ClientState::Exitting);
-                }
-            }
-            context.set_state(ManagerState::Exitting);
-        }
-        return responses;
+        return self.handle_shutdown(context);
     }
 }
