@@ -61,6 +61,29 @@ fn test_is_depends_ok() {
 }
 
 #[test]
+fn test_update_depend() {
+    let config = ClientConfig::new(
+        2,
+        TriggerType::Depends {
+            clients: vec![1, 3],
+        },
+        0,
+    )
+    .unwrap();
+    let mut status = ClientStatus::new(config);
+    assert_eq!(status.is_depends_ok(), false);
+
+    status.update_depend(1);
+    assert_eq!(status.is_depends_ok(), false);
+
+    status.update_depend(2);
+    assert_eq!(status.is_depends_ok(), false);
+
+    status.update_depend(3);
+    assert_eq!(status.is_depends_ok(), true);
+}
+
+#[test]
 fn test_clear_depends() {
     let config = ClientConfig::new(
         2,

@@ -81,6 +81,13 @@ impl ClientStatus {
         return is_ready;
     }
 
+    /// Update the dependency.
+    pub fn update_depend(&mut self, client_id: u16) {
+        if let Some(depend_value) = self.depends_on.get_mut(&client_id) {
+            *depend_value = true;
+        }
+    }
+
     /// Clear the dependency status.
     pub fn clear_depends(&mut self) {
         for depend_value in self.depends_on.values_mut() {
