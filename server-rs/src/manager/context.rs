@@ -6,9 +6,7 @@ extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use std::cmp::max;
 use std::collections::{HashMap, HashSet};
-use std::process::id;
 
 use super::ManagerState;
 use super::client_status::ClientStatus;
@@ -25,14 +23,14 @@ pub struct ManagerContext {
     pub state_changed: bool,
     pub clients: HashMap<u16, ClientStatus>,
     pub num_active_clients: usize,
-    cycle_current: u32, // 0..CYCLE_MAX
+    pub cycle_current: u32, // 0..CYCLE_MAX
     // dependency graph.
     pub graph_start: HashSet<u16>,
     pub graph_forward: HashMap<u16, HashSet<u16>>,
 }
 
 impl ManagerContext {
-    const CYCLE_MAX: u32 = 9999; // must be odd value for wrap-around.
+    pub const CYCLE_MAX: u32 = 9999; // must be odd value for wrap-around.
 
     pub fn new(configs: Vec<ClientConfig>) -> Self {
         let (graph_start, graph_forward) = ManagerContext::create_graph(&configs);
