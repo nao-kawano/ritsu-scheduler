@@ -110,7 +110,7 @@ impl ManagerProc for ManagerProcExitting {
         Ok(responses)
     }
 
-    fn on_shutdown(&self, context: &mut ManagerContext) -> EventResult {
+    fn on_shutdown(&self, _context: &mut ManagerContext) -> EventResult {
         trace!("{}: on_shutdown", LOG_TAG);
         // keep going.
         Ok(vec![])
