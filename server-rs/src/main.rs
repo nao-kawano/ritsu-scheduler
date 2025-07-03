@@ -11,6 +11,7 @@ use log::{debug, error, info, trace, warn};
 mod client_connector;
 mod config;
 mod cycle;
+mod pgraph;
 mod manager;
 
 use std::io::Write;
