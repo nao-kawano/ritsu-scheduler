@@ -20,7 +20,9 @@ mod entry_test;
 pub enum ProcessState {
     Ready,
     Running,
+    Overrun,
     Idle,
+    Skip,
 }
 
 /// Represents the process.
@@ -67,10 +69,20 @@ impl ProcessEntry {
             },
             ProcessState::Running => match new_state {
                 ProcessState::Idle => true,
+                ProcessState::Overrun => true,
+                _ => false,
+            },
+            ProcessState::Overrun => match new_state {
+                ProcessState::Idle => true,
                 _ => false,
             },
             ProcessState::Idle => match new_state {
                 ProcessState::Ready => true,
+                ProcessState::Skip => true,
+                _ => false,
+            },
+            ProcessState::Skip => match new_state {
+                ProcessState::Idle => true,
                 _ => false,
             },
         };
@@ -100,10 +112,18 @@ impl ProcessEntry {
     }
 
     /// Update the dependency status.
-    pub fn update_depend(&mut self, pid: u16) {
+    pub fn update_depend(&mut self, pid: u16) -> bool {
         if let Some(depend_value) = self.depends_on.get_mut(&pid) {
-            trace!("{}: pid {:3}, update depend {}", LOG_TAG, self.pid, pid);
-            *depend_value = true;
+            if *depend_value {
+                warn!("{}: pid {:3}, already updated {:3}", LOG_TAG, self.pid, pid);
+                return false;
+            } else {
+                trace!("{}: pid {:3}, update depend {:3}", LOG_TAG, self.pid, pid);
+                *depend_value = true;
+                return true;
+            }
+        } else {
+            return false;
         }
     }
 
