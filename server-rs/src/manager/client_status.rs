@@ -6,7 +6,7 @@ extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use crate::config::{ClientConfig, TriggerType};
+use crate::config::ClientConfig;
 use std::collections::HashMap;
 
 #[cfg(test)]
@@ -45,13 +45,7 @@ pub struct ClientStatus {
 impl ClientStatus {
     /// Constructor.
     pub fn new(config: ClientConfig) -> Self {
-        // If the `TriggerType` is `Depends`, initialize the dependency status.
-        let mut depends_on: HashMap<u16, bool> = HashMap::new();
-        if let TriggerType::Depends { clients } = &&config.trigger_type {
-            for client in clients {
-                depends_on.insert(*client, false);
-            }
-        }
+        let depends_on: HashMap<u16, bool> = config.depends.iter().map(|client| (*client, false)).collect();
         ClientStatus {
             config,
             state: ClientState::None,

@@ -362,10 +362,8 @@ impl ProcessGraph {
         }
         // find start points.
         let mut start_points: HashSet<u16> = HashSet::new();
-        for entry in entries.values() {
-            if !entry.has_depends() {
-                start_points.insert(entry.pid);
-            }
+        for entry in entries.values().filter(|e| !e.is_floating) {
+            start_points.insert(entry.pid);
         }
         // - verify that at least one start point is exist.
         if start_points.len() < 1 {

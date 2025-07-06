@@ -3,11 +3,11 @@ use super::*;
 
 fn create_entries() -> HashMap<u16, ProcessEntry> {
     let mut entries: HashMap<u16, ProcessEntry> = HashMap::new();
-    entries.insert(0, ProcessEntry::new(0, &vec![]));
-    entries.insert(1, ProcessEntry::new(1, &vec![]));
-    entries.insert(10, ProcessEntry::new(10, &vec![0]));
-    entries.insert(11, ProcessEntry::new(11, &vec![0, 1]));
-    entries.insert(20, ProcessEntry::new(20, &vec![10, 11]));
+    entries.insert(0, ProcessEntry::new(0, &vec![], false));
+    entries.insert(1, ProcessEntry::new(1, &vec![], false));
+    entries.insert(10, ProcessEntry::new(10, &vec![0], true));
+    entries.insert(11, ProcessEntry::new(11, &vec![0, 1], true));
+    entries.insert(20, ProcessEntry::new(20, &vec![10, 11], false));
     entries
 }
 
@@ -22,7 +22,7 @@ fn test_new() {
 
     // check result.
     assert_eq!(graph.entries.len(), 5);
-    assert_eq!(graph.graph_start.len(), 2);
+    assert_eq!(graph.graph_start.len(), 3);
     assert_eq!(graph.graph_start.contains(&0), true);
     assert_eq!(graph.graph_start.contains(&1), true);
     assert_eq!(graph.graph_forward.len(), 4);

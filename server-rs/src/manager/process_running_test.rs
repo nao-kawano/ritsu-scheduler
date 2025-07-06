@@ -6,36 +6,17 @@ use crate::config::*;
 use std::collections::HashMap;
 
 fn create_context_simple() -> ManagerContext {
-    #[rustfmt::skip]
     let mut ctx = ManagerContext::new(vec![
-        ClientConfig::new(0, TriggerType::Cycle(1), 0).unwrap(),
-        ClientConfig::new(1, TriggerType::Cycle(3), 0).unwrap(),
-        ClientConfig::new(2, TriggerType::Cycle(3), 1).unwrap(),
-        ClientConfig::new(3, TriggerType::Cycle(3), 2).unwrap(),
-        ClientConfig::new(10, TriggerType::Depends { clients: vec![2] }, 0).unwrap(),
+        ClientConfig::new(0, 1, 0, vec![]).unwrap(),
+        ClientConfig::new(1, 3, 0, vec![]).unwrap(),
+        ClientConfig::new(2, 3, 1, vec![]).unwrap(),
+        ClientConfig::new(3, 3, 2, vec![]).unwrap(),
+        ClientConfig::new(10, 3, 1, vec![2]).unwrap(),
     ]);
     ctx.state = ManagerState::Running;
     ctx.num_active_clients = ctx.clients.len();
     return ctx;
 }
-
-/*
-fn create_context_complex() -> ManagerContext {
-    #[rustfmt::skip]
-    let mut ctx = ManagerContext::new(vec![
-        ClientConfig::new(0, TriggerType::Cycle(1), 0).unwrap(),
-        ClientConfig::new(1, TriggerType::Cycle(2), 1).unwrap(),
-        ClientConfig::new(2, TriggerType::Cycle(2), 0).unwrap(),
-        ClientConfig::new(3, TriggerType::Cycle(2), 0).unwrap(),
-        ClientConfig::new(10, TriggerType::Depends { clients: vec![2] }, 0).unwrap(),
-        ClientConfig::new(11, TriggerType::Depends { clients: vec![2, 3] }, 0).unwrap(),
-        ClientConfig::new(20, TriggerType::Depends { clients: vec![10, 11] }, 0).unwrap(),
-    ]);
-    ctx.state = ManagerState::Running;
-    ctx.num_active_clients = ctx.clients.len();
-    return ctx;
-}
-*/
 
 #[test]
 fn test_enter_state() {

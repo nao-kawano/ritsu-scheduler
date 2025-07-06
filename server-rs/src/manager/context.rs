@@ -10,7 +10,7 @@ use std::collections::{HashMap, HashSet};
 
 use super::ManagerState;
 use super::client_status::ClientStatus;
-use crate::config::{ClientConfig, TriggerType};
+use crate::config::ClientConfig;
 
 #[cfg(test)]
 #[path = "context_test.rs"]
@@ -67,33 +67,47 @@ impl ManagerContext {
             panic!("client config is empty");
         }
         // build id list for verify.
-        let id_list: HashSet<u16> = HashSet::from_iter(configs.iter().map(|c| c.client_id));
+        let config_map: HashMap<u16, &ClientConfig> =
+            configs.iter().map(|c| (c.client_id, c)).collect();
         // find start points.
         let mut start_points: HashSet<u16> = HashSet::new();
-        for config in configs
-            .iter()
-            .filter(|c| matches!(c.trigger_type, TriggerType::Cycle(_)))
-        {
+        for config in configs.iter().filter(|c| c.depends.len() == 0) {
             start_points.insert(config.client_id);
         }
         // - verify that at least one start point is exist.
         if start_points.len() < 1 {
-            panic!("client config has no trigger=Cycle");
+            panic!("client config has no start point");
         }
         // create forward dependency by reverse.
         let mut forward_dependencies: HashMap<u16, HashSet<u16>> = HashMap::new();
         for config in configs {
-            if let TriggerType::Depends { clients } = &config.trigger_type {
-                for client in clients {
+            if config.depends.len() > 0 {
+                let mut is_cyclic = true;
+                for depend in &config.depends {
                     // - verify that dependent client exists.
-                    if !id_list.contains(client) {
-                        panic!("dependent client {} does not exist", client);
+                    let Some(dependent_config) = config_map.get(depend) else {
+                        panic!("dependent client {} does not exist", depend);
+                    };
+                    // - verify that dependent client has same cycle.
+                    if dependent_config.cycle != config.cycle {
+                        panic!(
+                            "dependent client {} has different cycle {}",
+                            depend, config.cycle
+                        );
+                    }
+                    // check if it is floating.
+                    if dependent_config.cycle_offset == config.cycle_offset {
+                        is_cyclic = false;
                     }
                     // add forward dependency.
                     forward_dependencies
-                        .entry(*client)
+                        .entry(*depend)
                         .or_insert(HashSet::new())
                         .insert(config.client_id);
+                }
+                // add to start_points if it is cyclic with dependency.
+                if is_cyclic {
+                    start_points.insert(config.client_id);
                 }
             }
         }

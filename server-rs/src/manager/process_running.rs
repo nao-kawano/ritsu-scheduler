@@ -12,7 +12,7 @@ use super::EventResult;
 use super::client_status::ClientState;
 use super::context::ManagerContext;
 use super::process::ManagerProc;
-use crate::config::{ClientConfig, TriggerType};
+use crate::config::ClientConfig;
 
 #[cfg(test)]
 #[path = "process_running_test.rs"]
@@ -117,13 +117,9 @@ impl ManagerProcRunning {
     }
 
     fn is_target_cycle(&self, cycle: u32, config: &ClientConfig) -> bool {
-        if let TriggerType::Cycle(target_cycle) = config.trigger_type {
-            let target_cycle = target_cycle as u32;
-            let target_cycle_offset = config.cycle_offset as u32;
-            return cycle % target_cycle == target_cycle_offset;
-        } else {
-            return false;
-        }
+        let target_cycle = config.cycle as u32;
+        let target_cycle_offset = config.cycle_offset as u32;
+        return cycle % target_cycle == target_cycle_offset;
     }
 
     fn notify_start(

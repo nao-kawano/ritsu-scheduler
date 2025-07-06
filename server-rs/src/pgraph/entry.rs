@@ -31,13 +31,15 @@ pub struct ProcessEntry {
     pub(super) pid: u16,
     pub(super) state: ProcessState,
     pub(super) depends_on: HashMap<u16, bool>,
+    pub(super) is_floating: bool,
 }
 
 impl ProcessEntry {
-    pub fn new(pid: u16, dependency: &Vec<u16>) -> Self {
+    pub fn new(pid: u16, dependency: &Vec<u16>, is_floating: bool) -> Self {
         let dependency: HashMap<u16, bool> = dependency.iter().map(|x| (*x, false)).collect();
         ProcessEntry {
             pid,
+            is_floating,
             state: ProcessState::Idle,
             depends_on: dependency,
         }
@@ -52,6 +54,11 @@ impl ProcessEntry {
     /// Get the id of the process.
     pub fn get_pid(&self) -> u16 {
         self.pid
+    }
+
+    /// Get the floating or not.
+    pub fn is_floating(&self) -> bool {
+        self.is_floating
     }
 
     /// Get the state of the process.

@@ -4,24 +4,26 @@ use super::*;
 #[test]
 fn test_new() {
     // cycle trigger.
-    let entry = ProcessEntry::new(1, &vec![]);
+    let entry = ProcessEntry::new(1, &vec![], false);
     assert_eq!(entry.pid, 1);
     assert_eq!(entry.state, ProcessState::Idle);
     assert_eq!(entry.depends_on.len(), 0);
+    assert_eq!(entry.is_floating, false);
 
     // depends trigger.
-    let entry = ProcessEntry::new(2, &vec![1, 3]);
+    let entry = ProcessEntry::new(2, &vec![1, 3], true);
     assert_eq!(entry.pid, 2);
     assert_eq!(entry.state, ProcessState::Idle);
     assert_eq!(entry.depends_on.len(), 2);
     assert_eq!(entry.depends_on.get(&0), None);
     assert_eq!(entry.depends_on.get(&1), Some(&false));
     assert_eq!(entry.depends_on.get(&3), Some(&false));
+    assert_eq!(entry.is_floating, true);
 }
 
 #[test]
 fn test_set_state() {
-    let mut entry = ProcessEntry::new(1, &vec![]);
+    let mut entry = ProcessEntry::new(1, &vec![], false);
     assert_eq!(entry.state, ProcessState::Idle);
 
     assert!(entry.set_state(ProcessState::Ready));
@@ -32,22 +34,22 @@ fn test_set_state() {
 #[test]
 fn test_has_depends() {
     // cycle trigger.
-    let entry = ProcessEntry::new(1, &vec![]);
+    let entry = ProcessEntry::new(1, &vec![], false);
     assert_eq!(entry.has_depends(), false);
 
     // depends trigger.
-    let entry = ProcessEntry::new(2, &vec![1, 3]);
+    let entry = ProcessEntry::new(2, &vec![1, 3], true);
     assert_eq!(entry.has_depends(), true);
 }
 
 #[test]
 fn test_is_depends_ok() {
     // cycle trigger.
-    let entry = ProcessEntry::new(1, &vec![]);
+    let entry = ProcessEntry::new(1, &vec![], false);
     assert_eq!(entry.is_depends_ok(), true);
 
     // depends trigger.
-    let mut entry = ProcessEntry::new(2, &vec![1, 3]);
+    let mut entry = ProcessEntry::new(2, &vec![1, 3], true);
     assert_eq!(entry.is_depends_ok(), false);
 
     entry.depends_on.insert(1, true);
@@ -60,12 +62,12 @@ fn test_is_depends_ok() {
 #[test]
 fn test_update_depend() {
     // cycle trigger.
-    let mut entry = ProcessEntry::new(1, &vec![]);
+    let mut entry = ProcessEntry::new(1, &vec![], false);
     entry.update_depend(3); // no effect.
     assert_eq!(entry.is_depends_ok(), true);
 
     // depends trigger.
-    let mut entry = ProcessEntry::new(2, &vec![1, 3]);
+    let mut entry = ProcessEntry::new(2, &vec![1, 3], true);
     assert_eq!(entry.is_depends_ok(), false);
 
     entry.update_depend(1);
@@ -81,12 +83,12 @@ fn test_update_depend() {
 #[test]
 fn test_clear_depends() {
     // cycle trigger.
-    let mut entry = ProcessEntry::new(1, &vec![]);
+    let mut entry = ProcessEntry::new(1, &vec![], false);
     entry.clear_depends(); // no effect.
     assert_eq!(entry.is_depends_ok(), true);
 
     // depends trigger.
-    let mut entry = ProcessEntry::new(2, &vec![1, 3]);
+    let mut entry = ProcessEntry::new(2, &vec![1, 3], true);
     entry.depends_on.insert(1, true);
     entry.depends_on.insert(3, true);
     assert_eq!(entry.is_depends_ok(), true);
