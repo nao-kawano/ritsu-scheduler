@@ -23,6 +23,7 @@ pub enum ProcessState {
     Overrun,
     Idle,
     Skip,
+    SkipPrev, // skipped previous due to dependency unmet, and also skip current cycle.
 }
 
 /// Represents the process.
@@ -70,8 +71,9 @@ impl ProcessEntry {
     pub fn set_state(&mut self, new_state: ProcessState) -> bool {
         let ok_to_change = match self.state {
             ProcessState::Ready => match new_state {
-                ProcessState::Idle => true,
                 ProcessState::Running => true,
+                ProcessState::Skip => true,
+                ProcessState::SkipPrev => true,
                 _ => false,
             },
             ProcessState::Running => match new_state {
@@ -80,16 +82,20 @@ impl ProcessEntry {
                 _ => false,
             },
             ProcessState::Overrun => match new_state {
-                ProcessState::Idle => true,
+                ProcessState::SkipPrev => true,
                 _ => false,
             },
             ProcessState::Idle => match new_state {
                 ProcessState::Ready => true,
-                ProcessState::Skip => true,
+                ProcessState::SkipPrev => true,
                 _ => false,
             },
             ProcessState::Skip => match new_state {
-                ProcessState::Idle => true,
+                ProcessState::Ready => true,
+                _ => false,
+            },
+            ProcessState::SkipPrev => match new_state {
+                ProcessState::Skip => true,
                 _ => false,
             },
         };

@@ -67,9 +67,101 @@ impl ProcessGraph {
         if !self.graph_start.contains(&pid) {
             return Err(format!("process {:3} does not exist", pid));
         }
-        // start target.
-        // if target is still running, mark as overrun and propagate skip to after processes.
-        let changes = self.try_start(pid);
+        // check if dependency is met.
+        if let Some(entry) = self.entries.get_mut(&pid) {
+            if !entry.is_depends_ok() {
+                info!(
+                    "{}: pid {:3} has dependency unmet, skip start",
+                    LOG_TAG, pid
+                );
+                return Ok(vec![]);
+            }
+        }
+        // check if all process is in Ready.
+        let forwards =
+            ProcessGraph::find_forward_all(pid, true, &self.entries, &self.graph_forward);
+        let is_not_ready = forwards.iter().any(|pid| {
+            self.entries
+                .get(pid)
+                .map_or(true, |entry| entry.state != ProcessState::Ready)
+        });
+        // if found not-ready, update to Skip.
+        let mut changes = Vec::new();
+        if is_not_ready {
+            let mut forwards_set: HashSet<u16> = forwards.iter().cloned().collect();
+            let running_forwards: Vec<u16> = forwards
+                .iter()
+                .filter(|pid| self.entries[pid].state == ProcessState::Running)
+                .copied()
+                .collect();
+            // mark as Overrun and afters set to SkipPrev.
+            for running_pid in running_forwards {
+                // set target to Overrun.
+                if let Some(entry) = self.entries.get_mut(&running_pid) {
+                    let mut change: ProcessStateChange = ProcessStateChange::new(&entry);
+                    if entry.set_state(ProcessState::Overrun) {
+                        change.after = ProcessState::Overrun;
+                        changes.push(change);
+                    }
+                    // remove updated.
+                    forwards_set.remove(&running_pid);
+                }
+                // set afters to SkipPrev.
+                let skip_forwards = ProcessGraph::find_forward_all(
+                    running_pid,
+                    false,
+                    &self.entries,
+                    &self.graph_forward,
+                );
+                for skip_pid in skip_forwards {
+                    if let Some(entry) = self.entries.get_mut(&skip_pid) {
+                        let mut change: ProcessStateChange = ProcessStateChange::new(&entry);
+                        if entry.set_state(ProcessState::SkipPrev) {
+                            entry.clear_depends();
+                            change.after = ProcessState::SkipPrev;
+                            changes.push(change);
+                        }
+                        // remove updated.
+                        forwards_set.remove(&skip_pid);
+                    }
+                }
+            }
+            // All other (done) processes set to Skip.
+            for skip_pid in forwards_set {
+                // set target to Skip.
+                if let Some(entry) = self.entries.get_mut(&skip_pid) {
+                    let mut change: ProcessStateChange = ProcessStateChange::new(&entry);
+                    match entry.state {
+                        ProcessState::Idle => {
+                            entry.set_state(ProcessState::SkipPrev);
+                            change.after = ProcessState::SkipPrev;
+                            changes.push(change);
+                        }
+                        ProcessState::Ready => {
+                            entry.set_state(ProcessState::Skip);
+                            change.after = ProcessState::Skip;
+                            changes.push(change);
+                        }
+                        _ => {
+                            warn!(
+                                "{}: ignore skip for process {:3} in {:?}",
+                                LOG_TAG, entry.pid, entry.state
+                            );
+                        }
+                    };
+                }
+            }
+        } else {
+            if let Some(entry) = self.entries.get_mut(&pid) {
+                // dependency cleared, start target.
+                let mut change: ProcessStateChange = ProcessStateChange::new(&entry);
+                if entry.set_state(ProcessState::Running) {
+                    entry.clear_depends();
+                    change.after = ProcessState::Running;
+                    changes.push(change);
+                }
+            }
+        }
         //
         if changes.len() > 0 {
             Ok(changes)
@@ -87,13 +179,33 @@ impl ProcessGraph {
             return Err(format!("process {:3} does not exist", pid));
         }
         // set target to ready.
-        // if target is in skip, set to idle to re-send ready.
+        // if target is in skip, send Skip to retry.
         let mut changes: Vec<ProcessStateChange> = Vec::new();
         if let Some(entry) = self.entries.get_mut(&pid) {
-            let change = ProcessGraph::apply_ready(entry);
-            if let Some(c) = change {
-                changes.push(c);
-            }
+            let mut change = ProcessStateChange::new(entry);
+            match entry.state {
+                ProcessState::Idle => {
+                    entry.set_state(ProcessState::Ready);
+                    change.after = ProcessState::Ready;
+                    changes.push(change);
+                }
+                ProcessState::Skip => {
+                    entry.set_state(ProcessState::Ready);
+                    change.after = ProcessState::Ready;
+                    changes.push(change);
+                }
+                ProcessState::SkipPrev => {
+                    entry.set_state(ProcessState::Skip);
+                    change.after = ProcessState::Skip;
+                    changes.push(change);
+                }
+                _ => {
+                    warn!(
+                        "{}: ignore ready for process {:3} in {:?}",
+                        LOG_TAG, entry.pid, entry.state
+                    );
+                }
+            };
         }
         //
         if changes.len() > 0 {
@@ -113,47 +225,60 @@ impl ProcessGraph {
         let mut changes: Vec<ProcessStateChange> = Vec::new();
         let mut skipped = false;
         if let Some(entry) = self.entries.get_mut(&pid) {
-            let change = ProcessGraph::apply_done(entry);
-            if let Some(c) = change {
-                if c.before == ProcessState::Overrun {
-                    skipped = true;
-                    info!("{}: {:3} done in overrun", LOG_TAG, pid);
+            let mut change = ProcessStateChange::new(entry);
+            match entry.state {
+                ProcessState::Running => {
+                    entry.set_state(ProcessState::Idle);
+                    change.after = ProcessState::Idle;
+                    changes.push(change);
                 }
-                changes.push(c);
-            }
+                ProcessState::Overrun => {
+                    entry.set_state(ProcessState::SkipPrev);
+                    change.after = ProcessState::SkipPrev;
+                    changes.push(change);
+                    skipped = true;
+                }
+                _ => {
+                    warn!(
+                        "{}: ignore done for process {:3} in {:?}",
+                        LOG_TAG, entry.pid, entry.state
+                    );
+                }
+            };
         }
         // start afters.
         if changes.len() > 0 && !skipped {
             if let Some(afters) = self.graph_forward.get(&pid).cloned() {
-                // update depends first for guard propagate.
+                // update depends first.
                 trace!("{}: update after processes for pid {:3}", LOG_TAG, pid);
                 for pid_after in &afters {
                     if let Some(entry) = self.entries.get_mut(pid_after) {
-                        let updated = entry.update_depend(pid);
-                        if !updated {
-                            changes.extend(self.skip_all_depends(*pid_after));
-                        }
+                        let _ = entry.update_depend(pid);
                     }
                 }
-                // start or skip.
+                // start.
                 trace!("{}: start after processes for pid {:3}", LOG_TAG, pid);
                 for pid_after in &afters {
                     if let Some(entry) = self.entries.get_mut(pid_after) {
-                        if entry.is_depends_ok() {
-                            // cleared all dependency, try to start.
-                            // if target is still running, mark as overrun and propagate skip to after processes.
-                            trace!("{}: starting pid {:3}", LOG_TAG, *pid_after);
-                            let changes2 = self.try_start(*pid_after);
-                            if changes2.len() > 0 {
-                                changes.extend(changes2);
-                            } else {
-                                return Err(format!(
-                                    "process {:3} likely the second skip has occurred.",
-                                    *pid_after
-                                ));
-                            }
-                        } else {
+                        if !entry.is_depends_ok() {
                             // wait for the remaining dependent processes to complete.
+                        } else {
+                            if !entry.is_floating {
+                                trace!(
+                                    "{}: dependency met, waiting for next cycle {:3}",
+                                    LOG_TAG, pid_after
+                                );
+                            } else {
+                                // dependency cleared, start.
+                                trace!("{}: starting pid {:3}", LOG_TAG, *pid_after);
+                                let mut change: ProcessStateChange =
+                                    ProcessStateChange::new(&entry);
+                                if entry.set_state(ProcessState::Running) {
+                                    entry.clear_depends();
+                                    change.after = ProcessState::Running;
+                                    changes.push(change);
+                                }
+                            }
                         }
                     }
                 }
@@ -169,189 +294,6 @@ impl ProcessGraph {
 
     // -----
     // private methods.
-
-    pub fn try_start(&mut self, pid_target: u16) -> Vec<ProcessStateChange> {
-        let mut changes: Vec<ProcessStateChange> = Vec::new();
-        // update target.
-        if let Some(entry) = self.entries.get_mut(&pid_target) {
-            let mut change: ProcessStateChange = ProcessStateChange::new(entry);
-            match entry.state {
-                ProcessState::Ready => {
-                    entry.clear_depends();
-                    entry.set_state(ProcessState::Running);
-                    change.after = ProcessState::Running;
-                    changes.push(change);
-                }
-                ProcessState::Running | ProcessState::Idle => {
-                    info!("{}: detected pid {:3} skipped", LOG_TAG, pid_target);
-                    // not ready or running, propagate Skip.
-                    changes.extend(self.skip_all_depends(pid_target));
-                }
-                _ => {
-                    warn!(
-                        "{}: ignore start for pid {:3} in {:?}",
-                        LOG_TAG, pid_target, entry.state
-                    );
-                }
-            };
-        }
-        changes
-    }
-
-    fn skip_all_depends(&mut self, pid_target: u16) -> Vec<ProcessStateChange> {
-        trace!("{}: skip all depends for pid {:3}", LOG_TAG, pid_target);
-        let mut changes: Vec<ProcessStateChange> = Vec::new();
-        let mut visited: HashSet<u16> = HashSet::new();
-        // update target.
-        if let Some(entry) = self.entries.get_mut(&pid_target) {
-            let change = ProcessGraph::apply_skip(entry);
-            if let Some(change) = change {
-                changes.push(change);
-                visited.insert(pid_target);
-            } else {
-                return changes; // second skip, empty changes.
-            }
-        }
-        // propagate skip.
-        if changes.len() > 0 {
-            let mut neighbors: Vec<u16> = Vec::new();
-            // push initial targets.
-            // subsequent processes must be skipped due to unexecuted state.
-            if let Some(entry) = self.graph_forward.get(&pid_target) {
-                neighbors.extend(entry);
-            }
-            // add befores
-            if let Some(entry) = self.entries.get(&pid_target) {
-                neighbors.extend(
-                    entry
-                        .depends_on
-                        .iter()
-                        .filter(|(_, completed)| !*completed)
-                        .map(|(pid, _)| *pid),
-                );
-            }
-            trace!("{}: initial propagate {:?}", LOG_TAG, neighbors);
-            // propagate.
-            while let Some(neighbor) = neighbors.pop() {
-                // pre-check.
-                if visited.contains(&neighbor) {
-                    trace!("{}: already propagated {:?}", LOG_TAG, neighbor);
-                    continue;
-                } else {
-                    trace!("{}: propagating {:?}", LOG_TAG, neighbor);
-                    visited.insert(neighbor);
-                }
-                // propagate.
-                // set target to skip and obtains incompleted befores.
-                if let Some(entry) = self.entries.get_mut(&neighbor) {
-                    let change = ProcessGraph::apply_skip(entry);
-                    if let Some(change) = change {
-                        changes.push(change);
-                    }
-                    // add new neighbors.
-                    neighbors.extend(
-                        entry
-                            .depends_on
-                            .iter()
-                            .filter(|(_, completed)| !*completed)
-                            .map(|(pid, _)| *pid),
-                    );
-                    if let Some(entry) = self.graph_forward.get(&neighbor) {
-                        neighbors.extend(entry);
-                    }
-                }
-                trace!("{}: > new propagate {:?}", LOG_TAG, neighbors);
-                trace!("{}: > new skipped   {:?}", LOG_TAG, visited);
-            }
-        }
-        changes
-    }
-
-    fn apply_ready(entry: &mut ProcessEntry) -> Option<ProcessStateChange> {
-        let mut change: Option<ProcessStateChange> = None;
-        // update state.
-        {
-            let mut c: ProcessStateChange = ProcessStateChange::new(entry);
-            match entry.state {
-                ProcessState::Idle => {
-                    entry.set_state(ProcessState::Ready);
-                    c.after = ProcessState::Ready;
-                    change = Some(c);
-                }
-                ProcessState::Skip => {
-                    entry.set_state(ProcessState::Idle);
-                    c.after = ProcessState::Idle;
-                    change = Some(c);
-                }
-                _ => {
-                    warn!(
-                        "{}: ignore ready for process {:3} in {:?}",
-                        LOG_TAG, entry.pid, entry.state
-                    );
-                }
-            };
-        }
-        change
-    }
-
-    fn apply_done(entry: &mut ProcessEntry) -> Option<ProcessStateChange> {
-        let mut change: Option<ProcessStateChange> = None;
-        // update state.
-        {
-            let mut c: ProcessStateChange = ProcessStateChange::new(entry);
-            match entry.state {
-                ProcessState::Running => {
-                    entry.set_state(ProcessState::Idle);
-                    c.after = ProcessState::Idle;
-                    change = Some(c);
-                }
-                ProcessState::Overrun => {
-                    entry.set_state(ProcessState::Idle);
-                    c.after = ProcessState::Idle;
-                    change = Some(c);
-                }
-                _ => {
-                    warn!(
-                        "{}: ignore done for process {:3} in {:?}",
-                        LOG_TAG, entry.pid, entry.state
-                    );
-                }
-            };
-        }
-        change
-    }
-
-    fn apply_skip(entry: &mut ProcessEntry) -> Option<ProcessStateChange> {
-        let mut change: Option<ProcessStateChange> = None;
-        // update state.
-        {
-            let mut c: ProcessStateChange = ProcessStateChange::new(entry);
-            match entry.state {
-                ProcessState::Ready => {
-                    entry.set_state(ProcessState::Idle);
-                    c.after = ProcessState::Idle;
-                    change = Some(c);
-                }
-                ProcessState::Running => {
-                    entry.set_state(ProcessState::Overrun);
-                    c.after = ProcessState::Overrun;
-                    change = Some(c);
-                }
-                ProcessState::Idle => {
-                    entry.set_state(ProcessState::Skip);
-                    c.after = ProcessState::Skip;
-                    change = Some(c);
-                }
-                _ => {
-                    warn!(
-                        "{}: ignore skip for process {:3} in {:?}",
-                        LOG_TAG, entry.pid, entry.state
-                    );
-                }
-            }
-        }
-        change
-    }
 
     fn create_graph(
         entries: &HashMap<u16, ProcessEntry>,
@@ -386,5 +328,58 @@ impl ProcessGraph {
         }
         // ok.
         return (start_points, forward_dependencies);
+    }
+
+    fn find_forward(
+        pid: u16,
+        include_self: bool,
+        entries: &HashMap<u16, ProcessEntry>,
+        forward_dependencies: &HashMap<u16, HashSet<u16>>,
+        same_cycle_only: bool,
+    ) -> Vec<u16> {
+        let mut forwards: HashSet<u16> = HashSet::with_capacity(entries.len());
+        let mut targets: Vec<u16> = Vec::new();
+
+        // setup initial.
+        targets.push(pid);
+        if include_self {
+            forwards.insert(pid);
+        }
+
+        // find forwards.
+        while let Some(target) = targets.pop() {
+            if let Some(target_forwards) = forward_dependencies.get(&target) {
+                for &forward in target_forwards {
+                    if same_cycle_only && !entries.get(&forward).unwrap().is_floating {
+                        // stop searching when found the non-floating processes.
+                        continue;
+                    }
+                    if !forwards.contains(&forward) {
+                        forwards.insert(forward);
+                        targets.push(forward);
+                    }
+                }
+            }
+        }
+
+        return forwards.into_iter().collect();
+    }
+
+    fn find_forward_all(
+        pid: u16,
+        include_self: bool,
+        entries: &HashMap<u16, ProcessEntry>,
+        forward_dependencies: &HashMap<u16, HashSet<u16>>,
+    ) -> Vec<u16> {
+        return ProcessGraph::find_forward(pid, include_self, entries, forward_dependencies, false);
+    }
+
+    fn find_forward_same_cycle(
+        pid: u16,
+        include_self: bool,
+        entries: &HashMap<u16, ProcessEntry>,
+        forward_dependencies: &HashMap<u16, HashSet<u16>>,
+    ) -> Vec<u16> {
+        return ProcessGraph::find_forward(pid, include_self, entries, forward_dependencies, true);
     }
 }
