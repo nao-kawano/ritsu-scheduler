@@ -374,6 +374,7 @@ impl ProcessGraph {
         return ProcessGraph::find_forward(pid, include_self, entries, forward_dependencies, false);
     }
 
+    #[allow(dead_code)]
     fn find_forward_same_cycle(
         pid: u16,
         include_self: bool,

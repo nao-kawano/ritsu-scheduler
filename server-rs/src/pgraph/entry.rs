@@ -53,16 +53,19 @@ impl ProcessEntry {
     }
 
     /// Get the id of the process.
+    #[allow(dead_code)]
     pub fn get_pid(&self) -> u16 {
         self.pid
     }
 
     /// Get the floating or not.
+    #[allow(dead_code)]
     pub fn is_floating(&self) -> bool {
         self.is_floating
     }
 
     /// Get the state of the process.
+    #[allow(dead_code)]
     pub fn get_state(&self) -> ProcessState {
         self.state
     }
@@ -115,6 +118,7 @@ impl ProcessEntry {
     }
 
     /// Check if process has dependency.
+    #[allow(dead_code)]
     pub fn has_depends(&self) -> bool {
         self.depends_on.len() > 0
     }
