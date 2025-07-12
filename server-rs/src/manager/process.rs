@@ -10,8 +10,7 @@ use dps_message::{Message, MessageType};
 
 use super::EventResult;
 use super::ManagerState;
-use super::client_status::ClientState;
-use super::context::ManagerContext;
+use super::context::{ClientState, ManagerContext};
 
 pub trait ManagerProc {
     fn enter_state(&self, context: &mut ManagerContext);
@@ -34,7 +33,9 @@ pub trait ManagerProc {
             _ => return Ok(vec![]),
         }
         // check client state.
-        let client = context.clients.get_mut(&message.client_id).unwrap();
+        let Some(client) = context.clients.get_mut(&message.client_id) else {
+            return Err(format!("client {} does not exist", message.client_id));
+        };
         if client.state == ClientState::None {
             warn!(
                 "client {} is already disconnected, dropped.",
@@ -76,12 +77,17 @@ pub trait ManagerProc {
                 "{} clients connected, go to exitting",
                 context.num_active_clients
             );
-            for client in context.clients.values_mut() {
-                if client.state == ClientState::Ready {
-                    responses.push(
-                        Message::new(MessageType::Error, client.config.client_id, None).unwrap(),
-                    );
-                    client.set_client_state(ClientState::Exitting);
+            let ready_clients: Vec<u16> = context.graph.get_ready_processes();
+            for ready_client in ready_clients {
+                if let Some(client) = context.clients.get_mut(&ready_client) {
+                    // exclude already exitted clients.
+                    if client.state != ClientState::None {
+                        responses.push(
+                            Message::new(MessageType::Error, client.config.client_id, None)
+                                .unwrap(),
+                        );
+                        client.set_client_state(ClientState::Exitting);
+                    }
                 }
             }
             context.set_state(ManagerState::Exitting);

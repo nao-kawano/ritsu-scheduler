@@ -10,8 +10,8 @@ fn create_context() -> ManagerContext {
     ]);
     ctx.state = ManagerState::Exitting;
     ctx.clients.get_mut(&0).unwrap().state = ClientState::Exitting;
-    ctx.clients.get_mut(&1).unwrap().state = ClientState::Idle;
-    ctx.clients.get_mut(&2).unwrap().state = ClientState::Running { cycle: 1 };
+    ctx.clients.get_mut(&1).unwrap().state = ClientState::Active;
+    ctx.clients.get_mut(&2).unwrap().state = ClientState::Active;
     ctx.num_active_clients = 3;
     return ctx;
 }
@@ -32,11 +32,8 @@ fn test_enter_state() {
     assert_eq!(ctx.state, ManagerState::Exitting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exitting);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Idle);
-    assert_eq!(
-        ctx.clients.get(&2).unwrap().state,
-        ClientState::Running { cycle: 1 }
-    );
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
     assert_eq!(ctx.num_active_clients, 3);
 }
 
@@ -57,11 +54,8 @@ fn test_on_cycle_start() {
     assert_eq!(ctx.state, ManagerState::Exitting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exitting);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Idle);
-    assert_eq!(
-        ctx.clients.get(&2).unwrap().state,
-        ClientState::Running { cycle: 1 }
-    );
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
     assert_eq!(ctx.num_active_clients, 3);
 }
 
@@ -103,10 +97,7 @@ fn test_on_client_ready() {
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exitting);
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Exitting);
-    assert_eq!(
-        ctx.clients.get(&2).unwrap().state,
-        ClientState::Running { cycle: 1 }
-    );
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
     assert_eq!(ctx.num_active_clients, 3);
 }
 
@@ -130,7 +121,7 @@ fn test_on_client_done() {
     assert_eq!(ctx.state, ManagerState::Exitting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exitting);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Idle);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
     assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exitting);
     assert_eq!(ctx.num_active_clients, 3);
 }
@@ -155,11 +146,8 @@ fn test_on_client_exit() {
     assert_eq!(ctx.state, ManagerState::Exitting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::None);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Idle);
-    assert_eq!(
-        ctx.clients.get(&2).unwrap().state,
-        ClientState::Running { cycle: 1 }
-    );
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
     assert_eq!(ctx.num_active_clients, 2);
 }
 
@@ -208,10 +196,7 @@ fn test_on_shutdown() {
     assert_eq!(ctx.state, ManagerState::Exitting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exitting);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Idle);
-    assert_eq!(
-        ctx.clients.get(&2).unwrap().state,
-        ClientState::Running { cycle: 1 }
-    );
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
     assert_eq!(ctx.num_active_clients, 3);
 }

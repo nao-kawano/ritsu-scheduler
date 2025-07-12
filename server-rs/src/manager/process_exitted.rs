@@ -5,6 +5,7 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+const LOG_TAG: &str = "StateExitted";
 
 use dps_message::Message;
 
@@ -17,8 +18,6 @@ use super::process::ManagerProc;
 mod process_exitted_test;
 
 /* -------------------------------------------------------------------------- */
-
-const LOG_TAG: &str = "StateExitted";
 
 pub struct ManagerProcExitted;
 impl ManagerProc for ManagerProcExitted {

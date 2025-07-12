@@ -5,13 +5,13 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+const LOG_TAG: &str = "StateExitting";
 
 use dps_message::{Message, MessageType};
 
 use super::EventResult;
 use super::ManagerState;
-use super::client_status::ClientState;
-use super::context::ManagerContext;
+use super::context::{ClientState, ManagerContext};
 use super::process::ManagerProc;
 
 #[cfg(test)]
@@ -19,8 +19,6 @@ use super::process::ManagerProc;
 mod process_exitting_test;
 
 /* -------------------------------------------------------------------------- */
-
-const LOG_TAG: &str = "StateExitting";
 
 pub struct ManagerProcExitting;
 impl ManagerProc for ManagerProcExitting {
@@ -43,7 +41,7 @@ impl ManagerProc for ManagerProcExitting {
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.client_id) {
-            if client.state == ClientState::Idle {
+            if client.state != ClientState::None {
                 info!(
                     "{}: send error to client {} ready",
                     LOG_TAG, message.client_id
@@ -52,7 +50,7 @@ impl ManagerProc for ManagerProcExitting {
                 responses.push(Message::new(MessageType::Error, message.client_id, None).unwrap());
             } else {
                 warn!(
-                    "{}: client {} is not in Idle, dropped.",
+                    "{}: client {} is disconnected, dropped.",
                     LOG_TAG, message.client_id
                 );
             }
@@ -65,22 +63,18 @@ impl ManagerProc for ManagerProcExitting {
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.client_id) {
-            match client.state {
-                ClientState::Running { .. } => {
-                    info!(
-                        "{}: send error to client {} done",
-                        LOG_TAG, message.client_id
-                    );
-                    client.set_client_state(ClientState::Exitting);
-                    responses
-                        .push(Message::new(MessageType::Error, message.client_id, None).unwrap());
-                }
-                _ => {
-                    warn!(
-                        "{}: client {} is not in Running, dropped.",
-                        LOG_TAG, message.client_id
-                    );
-                }
+            if client.state != ClientState::None {
+                info!(
+                    "{}: send error to client {} done",
+                    LOG_TAG, message.client_id
+                );
+                client.set_client_state(ClientState::Exitting);
+                responses.push(Message::new(MessageType::Error, message.client_id, None).unwrap());
+            } else {
+                warn!(
+                    "{}: client {} is disconnected, dropped.",
+                    LOG_TAG, message.client_id
+                );
             }
         }
         Ok(responses)

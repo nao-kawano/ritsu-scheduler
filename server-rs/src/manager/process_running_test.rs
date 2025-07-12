@@ -2,12 +2,13 @@
 use super::*;
 use crate::ManagerState;
 use crate::config::*;
+use crate::manager::context::ClientState;
 
 use std::collections::HashMap;
 
 fn create_context_simple() -> ManagerContext {
     let mut ctx = ManagerContext::new(vec![
-        ClientConfig::new(0, 1, 0, vec![]).unwrap(),
+        ClientConfig::new(0, 3, 0, vec![]).unwrap(),
         ClientConfig::new(1, 3, 0, vec![]).unwrap(),
         ClientConfig::new(2, 3, 1, vec![]).unwrap(),
         ClientConfig::new(3, 3, 2, vec![]).unwrap(),
@@ -15,6 +16,11 @@ fn create_context_simple() -> ManagerContext {
     ]);
     ctx.state = ManagerState::Running;
     ctx.num_active_clients = ctx.clients.len();
+    ctx.clients.get_mut(&0).unwrap().state = ClientState::Active;
+    ctx.clients.get_mut(&1).unwrap().state = ClientState::Active;
+    ctx.clients.get_mut(&2).unwrap().state = ClientState::Active;
+    ctx.clients.get_mut(&3).unwrap().state = ClientState::Active;
+    ctx.clients.get_mut(&10).unwrap().state = ClientState::Active;
     return ctx;
 }
 
@@ -43,101 +49,80 @@ fn test_on_cycle_start_simple() {
 
     // setup condition.
     ctx.cycle_current = ManagerContext::CYCLE_MAX;
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Ready; // ok to run.
-    ctx.clients.get_mut(&1).unwrap().state = ClientState::Ready; // ok to run.
-    ctx.clients.get_mut(&2).unwrap().state = ClientState::Ready; // ok to run.
-    ctx.clients.get_mut(&3).unwrap().state = ClientState::Ready; // ok to run.
-    ctx.clients.get_mut(&10).unwrap().state = ClientState::Ready; // ok to run.
+    let _ = ctx.graph.on_ready(0);
+    let _ = ctx.graph.on_ready(1);
+    let _ = ctx.graph.on_ready(2);
+    let _ = ctx.graph.on_ready(3);
+    let _ = ctx.graph.on_ready(10);
 
     // send event: cycle=0
     let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
-    let result_map: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
     // check result.
     assert_eq!(result.len(), 2);
-    assert_eq!(result_map.get(&0).unwrap().message_type, MessageType::Ok);
-    assert_eq!(result_map.get(&1).unwrap().message_type, MessageType::Ok);
+    assert_eq!(rmap.get(&0).unwrap().message_type, MessageType::Ok);
+    assert_eq!(rmap.get(&1).unwrap().message_type, MessageType::Ok);
     assert_eq!(ctx.state, ManagerState::Running);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(
-        ctx.clients.get(&0).unwrap().state,
-        ClientState::Running { cycle: 0 }
-    );
-    assert_eq!(
-        ctx.clients.get(&1).unwrap().state,
-        ClientState::Running { cycle: 0 }
-    );
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Ready);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Ready);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
 
     // send event: cycle=1
     let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
-    let result_map: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
     // check result.
     assert_eq!(result.len(), 1);
-    assert_eq!(result_map.get(&2).unwrap().message_type, MessageType::Ok);
+    assert_eq!(rmap.get(&2).unwrap().message_type, MessageType::Ok);
     assert_eq!(ctx.state, ManagerState::Running);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(
-        ctx.clients.get(&0).unwrap().state,
-        ClientState::Running { cycle: 0 }
-    );
-    assert_eq!(
-        ctx.clients.get(&1).unwrap().state,
-        ClientState::Running { cycle: 0 }
-    );
-    assert_eq!(
-        ctx.clients.get(&2).unwrap().state,
-        ClientState::Running { cycle: 1 }
-    );
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Ready);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
 
     // send event: cycle=2
     let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
-    let result_map: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
     // check result.
     assert_eq!(result.len(), 1);
-    assert_eq!(result_map.get(&3).unwrap().message_type, MessageType::Ok);
+    assert_eq!(rmap.get(&3).unwrap().message_type, MessageType::Ok);
     assert_eq!(ctx.state, ManagerState::Running);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(
-        ctx.clients.get(&0).unwrap().state,
-        ClientState::Running { cycle: 0 }
-    );
-    assert_eq!(
-        ctx.clients.get(&1).unwrap().state,
-        ClientState::Running { cycle: 0 }
-    );
-    assert_eq!(
-        ctx.clients.get(&2).unwrap().state,
-        ClientState::Running { cycle: 1 }
-    );
-    assert_eq!(
-        ctx.clients.get(&3).unwrap().state,
-        ClientState::Running { cycle: 2 }
-    );
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
 
-    // send event: cycle=3, all client still running.
+    // send event: cycle=3, client 10 skipped, all other clients still running.
     let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
     // check result.
     assert_eq!(result.len(), 0);
     assert_eq!(ctx.state, ManagerState::Running);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(
-        ctx.clients.get(&0).unwrap().state,
-        ClientState::Running { cycle: 0 }
-    );
-    assert_eq!(
-        ctx.clients.get(&1).unwrap().state,
-        ClientState::Running { cycle: 0 }
-    );
-    assert_eq!(
-        ctx.clients.get(&2).unwrap().state,
-        ClientState::Running { cycle: 1 }
-    );
-    assert_eq!(
-        ctx.clients.get(&3).unwrap().state,
-        ClientState::Running { cycle: 2 }
-    );
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
+
+    // send event: cycle=4, client 10 skipped, all other clients still running.
+    let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
+    // check result.
+    assert_eq!(result.len(), 1);
+    assert_eq!(rmap.get(&10).unwrap().message_type, MessageType::Skip);
+    assert_eq!(ctx.state, ManagerState::Running);
+    assert_eq!(ctx.state_changed, false);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
 }
 
 #[test]
@@ -165,11 +150,6 @@ fn test_on_client_ready_simple() {
 
     // setup condition.
     ctx.cycle_current = 0;
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Ready; // ok to run.
-    ctx.clients.get_mut(&1).unwrap().state = ClientState::Idle; // waiting ready.
-    ctx.clients.get_mut(&2).unwrap().state = ClientState::Idle; // ok to run.
-    ctx.clients.get_mut(&3).unwrap().state = ClientState::Idle; // ok to run.
-    ctx.clients.get_mut(&10).unwrap().state = ClientState::Idle; // ok to run.
 
     // send event.
     let m = Message::new(MessageType::Ready, 0, None).unwrap();
@@ -177,23 +157,13 @@ fn test_on_client_ready_simple() {
 
     // check result.
     assert_eq!(result.len(), 0);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Ready);
-
-    // send event.
-    let m = Message::new(MessageType::Ready, 1, None).unwrap();
-    let result = proc.on_client_ready(&mut ctx, &m).unwrap();
-    let result_map: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
-
-    // check result.
-    assert_eq!(result.len(), 1);
-    assert_eq!(result_map.get(&1).unwrap().message_type, MessageType::Ok);
     assert_eq!(ctx.state, ManagerState::Running);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Ready);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Ready);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Idle);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Idle);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Idle);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
 }
 
 #[test]
@@ -203,31 +173,30 @@ fn test_on_client_done_simple() {
     let proc = ManagerProcRunning;
 
     // setup condition.
-    ctx.cycle_current = 0;
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Ready; // ok to run.
-    ctx.clients.get_mut(&1).unwrap().state = ClientState::Ready; // ok to run.
-    ctx.clients.get_mut(&2).unwrap().state = ClientState::Running { cycle: 0 }; // running.
-    ctx.clients.get_mut(&3).unwrap().state = ClientState::Ready; // ok to run.
-    ctx.clients.get_mut(&10).unwrap().state = ClientState::Ready; // ok to run.
+    ctx.cycle_current = 1;
+    let _ = ctx.graph.on_ready(0);
+    let _ = ctx.graph.on_ready(1);
+    let _ = ctx.graph.on_ready(2);
+    let _ = ctx.graph.on_ready(3);
+    let _ = ctx.graph.on_ready(10);
+    let _ = ctx.graph.on_start(2);
 
     // send event.
     let m = Message::new(MessageType::Done, 2, None).unwrap();
     let result = proc.on_client_done(&mut ctx, &m).unwrap();
-    let result_map: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
+
     // check result.
     assert_eq!(result.len(), 2);
-    assert_eq!(result_map.get(&2).unwrap().message_type, MessageType::Ok);
-    assert_eq!(result_map.get(&10).unwrap().message_type, MessageType::Ok);
+    assert_eq!(rmap.get(&2).unwrap().message_type, MessageType::Ok);
+    assert_eq!(rmap.get(&10).unwrap().message_type, MessageType::Ok);
     assert_eq!(ctx.state, ManagerState::Running);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Ready);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Ready);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Idle);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Ready);
-    assert_eq!(
-        ctx.clients.get(&10).unwrap().state,
-        ClientState::Running { cycle: 0 }
-    );
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
 }
 
 #[test]
@@ -237,33 +206,26 @@ fn test_on_client_exit() {
     let proc = ManagerProcRunning;
 
     // setup condition.
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Idle;
-    ctx.clients.get_mut(&1).unwrap().state = ClientState::Running { cycle: 0 };
-    ctx.clients.get_mut(&2).unwrap().state = ClientState::Ready;
-    ctx.clients.get_mut(&3).unwrap().state = ClientState::Ready;
-    ctx.clients.get_mut(&10).unwrap().state = ClientState::Ready;
+    let _ = ctx.graph.on_start(1);
+    let _ = ctx.graph.on_ready(2);
+    let _ = ctx.graph.on_ready(3);
+    let _ = ctx.graph.on_ready(10);
 
     // send event.
     let m = Message::new(MessageType::Exit, 0, None).unwrap();
     let result = proc.on_client_exit(&mut ctx, &m).unwrap();
-    let result_map: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
 
     // check result.
     assert_eq!(result.len(), 4);
-    assert_eq!(result_map.get(&0).unwrap().message_type, MessageType::Ok);
-    assert_eq!(result_map.get(&2).unwrap().message_type, MessageType::Error);
-    assert_eq!(result_map.get(&3).unwrap().message_type, MessageType::Error);
-    assert_eq!(
-        result_map.get(&10).unwrap().message_type,
-        MessageType::Error
-    );
+    assert_eq!(rmap.get(&0).unwrap().message_type, MessageType::Ok);
+    assert_eq!(rmap.get(&2).unwrap().message_type, MessageType::Error);
+    assert_eq!(rmap.get(&3).unwrap().message_type, MessageType::Error);
+    assert_eq!(rmap.get(&10).unwrap().message_type, MessageType::Error);
     assert_eq!(ctx.state, ManagerState::Exitting);
     assert_eq!(ctx.state_changed, true);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::None);
-    assert_eq!(
-        ctx.clients.get(&1).unwrap().state,
-        ClientState::Running { cycle: 0 }
-    );
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
     assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exitting);
     assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Exitting);
     assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Exitting);
@@ -277,32 +239,24 @@ fn test_on_shutdown() {
     let proc = ManagerProcRunning;
 
     // setup condition.
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Idle;
-    ctx.clients.get_mut(&1).unwrap().state = ClientState::Idle;
-    ctx.clients.get_mut(&2).unwrap().state = ClientState::Running { cycle: 0 };
-    ctx.clients.get_mut(&3).unwrap().state = ClientState::Ready;
-    ctx.clients.get_mut(&10).unwrap().state = ClientState::Ready;
+    let _ = ctx.graph.on_ready(2);
+    let _ = ctx.graph.on_start(3);
+    let _ = ctx.graph.on_ready(10);
 
     // send event.
     let result = proc.on_shutdown(&mut ctx).unwrap();
-    let result_map: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.client_id, m)).collect();
 
     // check result.
     assert_eq!(result.len(), 2);
-    assert_eq!(result_map.get(&3).unwrap().message_type, MessageType::Error);
-    assert_eq!(
-        result_map.get(&10).unwrap().message_type,
-        MessageType::Error
-    );
+    assert_eq!(rmap.get(&2).unwrap().message_type, MessageType::Error);
+    assert_eq!(rmap.get(&10).unwrap().message_type, MessageType::Error);
     assert_eq!(ctx.state, ManagerState::Exitting);
     assert_eq!(ctx.state_changed, true);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Idle);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Idle);
-    assert_eq!(
-        ctx.clients.get(&2).unwrap().state,
-        ClientState::Running { cycle: 0 }
-    );
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Exitting);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exitting);
+    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
     assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Exitting);
     assert_eq!(ctx.num_active_clients, 5);
 }

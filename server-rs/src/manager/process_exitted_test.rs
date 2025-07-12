@@ -2,7 +2,8 @@
 use super::*;
 use crate::config::*;
 use crate::manager::ManagerState;
-use crate::manager::client_status::ClientState;
+use crate::manager::context::{ClientState, ManagerContext};
+
 use dps_message::{Message, MessageType};
 
 fn create_context() -> ManagerContext {

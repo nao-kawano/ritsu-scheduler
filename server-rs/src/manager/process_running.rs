@@ -9,10 +9,11 @@ use log::{debug, error, info, trace, warn};
 use dps_message::{Message, MessageType};
 
 use super::EventResult;
-use super::client_status::ClientState;
 use super::context::ManagerContext;
 use super::process::ManagerProc;
 use crate::config::ClientConfig;
+use crate::pgraph::ProcessStateChange;
+use crate::pgraph::entry::ProcessState;
 
 #[cfg(test)]
 #[path = "process_running_test.rs"]
@@ -33,18 +34,36 @@ impl ManagerProc for ManagerProcRunning {
         let cycle = self.update_cycle(context);
         trace!("{}: on_cycle_start {:4}", LOG_TAG, cycle);
         let mut responses: Vec<Message> = Vec::new();
-        // check and start trigger=cycle clients.
+        // update state: check and start trigger=cycle clients.
+        let mut changes: Vec<ProcessStateChange> = Vec::new();
         for client_id in &context.graph_start {
             let client = context.clients.get_mut(client_id).unwrap();
-            // check cycle.
             if self.is_target_cycle(context.cycle_current, &client.config) {
-                // check state.
-                if client.state == ClientState::Ready {
-                    // start.
-                    client.set_client_state(ClientState::Running { cycle });
-                    responses.push(Message::new(MessageType::Ok, *client_id, None).unwrap());
+                let r = context.graph.on_start(*client_id);
+                if let Ok(cs) = r {
+                    changes.extend(cs);
                 } else {
-                    // TODO: still running, skip this cycle and notify all dependent clients.
+                    return Err(r.unwrap_err());
+                }
+            }
+        }
+        // convert changes to response.
+        for change in changes {
+            match change.after {
+                ProcessState::Running => {
+                    responses.push(Message::new(MessageType::Ok, change.pid, None).unwrap());
+                }
+                ProcessState::Overrun => { /* keep going */ }
+                ProcessState::Skip => {
+                    responses.push(Message::new(MessageType::Skip, change.pid, None).unwrap());
+                }
+                ProcessState::SkipPrev => {
+                    if change.before == ProcessState::Ready {
+                        responses.push(Message::new(MessageType::Skip, change.pid, None).unwrap());
+                    }
+                }
+                _ => {
+                    warn!("{}: invalid state change by start {:?}", LOG_TAG, change);
                 }
             }
         }
@@ -59,16 +78,21 @@ impl ManagerProc for ManagerProcRunning {
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
         trace!("{}: on_client_ready id={}", LOG_TAG, message.client_id);
         let mut responses: Vec<Message> = Vec::new();
-        if let Some(client) = context.clients.get_mut(&message.client_id) {
-            if client.state == ClientState::Idle {
-                // TODO: check skip state.
-                client.set_client_state(ClientState::Ready);
-                responses.push(Message::new(MessageType::Ok, message.client_id, None).unwrap());
-            } else {
-                warn!(
-                    "{}: client {} is not in Idle, dropped.",
-                    LOG_TAG, message.client_id
-                );
+        // update state.
+        let r = context.graph.on_ready(message.client_id);
+        let Ok(changes) = r else {
+            return Err(r.unwrap_err());
+        };
+        // convert changes to response.
+        for change in changes {
+            match change.after {
+                ProcessState::Ready => { /* keep waiting */ }
+                ProcessState::Skip => {
+                    responses.push(Message::new(MessageType::Skip, change.pid, None).unwrap());
+                }
+                _ => {
+                    warn!("{}: invalid state change by start {:?}", LOG_TAG, change);
+                }
             }
         }
         Ok(responses)
@@ -76,18 +100,28 @@ impl ManagerProc for ManagerProcRunning {
 
     fn on_client_done(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
         trace!("{}: on_client_done id={}", LOG_TAG, message.client_id);
-        let client = context.clients.get_mut(&message.client_id).unwrap();
         let mut responses: Vec<Message> = Vec::new();
-        if matches!(client.state, ClientState::Running { .. }) {
-            client.set_client_state(ClientState::Idle);
-            responses.push(Message::new(MessageType::Ok, message.client_id, None).unwrap());
-            // TODO: check skip state. if no in skip state,
-            self.notify_start(context, message.client_id, &mut responses);
-        } else {
-            warn!(
-                "{}: client {} is not in Running, dropped.",
-                LOG_TAG, message.client_id
-            );
+        // update state.
+        let r = context.graph.on_done(message.client_id);
+        let Ok(changes) = r else {
+            return Err(r.unwrap_err());
+        };
+        // convert changes to response.
+        for change in changes {
+            match change.after {
+                ProcessState::Idle => {
+                    responses.push(Message::new(MessageType::Ok, change.pid, None).unwrap());
+                }
+                ProcessState::SkipPrev => {
+                    responses.push(Message::new(MessageType::Ok, change.pid, None).unwrap());
+                }
+                ProcessState::Running => {
+                    responses.push(Message::new(MessageType::Ok, change.pid, None).unwrap());
+                }
+                _ => {
+                    warn!("{}: invalid state change by start {:?}", LOG_TAG, change);
+                }
+            }
         }
         Ok(responses)
     }
@@ -120,34 +154,5 @@ impl ManagerProcRunning {
         let target_cycle = config.cycle as u32;
         let target_cycle_offset = config.cycle_offset as u32;
         return cycle % target_cycle == target_cycle_offset;
-    }
-
-    fn notify_start(
-        &self,
-        context: &mut ManagerContext,
-        trigger: u16,
-        responses: &mut Vec<Message>,
-    ) {
-        for next_client_id in context.graph_forward.get(&trigger).unwrap() {
-            trace!("checking {} can start", next_client_id);
-            // update dependency.
-            let next_client = context.clients.get_mut(next_client_id).unwrap();
-            next_client.update_depend(trigger);
-            // check dependency.
-            if next_client.is_depends_ok() {
-                next_client.clear_depends();
-                // check state.
-                if next_client.state == ClientState::Ready {
-                    // start.
-                    debug!("start {}", next_client_id);
-                    next_client.set_client_state(ClientState::Running {
-                        cycle: context.cycle_current,
-                    });
-                    responses.push(Message::new(MessageType::Ok, *next_client_id, None).unwrap());
-                } else {
-                    // TODO: still running, skip this cycle and notify all dependent clients.
-                }
-            }
-        }
     }
 }

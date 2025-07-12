@@ -5,12 +5,14 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+const LOG_TAG: &str = "ManagerContext";
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use super::ManagerState;
-use super::client_status::ClientStatus;
 use crate::config::ClientConfig;
+use crate::pgraph::ProcessGraph;
+use crate::pgraph::entry::ProcessEntry;
 
 #[cfg(test)]
 #[path = "context_test.rs"]
@@ -18,39 +20,130 @@ mod context_test;
 
 /* -------------------------------------------------------------------------- */
 
+/// Represents the state of a client.
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum ClientState {
+    /// Initial or Final state. Client will send `Join`.
+    None,
+    /// Client is Joined but not Ready. Client will send `Ready`.
+    Sync,
+    /// Client is Ready or Running. Controlling under ProcessGraph.
+    Active,
+    /// Client received `Error` and will send `Exit`.
+    Exitting,
+}
+
+pub struct ClientInfo {
+    pub config: ClientConfig,
+    pub state: ClientState,
+}
+
+impl ClientInfo {
+    /// Constructor.
+    pub fn new(config: ClientConfig) -> Self {
+        ClientInfo {
+            config,
+            state: ClientState::None,
+        }
+    }
+
+    /// Set the state of the client.
+    pub fn set_client_state(&mut self, state: ClientState) -> bool {
+        info!(
+            "{}: ClientState {:3} {:?} -> {:?}",
+            LOG_TAG, self.config.client_id, self.state, state
+        );
+        self.state = state;
+        return true; /* always ok */
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+
 pub struct ManagerContext {
+    // manager.
     pub state: ManagerState,
     pub state_changed: bool,
-    pub clients: HashMap<u16, ClientStatus>,
+    // for connection.
+    pub clients: HashMap<u16, ClientInfo>,
     pub num_active_clients: usize,
+    // for execution.
     pub cycle_current: u32, // 0..CYCLE_MAX
-    // dependency graph.
-    pub graph_start: HashSet<u16>,
-    pub graph_forward: HashMap<u16, HashSet<u16>>,
+    pub graph: ProcessGraph,
+    pub graph_start: Vec<u16>, // shortcut for cycle start.
 }
 
 impl ManagerContext {
     pub const CYCLE_MAX: u32 = 9999; // must be odd value for wrap-around.
 
     pub fn new(configs: Vec<ClientConfig>) -> Self {
-        let (graph_start, graph_forward) = ManagerContext::create_graph(&configs);
-        let clients: HashMap<u16, ClientStatus> = configs
+        // at least one client must be provided.
+        if configs.len() < 1 {
+            panic!("client config is empty");
+        }
+        // create clients for connection management.
+        let clients: HashMap<u16, ClientInfo> = configs
             .into_iter()
-            .map(|config| (config.client_id, ClientStatus::new(config)))
+            .map(|config| (config.client_id, ClientInfo::new(config)))
             .collect();
+        // create process entry for execution management.
+        let mut graph_start: Vec<u16> = Vec::with_capacity(clients.len());
+        let mut entries: HashMap<u16, ProcessEntry> = HashMap::with_capacity(clients.len());
+        for client in clients.values() {
+            let mut floating: bool = false;
+            // verify dependency.
+            for depend in &client.config.depends {
+                if let Some(depend_client) = clients.get(depend) {
+                    // All specified processes must have the same Cycle.
+                    if depend_client.config.cycle != client.config.cycle {
+                        panic!(
+                            "{}: ClientConfig {:3} dependent process {:3} has different cycle",
+                            LOG_TAG, client.config.client_id, depend
+                        );
+                    }
+                    // All specified processes must have same or smaller CycleOffset.
+                    if depend_client.config.cycle_offset > client.config.cycle_offset {
+                        panic!(
+                            "{}: ClientConfig {:3} dependent process {:3} has larger cycle_offset",
+                            LOG_TAG, client.config.client_id, depend
+                        );
+                    }
+                    // If the dependent process has the same cycle and cycle offset,
+                    // this process starts immediately after the dependent process completes.
+                    if depend_client.config.cycle_offset == client.config.cycle_offset {
+                        floating = true;
+                    }
+                } else {
+                    panic!(
+                        "{}: ClientConfig {:3} dependent process {:3} does not exist",
+                        LOG_TAG, client.config.client_id, depend
+                    );
+                }
+            }
+            // insert entry.
+            entries.insert(
+                client.config.client_id,
+                ProcessEntry::new(client.config.client_id, &client.config.depends, floating),
+            );
+            if !floating {
+                graph_start.push(client.config.client_id);
+            }
+        }
+        let graph: ProcessGraph = ProcessGraph::new(entries);
+        // create context.
         ManagerContext {
             state: ManagerState::Starting,
             state_changed: false,
             clients,
             num_active_clients: 0,
             cycle_current: 0,
+            graph,
             graph_start,
-            graph_forward,
         }
     }
 
     pub fn set_state(&mut self, state: ManagerState) -> bool {
-        info!("state: {:?} -> {:?}", self.state, state);
+        info!("{}: ManagerState {:?} -> {:?}", LOG_TAG, self.state, state);
         if self.state != state {
             self.state = state;
             self.state_changed = true;
@@ -60,58 +153,4 @@ impl ManagerContext {
 
     // -----
     // private methods.
-
-    fn create_graph(configs: &Vec<ClientConfig>) -> (HashSet<u16>, HashMap<u16, HashSet<u16>>) {
-        // at least one client must be provided.
-        if configs.len() < 1 {
-            panic!("client config is empty");
-        }
-        // build id list for verify.
-        let config_map: HashMap<u16, &ClientConfig> =
-            configs.iter().map(|c| (c.client_id, c)).collect();
-        // find start points.
-        let mut start_points: HashSet<u16> = HashSet::new();
-        for config in configs.iter().filter(|c| c.depends.len() == 0) {
-            start_points.insert(config.client_id);
-        }
-        // - verify that at least one start point is exist.
-        if start_points.len() < 1 {
-            panic!("client config has no start point");
-        }
-        // create forward dependency by reverse.
-        let mut forward_dependencies: HashMap<u16, HashSet<u16>> = HashMap::new();
-        for config in configs {
-            if config.depends.len() > 0 {
-                let mut is_cyclic = true;
-                for depend in &config.depends {
-                    // - verify that dependent client exists.
-                    let Some(dependent_config) = config_map.get(depend) else {
-                        panic!("dependent client {} does not exist", depend);
-                    };
-                    // - verify that dependent client has same cycle.
-                    if dependent_config.cycle != config.cycle {
-                        panic!(
-                            "dependent client {} has different cycle {}",
-                            depend, config.cycle
-                        );
-                    }
-                    // check if it is floating.
-                    if dependent_config.cycle_offset == config.cycle_offset {
-                        is_cyclic = false;
-                    }
-                    // add forward dependency.
-                    forward_dependencies
-                        .entry(*depend)
-                        .or_insert(HashSet::new())
-                        .insert(config.client_id);
-                }
-                // add to start_points if it is cyclic with dependency.
-                if is_cyclic {
-                    start_points.insert(config.client_id);
-                }
-            }
-        }
-        // ok.
-        return (start_points, forward_dependencies);
-    }
 }

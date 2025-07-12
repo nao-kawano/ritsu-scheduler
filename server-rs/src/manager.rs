@@ -2,7 +2,6 @@
 //! Handles event and control clients.
 //!
 
-mod client_status;
 mod context;
 mod process;
 mod process_exitted;

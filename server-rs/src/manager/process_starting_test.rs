@@ -40,7 +40,7 @@ fn test_on_cycle_start() {
     let proc = ManagerProcStarting;
 
     // setup condition.
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Idle;
+    ctx.clients.get_mut(&0).unwrap().state = ClientState::Sync;
     ctx.num_active_clients = 1;
 
     // send event.
@@ -50,7 +50,7 @@ fn test_on_cycle_start() {
     assert_eq!(result.len(), 0);
     assert_eq!(ctx.state, ManagerState::Starting);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Idle);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Sync);
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::None);
     assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::None);
     assert_eq!(ctx.num_active_clients, 1);
@@ -63,7 +63,7 @@ fn test_on_client_join() {
     let proc = ManagerProcStarting;
 
     // setup condition.
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Idle;
+    ctx.clients.get_mut(&0).unwrap().state = ClientState::Sync;
     ctx.num_active_clients = 1;
 
     // send event.
@@ -76,8 +76,8 @@ fn test_on_client_join() {
     assert_eq!(result[0].client_id, 1);
     assert_eq!(ctx.state, ManagerState::Starting);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Idle);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Idle);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Sync);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Sync);
     assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::None);
     assert_eq!(ctx.num_active_clients, 2);
 
@@ -91,9 +91,9 @@ fn test_on_client_join() {
     assert_eq!(result[0].client_id, 2);
     assert_eq!(ctx.state, ManagerState::Starting);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Idle);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Idle);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Idle);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Sync);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Sync);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Sync);
     assert_eq!(ctx.num_active_clients, 3);
 }
 
@@ -104,9 +104,9 @@ fn test_on_client_ready() {
     let proc = ManagerProcStarting;
 
     // setup condition.
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Idle;
-    ctx.clients.get_mut(&1).unwrap().state = ClientState::Ready;
-    ctx.clients.get_mut(&2).unwrap().state = ClientState::Idle;
+    ctx.clients.get_mut(&0).unwrap().state = ClientState::Sync;
+    ctx.clients.get_mut(&1).unwrap().state = ClientState::Active;
+    ctx.clients.get_mut(&2).unwrap().state = ClientState::Sync;
     ctx.num_active_clients = 3;
 
     // send event.
@@ -119,9 +119,9 @@ fn test_on_client_ready() {
     assert_eq!(result[0].client_id, 0);
     assert_eq!(ctx.state, ManagerState::Starting);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Ready);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Ready);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Idle);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Sync);
     assert_eq!(ctx.num_active_clients, 3);
 
     // send event.
@@ -134,9 +134,9 @@ fn test_on_client_ready() {
     assert_eq!(result[0].client_id, 2);
     assert_eq!(ctx.state, ManagerState::Running);
     assert_eq!(ctx.state_changed, true);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Ready);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Ready);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Ready);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
     assert_eq!(ctx.num_active_clients, 3);
 }
 
@@ -147,9 +147,9 @@ fn test_on_client_done() {
     let proc = ManagerProcStarting;
 
     // setup condition.
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Idle;
-    ctx.clients.get_mut(&1).unwrap().state = ClientState::Ready;
-    ctx.clients.get_mut(&2).unwrap().state = ClientState::Idle;
+    ctx.clients.get_mut(&0).unwrap().state = ClientState::Sync;
+    ctx.clients.get_mut(&1).unwrap().state = ClientState::Active;
+    ctx.clients.get_mut(&2).unwrap().state = ClientState::Sync;
     ctx.num_active_clients = 3;
 
     // send event.
@@ -160,9 +160,9 @@ fn test_on_client_done() {
     assert_eq!(result.len(), 0);
     assert_eq!(ctx.state, ManagerState::Starting);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Idle);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Ready);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Idle);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Sync);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Sync);
     assert_eq!(ctx.num_active_clients, 3);
 
     // send event.
@@ -173,9 +173,9 @@ fn test_on_client_done() {
     assert_eq!(result.len(), 0);
     assert_eq!(ctx.state, ManagerState::Starting);
     assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Idle);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Ready);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Idle);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Sync);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Sync);
     assert_eq!(ctx.num_active_clients, 3);
 }
 
@@ -186,10 +186,12 @@ fn test_on_client_exit() {
     let proc = ManagerProcStarting;
 
     // setup condition.
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Idle;
-    ctx.clients.get_mut(&1).unwrap().state = ClientState::Ready;
-    ctx.clients.get_mut(&2).unwrap().state = ClientState::Idle;
+    ctx.clients.get_mut(&0).unwrap().state = ClientState::Sync;
+    ctx.clients.get_mut(&1).unwrap().state = ClientState::Sync;
+    ctx.clients.get_mut(&2).unwrap().state = ClientState::Sync;
     ctx.num_active_clients = 3;
+    let m = Message::new(MessageType::Ready, 1, None).unwrap();
+    let _ = proc.on_client_ready(&mut ctx, &m).unwrap();
 
     // send event.
     let m = Message::new(MessageType::Exit, 0, None).unwrap();
@@ -205,7 +207,7 @@ fn test_on_client_exit() {
     assert_eq!(ctx.state_changed, true);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::None);
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Exitting);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Idle);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Sync);
     assert_eq!(ctx.num_active_clients, 2);
 }
 
@@ -241,10 +243,12 @@ fn test_on_shutdown() {
     let proc = ManagerProcStarting;
 
     // setup condition.
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Idle;
-    ctx.clients.get_mut(&1).unwrap().state = ClientState::Ready;
-    ctx.clients.get_mut(&2).unwrap().state = ClientState::Idle;
+    ctx.clients.get_mut(&0).unwrap().state = ClientState::Sync;
+    ctx.clients.get_mut(&1).unwrap().state = ClientState::Sync;
+    ctx.clients.get_mut(&2).unwrap().state = ClientState::Sync;
     ctx.num_active_clients = 3;
+    let m = Message::new(MessageType::Ready, 1, None).unwrap();
+    let _ = proc.on_client_ready(&mut ctx, &m).unwrap();
 
     // send event.
     let result = proc.on_shutdown(&mut ctx).unwrap();
@@ -255,8 +259,8 @@ fn test_on_shutdown() {
     assert_eq!(result[0].client_id, 1);
     assert_eq!(ctx.state, ManagerState::Exitting);
     assert_eq!(ctx.state_changed, true);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Idle);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Sync);
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Exitting);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Idle);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Sync);
     assert_eq!(ctx.num_active_clients, 3);
 }
