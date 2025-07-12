@@ -7,7 +7,7 @@ extern crate log;
 use log::{debug, error, info, trace, warn};
 const LOG_TAG: &str = "ProcessGraph";
 
-mod entry;
+pub mod entry;
 
 use std::collections::{HashMap, HashSet};
 
@@ -53,6 +53,16 @@ impl ProcessGraph {
             graph_start,
             graph_forward,
         }
+    }
+
+    pub fn get_ready_processes(&self) -> Vec<u16> {
+        let mut ready_processes: Vec<u16> = Vec::new();
+        for entry in self.entries.values() {
+            if entry.state == ProcessState::Ready {
+                ready_processes.push(entry.pid);
+            }
+        }
+        return ready_processes;
     }
 
     pub fn reset_state(&mut self) {
