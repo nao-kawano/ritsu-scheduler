@@ -8,7 +8,7 @@ extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-mod client_connector;
+mod connector;
 mod config;
 mod cycle;
 mod manager;
@@ -20,7 +20,7 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use dps_message::Message;
 
-use client_connector::ClientConnector;
+use connector::ClientConnector;
 use config::{ClientConfig, SchedulerConfig, ServerConfig};
 use cycle::CycleGenerator;
 use manager::{EventManager, ManagerState};
