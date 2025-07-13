@@ -16,29 +16,32 @@ sequenceDiagram
   participant A as ProcessA
 
   A -) M: READY
+  Note over A: Ready
 
 Note over M,A: << cycle N >>
 
   Note over M: Check process A status.<br />-> OK
   M --) A: OK
+  Note over A: Running
   A ->> A: process
-  activate A
-  Note over A: processing...
 
 Note over M,A: << cycle N+1 >>
-  Note over M: Check process A status.<br />Still Running -> SKIP
+  Note over M: Check process A status.<br />Still Running -> mark as Overrun
 
   Note over A: processing...
   A -) M: DONE
-  Note over M: skip dependency
+  Note over A: Idle
+  Note over M: skip to start after processes
   M --) A: OK
 
   A -) M: READY
+  Note over A: Ready
   Note over M: skip this cycle
   M --) A: *SKIP*
-    Note over A: detected SKIP, send READY again
+    Note over A: send READY again
 
   A -) M: READY
+  Note over A: Ready
 
 Note over M,A: << cycle N+2 >>
 ```
