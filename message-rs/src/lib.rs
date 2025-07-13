@@ -102,7 +102,7 @@ impl Message {
     }
 
     /// Create a new message from a string.
-    pub fn from_msg(msg: &str) -> Result<Self, ParseError> {
+    pub fn from_str(msg: &str) -> Result<Self, ParseError> {
         if msg.len() > MESSAGE_LEN_MAX {
             return Err(ParseError::MessageTooLong);
         }
@@ -141,7 +141,7 @@ impl Message {
     }
 
     /// Convert to a string.
-    pub fn to_msg(&self) -> Result<String, ParseError> {
+    pub fn to_str(&self) -> Result<String, ParseError> {
         if self.cid > CLIENT_ID_MAX {
             return Err(ParseError::InvalidClientId);
         }

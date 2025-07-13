@@ -111,7 +111,7 @@ impl ClientConnector {
         tx_channel: &Sender<Event>,
     ) {
         // convert packet to message.
-        let recv_msg = Message::from_msg(recv_msg);
+        let recv_msg = Message::from_str(recv_msg);
         if let Ok(msg) = recv_msg {
             // store client addr for response.
             if msg.mtype == MessageType::Join {
@@ -173,7 +173,7 @@ impl ClientConnector {
     // ---
 
     fn send_message(&self, msg: &Message, socket: &UdpSocket, to_addr: &SocketAddr) {
-        match msg.to_msg() {
+        match msg.to_str() {
             Ok(udpmsg) => {
                 if let Err(e) = socket.send_to(udpmsg.as_bytes(), to_addr) {
                     error!("Failed to send to {}: {:?}", to_addr, e);

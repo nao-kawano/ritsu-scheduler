@@ -74,10 +74,10 @@ fn test_message_new_invalid_client_id() {
 }
 
 #[test]
-fn test_message_from_msg_no_extras() {
+fn test_message_from_str_no_extras() {
     {
         let msg = "READY:100";
-        let msg = Message::from_msg(msg);
+        let msg = Message::from_str(msg);
         assert!(msg.is_ok());
 
         let msg = msg.unwrap();
@@ -87,7 +87,7 @@ fn test_message_from_msg_no_extras() {
     }
     {
         let msg = "READY:100,";
-        let msg = Message::from_msg(msg);
+        let msg = Message::from_str(msg);
         assert!(msg.is_ok());
 
         let msg = msg.unwrap();
@@ -99,9 +99,9 @@ fn test_message_from_msg_no_extras() {
 }
 
 #[test]
-fn test_message_from_msg_with_extras() {
+fn test_message_from_str_with_extras() {
     let msg = "READY:000,ex1,ex2";
-    let msg = Message::from_msg(msg);
+    let msg = Message::from_str(msg);
     assert!(msg.is_ok());
 
     let msg = msg.unwrap();
@@ -113,92 +113,92 @@ fn test_message_from_msg_with_extras() {
 }
 
 #[test]
-fn test_message_from_msg_errors() {
+fn test_message_from_str_errors() {
     {
         let msg = "abcdefg";
-        let msg = Message::from_msg(msg);
+        let msg = Message::from_str(msg);
         assert!(msg.is_err());
         assert_eq!(msg.unwrap_err(), ParseError::TypeNotFound);
     }
     {
         let msg = "READY";
-        let msg = Message::from_msg(msg);
+        let msg = Message::from_str(msg);
         assert!(msg.is_err());
         assert_eq!(msg.unwrap_err(), ParseError::TypeNotFound);
     }
     {
         let msg = "xx:";
-        let msg = Message::from_msg(msg);
+        let msg = Message::from_str(msg);
         assert!(msg.is_err());
         assert_eq!(msg.unwrap_err(), ParseError::TypeNotFound);
     }
     {
         let msg = "READY:";
-        let msg = Message::from_msg(msg);
+        let msg = Message::from_str(msg);
         assert!(msg.is_err());
         assert_eq!(msg.unwrap_err(), ParseError::InvalidClientId);
     }
     {
         let msg = "READY:1";
-        let msg = Message::from_msg(msg);
+        let msg = Message::from_str(msg);
         assert!(msg.is_err());
         assert_eq!(msg.unwrap_err(), ParseError::InvalidClientId);
     }
     {
         let msg = "READY:1234";
-        let msg = Message::from_msg(msg);
+        let msg = Message::from_str(msg);
         assert!(msg.is_err());
         assert_eq!(msg.unwrap_err(), ParseError::InvalidClientId);
     }
     {
         let msg = format!("READY:000,{}", "0".repeat(MESSAGE_LEN_MAX + 1));
-        let msg = Message::from_msg(&msg);
+        let msg = Message::from_str(&msg);
         assert!(msg.is_err());
         assert_eq!(msg.unwrap_err(), ParseError::MessageTooLong);
     }
 }
 
 #[test]
-fn test_message_to_msg_no_extras() {
+fn test_message_to_str_no_extras() {
     let message = Message {
         mtype: MessageType::Ready,
         cid: 123,
         extras: vec![],
     };
-    assert_eq!(message.to_msg().unwrap(), "READY:123".to_string());
+    assert_eq!(message.to_str().unwrap(), "READY:123".to_string());
 }
 
 #[test]
-fn test_message_to_msg_with_extras() {
+fn test_message_to_str_with_extras() {
     let message = Message {
         mtype: MessageType::Done,
         cid: 456,
         extras: vec!["extra1".to_string(), "extra2".to_string()],
     };
     assert_eq!(
-        message.to_msg().unwrap(),
+        message.to_str().unwrap(),
         "DONE:456,extra1,extra2".to_string()
     );
 }
 
 #[test]
-fn test_message_to_msg_invalid_client_id() {
+fn test_message_to_str_invalid_client_id() {
     let message = Message {
         mtype: MessageType::Exit,
         cid: 1000,
         extras: vec![],
     };
-    assert!(message.to_msg().is_err());
-    assert_eq!(message.to_msg().unwrap_err(), ParseError::InvalidClientId);
+    assert!(message.to_str().is_err());
+    assert_eq!(message.to_str().unwrap_err(), ParseError::InvalidClientId);
 }
 
 #[test]
-fn test_message_to_msg_too_long() {
+fn test_message_to_str_too_long() {
     let message = Message {
         mtype: MessageType::Exit,
         cid: 999,
         extras: vec!["a".to_string().repeat(MESSAGE_LEN_MAX + 1)],
     };
-    assert!(message.to_msg().is_err());
-    assert_eq!(message.to_msg().unwrap_err(), ParseError::MessageTooLong);
+    assert!(message.to_str().is_err());
+    assert_eq!(message.to_str().unwrap_err(), ParseError::MessageTooLong);
 }
