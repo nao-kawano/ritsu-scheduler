@@ -10,5 +10,7 @@
   - Advanced message flow for Deadline Exceeded.
 - [Message Format](./message-format.md)
   - Messages format exchanged between clients and server.
+- [State Management](./state-management.md)
+  - State management in the client and server.
 
 EOF
