@@ -91,8 +91,8 @@ fn test_on_client_ready() {
 
     // check result.
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].message_type, MessageType::Error);
-    assert_eq!(result[0].client_id, 1);
+    assert_eq!(result[0].mtype, MessageType::Error);
+    assert_eq!(result[0].cid, 1);
     assert_eq!(ctx.state, ManagerState::Exitting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exitting);
@@ -116,8 +116,8 @@ fn test_on_client_done() {
 
     // check result.
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].message_type, MessageType::Error);
-    assert_eq!(result[0].client_id, 2);
+    assert_eq!(result[0].mtype, MessageType::Error);
+    assert_eq!(result[0].cid, 2);
     assert_eq!(ctx.state, ManagerState::Exitting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exitting);
@@ -141,8 +141,8 @@ fn test_on_client_exit() {
 
     // check result.
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].message_type, MessageType::Ok);
-    assert_eq!(result[0].client_id, 0);
+    assert_eq!(result[0].mtype, MessageType::Ok);
+    assert_eq!(result[0].cid, 0);
     assert_eq!(ctx.state, ManagerState::Exitting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::None);
@@ -169,8 +169,8 @@ fn test_on_client_exit_all() {
 
     // check result.
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].message_type, MessageType::Ok);
-    assert_eq!(result[0].client_id, 0);
+    assert_eq!(result[0].mtype, MessageType::Ok);
+    assert_eq!(result[0].cid, 0);
     assert_eq!(ctx.state, ManagerState::Exitted);
     assert_eq!(ctx.state_changed, true);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::None);

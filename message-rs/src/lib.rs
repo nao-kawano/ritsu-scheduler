@@ -69,8 +69,11 @@ impl MessageType {
 /// Message for DPS.
 #[derive(Debug, Clone)]
 pub struct Message {
-    pub message_type: MessageType,
-    pub client_id: u16,
+    /// Message Type.
+    pub mtype: MessageType,
+    /// Client ID.
+    pub cid: u16,
+    /// Extra Info.
     pub extras: Vec<String>,
 }
 
@@ -85,8 +88,8 @@ impl Message {
             Err(ParseError::InvalidClientId)
         } else {
             Ok(Message {
-                message_type,
-                client_id,
+                mtype: message_type,
+                cid: client_id,
                 extras: extras.unwrap_or(vec![]),
             })
         }
@@ -125,26 +128,26 @@ impl Message {
         }
 
         Ok(Message {
-            message_type,
-            client_id,
+            mtype: message_type,
+            cid: client_id,
             extras,
         })
     }
 
     /// Convert to a string.
     pub fn to_msg(&self) -> Result<String, ParseError> {
-        if self.client_id > CLIENT_ID_MAX {
+        if self.cid > CLIENT_ID_MAX {
             return Err(ParseError::InvalidClientId);
         }
 
         let msg: String;
         if self.extras.len() < 1 {
-            msg = format!("{}:{:>03}", self.message_type.to_str(), self.client_id);
+            msg = format!("{}:{:>03}", self.mtype.to_str(), self.cid);
         } else {
             msg = format!(
                 "{}:{:>03},{}",
-                self.message_type.to_str(),
-                self.client_id,
+                self.mtype.to_str(),
+                self.cid,
                 self.extras.join(",")
             );
         }
@@ -200,8 +203,8 @@ mod tests {
 
         assert!(result.is_ok());
         let message = result.unwrap();
-        assert_eq!(message.message_type, MessageType::Ready);
-        assert_eq!(message.client_id, 10);
+        assert_eq!(message.mtype, MessageType::Ready);
+        assert_eq!(message.cid, 10);
         assert_eq!(message.extras, Vec::<String>::new());
     }
 
@@ -215,8 +218,8 @@ mod tests {
 
         assert!(result.is_ok());
         let message = result.unwrap();
-        assert_eq!(message.message_type, MessageType::Ready);
-        assert_eq!(message.client_id, 10);
+        assert_eq!(message.mtype, MessageType::Ready);
+        assert_eq!(message.cid, 10);
         assert_eq!(
             message.extras,
             vec!["extra1".to_string(), "extra2".to_string()]
@@ -243,8 +246,8 @@ mod tests {
             assert!(msg.is_ok());
 
             let msg = msg.unwrap();
-            assert_eq!(msg.message_type, MessageType::Ready);
-            assert_eq!(msg.client_id, 100);
+            assert_eq!(msg.mtype, MessageType::Ready);
+            assert_eq!(msg.cid, 100);
             assert_eq!(msg.extras.len(), 0);
         }
         {
@@ -253,8 +256,8 @@ mod tests {
             assert!(msg.is_ok());
 
             let msg = msg.unwrap();
-            assert_eq!(msg.message_type, MessageType::Ready);
-            assert_eq!(msg.client_id, 100);
+            assert_eq!(msg.mtype, MessageType::Ready);
+            assert_eq!(msg.cid, 100);
             assert_eq!(msg.extras.len(), 1);
             assert_eq!(msg.extras[0], String::new());
         }
@@ -267,8 +270,8 @@ mod tests {
         assert!(msg.is_ok());
 
         let msg = msg.unwrap();
-        assert_eq!(msg.message_type, MessageType::Ready);
-        assert_eq!(msg.client_id, 000);
+        assert_eq!(msg.mtype, MessageType::Ready);
+        assert_eq!(msg.cid, 000);
         assert_eq!(msg.extras.len(), 2);
         assert_eq!(msg.extras[0], "ex1");
         assert_eq!(msg.extras[1], "ex2");
@@ -323,8 +326,8 @@ mod tests {
     #[test]
     fn test_message_to_msg_no_extras() {
         let message = Message {
-            message_type: MessageType::Ready,
-            client_id: 123,
+            mtype: MessageType::Ready,
+            cid: 123,
             extras: vec![],
         };
         assert_eq!(message.to_msg().unwrap(), "READY:123".to_string());
@@ -333,8 +336,8 @@ mod tests {
     #[test]
     fn test_message_to_msg_with_extras() {
         let message = Message {
-            message_type: MessageType::Done,
-            client_id: 456,
+            mtype: MessageType::Done,
+            cid: 456,
             extras: vec!["extra1".to_string(), "extra2".to_string()],
         };
         assert_eq!(
@@ -346,8 +349,8 @@ mod tests {
     #[test]
     fn test_message_to_msg_invalid_client_id() {
         let message = Message {
-            message_type: MessageType::Exit,
-            client_id: 1000,
+            mtype: MessageType::Exit,
+            cid: 1000,
             extras: vec![],
         };
         assert!(message.to_msg().is_err());
@@ -357,8 +360,8 @@ mod tests {
     #[test]
     fn test_message_to_msg_too_long() {
         let message = Message {
-            message_type: MessageType::Exit,
-            client_id: 999,
+            mtype: MessageType::Exit,
+            cid: 999,
             extras: vec!["a".to_string().repeat(MESSAGE_LEN_MAX + 1)],
         };
         assert!(message.to_msg().is_err());

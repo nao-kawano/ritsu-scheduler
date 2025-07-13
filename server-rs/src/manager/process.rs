@@ -33,21 +33,18 @@ pub trait ManagerProc {
             _ => return Ok(vec![]),
         }
         // check client state.
-        let Some(client) = context.clients.get_mut(&message.client_id) else {
-            return Err(format!("client {} does not exist", message.client_id));
+        let Some(client) = context.clients.get_mut(&message.cid) else {
+            return Err(format!("client {} does not exist", message.cid));
         };
         if client.state == ClientState::None {
-            warn!(
-                "client {} is already disconnected, dropped.",
-                message.client_id
-            );
+            warn!("client {} is already disconnected, dropped.", message.cid);
             return Ok(vec![]);
         }
         // send ok to trigger client.
         let mut responses: Vec<Message> = Vec::new();
         client.set_client_state(ClientState::None);
         context.num_active_clients -= 1;
-        responses.push(Message::new(MessageType::Ok, message.client_id, None).unwrap());
+        responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
         // send exit to ready clients.
         self.going_to_exit(context, &mut responses);
         //

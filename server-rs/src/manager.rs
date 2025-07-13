@@ -74,20 +74,20 @@ impl EventManager {
             Event::Abort => proc.on_shutdown(&mut self.context),
             Event::CycleStart(cycle) => proc.on_cycle_start(&mut self.context, cycle),
             Event::ClientMsg(msg) => {
-                if !self.context.clients.contains_key(&msg.client_id) {
+                if !self.context.clients.contains_key(&msg.cid) {
                     Err(format!(
                         "unknown client message type={:?}, id={}",
-                        msg.message_type, msg.client_id
+                        msg.mtype, msg.cid
                     ))
                 } else {
-                    match msg.message_type {
+                    match msg.mtype {
                         MessageType::Join => proc.on_client_join(&mut self.context, &msg),
                         MessageType::Ready => proc.on_client_ready(&mut self.context, &msg),
                         MessageType::Done => proc.on_client_done(&mut self.context, &msg),
                         MessageType::Exit => proc.on_client_exit(&mut self.context, &msg),
                         _ => Err(format!(
                             "not a client message type={:?}, id={}",
-                            msg.message_type, msg.client_id
+                            msg.mtype, msg.cid
                         )),
                     }
                 }

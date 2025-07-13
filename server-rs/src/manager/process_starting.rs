@@ -33,19 +33,19 @@ impl ManagerProc for ManagerProcStarting {
     }
 
     fn on_client_join(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_join id={}", LOG_TAG, message.client_id);
+        trace!("{}: on_client_join id={}", LOG_TAG, message.cid);
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
-        if let Some(client) = context.clients.get_mut(&message.client_id) {
+        if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state == ClientState::None {
-                debug!("{}: client {} is joined", LOG_TAG, message.client_id);
+                debug!("{}: client {} is joined", LOG_TAG, message.cid);
                 client.set_client_state(ClientState::Sync);
                 context.num_active_clients += 1;
-                responses.push(Message::new(MessageType::Ok, message.client_id, None).unwrap());
+                responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
             } else {
                 warn!(
                     "{}: client {} is already joined, dropped.",
-                    LOG_TAG, message.client_id
+                    LOG_TAG, message.cid
                 );
             }
         }
@@ -53,23 +53,23 @@ impl ManagerProc for ManagerProcStarting {
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_ready id={}", LOG_TAG, message.client_id);
+        trace!("{}: on_client_ready id={}", LOG_TAG, message.cid);
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
-        if let Some(client) = context.clients.get_mut(&message.client_id) {
+        if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state == ClientState::Sync {
-                debug!("{}: client {} is ready", LOG_TAG, message.client_id);
+                debug!("{}: client {} is ready", LOG_TAG, message.cid);
                 client.set_client_state(ClientState::Active);
-                responses.push(Message::new(MessageType::Ok, message.client_id, None).unwrap());
+                responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
                 // also update graph.
-                let r = context.graph.on_ready(message.client_id);
+                let r = context.graph.on_ready(message.cid);
                 if let Err(e) = r {
                     return Err(e);
                 }
             } else {
                 warn!(
                     "{}: client {} is not in Idle, dropped.",
-                    LOG_TAG, message.client_id
+                    LOG_TAG, message.cid
                 );
             }
         }
@@ -87,12 +87,12 @@ impl ManagerProc for ManagerProcStarting {
     }
 
     fn on_client_done(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        warn!("{}: on_client_done id={} (nop)", LOG_TAG, message.client_id);
+        warn!("{}: on_client_done id={} (nop)", LOG_TAG, message.cid);
         Ok(vec![])
     }
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_exit id={}", LOG_TAG, message.client_id);
+        trace!("{}: on_client_exit id={}", LOG_TAG, message.cid);
         return self.handle_client_exit(context, message);
     }
 

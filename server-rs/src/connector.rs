@@ -84,10 +84,10 @@ impl ClientConnector {
         if let Some(socket) = &self.socket {
             let clients = self.clients.lock().unwrap();
             for msg in msgs {
-                if let Some(to_addr) = clients.get(&msg.client_id) {
+                if let Some(to_addr) = clients.get(&msg.cid) {
                     self.send_message(&msg, socket, to_addr);
                 } else {
-                    warn!("Connector: client is not connected id={}", msg.client_id);
+                    warn!("Connector: client is not connected id={}", msg.cid);
                 }
             }
         } else {
@@ -114,9 +114,9 @@ impl ClientConnector {
         let recv_msg = Message::from_msg(recv_msg);
         if let Ok(msg) = recv_msg {
             // store client addr for response.
-            if msg.message_type == MessageType::Join {
+            if msg.mtype == MessageType::Join {
                 let mut clients = clients.lock().unwrap();
-                clients.insert(msg.client_id, src_addr);
+                clients.insert(msg.cid, src_addr);
             }
             // notify.
             _ = tx_channel.send(Event::ClientMsg(msg));
@@ -182,7 +182,7 @@ impl ClientConnector {
             Err(e) => {
                 error!(
                     "Failed to serialize message for client {}: {:?}",
-                    msg.client_id, e
+                    msg.cid, e
                 );
             }
         }

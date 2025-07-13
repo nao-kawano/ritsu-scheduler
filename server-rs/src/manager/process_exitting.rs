@@ -32,26 +32,23 @@ impl ManagerProc for ManagerProcExitting {
     }
 
     fn on_client_join(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_join id={}", LOG_TAG, message.client_id);
-        Err(format!("invalid Join from {}", message.client_id))
+        trace!("{}: on_client_join id={}", LOG_TAG, message.cid);
+        Err(format!("invalid Join from {}", message.cid))
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_ready id={}", LOG_TAG, message.client_id);
+        trace!("{}: on_client_ready id={}", LOG_TAG, message.cid);
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
-        if let Some(client) = context.clients.get_mut(&message.client_id) {
+        if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state != ClientState::None {
-                info!(
-                    "{}: send error to client {} ready",
-                    LOG_TAG, message.client_id
-                );
+                info!("{}: send error to client {} ready", LOG_TAG, message.cid);
                 client.set_client_state(ClientState::Exitting);
-                responses.push(Message::new(MessageType::Error, message.client_id, None).unwrap());
+                responses.push(Message::new(MessageType::Error, message.cid, None).unwrap());
             } else {
                 warn!(
                     "{}: client {} is disconnected, dropped.",
-                    LOG_TAG, message.client_id
+                    LOG_TAG, message.cid
                 );
             }
         }
@@ -59,21 +56,18 @@ impl ManagerProc for ManagerProcExitting {
     }
 
     fn on_client_done(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        warn!("{}: on_client_done id={} (nop)", LOG_TAG, message.client_id);
+        warn!("{}: on_client_done id={} (nop)", LOG_TAG, message.cid);
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
-        if let Some(client) = context.clients.get_mut(&message.client_id) {
+        if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state != ClientState::None {
-                info!(
-                    "{}: send error to client {} done",
-                    LOG_TAG, message.client_id
-                );
+                info!("{}: send error to client {} done", LOG_TAG, message.cid);
                 client.set_client_state(ClientState::Exitting);
-                responses.push(Message::new(MessageType::Error, message.client_id, None).unwrap());
+                responses.push(Message::new(MessageType::Error, message.cid, None).unwrap());
             } else {
                 warn!(
                     "{}: client {} is disconnected, dropped.",
-                    LOG_TAG, message.client_id
+                    LOG_TAG, message.cid
                 );
             }
         }
@@ -81,19 +75,19 @@ impl ManagerProc for ManagerProcExitting {
     }
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_exit id={}", LOG_TAG, message.client_id);
+        trace!("{}: on_client_exit id={}", LOG_TAG, message.cid);
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
-        if let Some(client) = context.clients.get_mut(&message.client_id) {
+        if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state == ClientState::Exitting {
-                info!("{}: client {} is exit", LOG_TAG, message.client_id);
+                info!("{}: client {} is exit", LOG_TAG, message.cid);
                 client.set_client_state(ClientState::None);
                 context.num_active_clients -= 1;
-                responses.push(Message::new(MessageType::Ok, message.client_id, None).unwrap());
+                responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
             } else {
                 warn!(
                     "{}: client {} is not in Exiting, dropped.",
-                    LOG_TAG, message.client_id
+                    LOG_TAG, message.cid
                 );
             }
         }

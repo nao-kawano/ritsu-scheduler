@@ -71,15 +71,15 @@ impl ManagerProc for ManagerProcRunning {
     }
 
     fn on_client_join(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_join id={}", LOG_TAG, message.client_id);
-        Err(format!("invalid Join from {}", message.client_id))
+        trace!("{}: on_client_join id={}", LOG_TAG, message.cid);
+        Err(format!("invalid Join from {}", message.cid))
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_ready id={}", LOG_TAG, message.client_id);
+        trace!("{}: on_client_ready id={}", LOG_TAG, message.cid);
         let mut responses: Vec<Message> = Vec::new();
         // update state.
-        let r = context.graph.on_ready(message.client_id);
+        let r = context.graph.on_ready(message.cid);
         let Ok(changes) = r else {
             return Err(r.unwrap_err());
         };
@@ -99,10 +99,10 @@ impl ManagerProc for ManagerProcRunning {
     }
 
     fn on_client_done(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_done id={}", LOG_TAG, message.client_id);
+        trace!("{}: on_client_done id={}", LOG_TAG, message.cid);
         let mut responses: Vec<Message> = Vec::new();
         // update state.
-        let r = context.graph.on_done(message.client_id);
+        let r = context.graph.on_done(message.cid);
         let Ok(changes) = r else {
             return Err(r.unwrap_err());
         };
@@ -127,7 +127,7 @@ impl ManagerProc for ManagerProcRunning {
     }
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_exit id={}", LOG_TAG, message.client_id);
+        trace!("{}: on_client_exit id={}", LOG_TAG, message.cid);
         return self.handle_client_exit(context, message);
     }
 
