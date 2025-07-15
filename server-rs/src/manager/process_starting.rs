@@ -80,6 +80,7 @@ impl ManagerProc for ManagerProcStarting {
                 .values()
                 .fold(0, |sum, x| sum + ((x.state == ClientState::Active) as u16));
             if num_ready == context.clients.len() as u16 {
+                info!("{}: all client is ready, go to running", LOG_TAG);
                 context.set_state(ManagerState::Running);
             }
         }

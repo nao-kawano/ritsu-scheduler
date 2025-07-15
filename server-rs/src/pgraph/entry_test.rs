@@ -3,6 +3,8 @@ use super::*;
 
 #[test]
 fn test_new() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
     // cycle trigger.
     let entry = ProcessEntry::new(1, &vec![], false);
     assert_eq!(entry.pid, 1);
@@ -23,6 +25,8 @@ fn test_new() {
 
 #[test]
 fn test_set_state() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
     let mut entry = ProcessEntry::new(1, &vec![], false);
     assert_eq!(entry.state, ProcessState::Idle);
 
@@ -54,6 +58,8 @@ fn test_set_state() {
 
 #[test]
 fn test_has_depends() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
     // cycle trigger.
     let entry = ProcessEntry::new(1, &vec![], false);
     assert_eq!(entry.has_depends(), false);
@@ -65,6 +71,8 @@ fn test_has_depends() {
 
 #[test]
 fn test_is_depends_ok() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
     // cycle trigger.
     let entry = ProcessEntry::new(1, &vec![], false);
     assert_eq!(entry.is_depends_ok(), true);
@@ -82,6 +90,8 @@ fn test_is_depends_ok() {
 
 #[test]
 fn test_update_depend() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
     // cycle trigger.
     let mut entry = ProcessEntry::new(1, &vec![], false);
     entry.update_depend(3); // no effect.
@@ -103,6 +113,9 @@ fn test_update_depend() {
 
 #[test]
 fn test_clear_depends() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
+
     // cycle trigger.
     let mut entry = ProcessEntry::new(1, &vec![], false);
     entry.clear_depends(); // no effect.

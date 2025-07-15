@@ -27,6 +27,7 @@ fn create_context_simple() -> ManagerContext {
 #[test]
 fn test_enter_state() {
     // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_simple();
     let proc = ManagerProcRunning;
 
@@ -44,6 +45,7 @@ fn test_enter_state() {
 #[test]
 fn test_on_cycle_start_simple() {
     // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_simple();
     let proc = ManagerProcRunning;
 
@@ -128,6 +130,7 @@ fn test_on_cycle_start_simple() {
 #[test]
 fn test_on_client_join() {
     // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_simple();
     let proc = ManagerProcRunning;
 
@@ -145,6 +148,7 @@ fn test_on_client_join() {
 #[test]
 fn test_on_client_ready_simple() {
     // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_simple();
     let proc = ManagerProcRunning;
 
@@ -169,6 +173,7 @@ fn test_on_client_ready_simple() {
 #[test]
 fn test_on_client_done_simple() {
     // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_simple();
     let proc = ManagerProcRunning;
 
@@ -202,6 +207,7 @@ fn test_on_client_done_simple() {
 #[test]
 fn test_on_client_exit() {
     // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_simple();
     let proc = ManagerProcRunning;
 
@@ -235,6 +241,7 @@ fn test_on_client_exit() {
 #[test]
 fn test_on_shutdown() {
     // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_simple();
     let proc = ManagerProcRunning;
 

@@ -99,6 +99,7 @@ impl ManagerProc for ManagerProcExitting {
         }
         // check if all clients are ready.
         if context.num_active_clients == 0 {
+            info!("{}: all client is exit, go to exitted", LOG_TAG);
             context.set_state(ManagerState::Exitted);
         }
         Ok(responses)
