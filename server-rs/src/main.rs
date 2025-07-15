@@ -8,8 +8,8 @@ extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-mod connector;
 mod config;
+mod connector;
 mod cycle;
 mod manager;
 mod pgraph;
@@ -20,13 +20,14 @@ use std::sync::mpsc::{Receiver, Sender};
 
 use dps_message::Message;
 
-use connector::ClientConnector;
 use config::{ClientConfig, SchedulerConfig, ServerConfig};
+use connector::ClientConnector;
 use cycle::CycleGenerator;
 use manager::{EventManager, ManagerState};
 
 /* -------------------------------------------------------------------------- */
 
+#[derive(Debug, Clone)]
 pub enum Event {
     Abort,
     CycleStart(u64),

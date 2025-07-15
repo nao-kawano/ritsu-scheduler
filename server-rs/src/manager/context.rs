@@ -50,7 +50,7 @@ impl ClientInfo {
     /// Set the state of the client.
     pub fn set_client_state(&mut self, state: ClientState) -> bool {
         info!(
-            "{}: ClientState {:3} {:?} -> {:?}",
+            "{}: ClientState {:03} {:?} -> {:?}",
             LOG_TAG, self.config.client_id, self.state, state
         );
         self.state = state;
@@ -97,14 +97,14 @@ impl ManagerContext {
                     // All specified processes must have the same Cycle.
                     if depend_client.config.cycle != client.config.cycle {
                         panic!(
-                            "{}: ClientConfig {:3} dependent process {:3} has different cycle",
+                            "{}: ClientConfig {:03} dependent process {:03} has different cycle",
                             LOG_TAG, client.config.client_id, depend
                         );
                     }
                     // All specified processes must have same or smaller CycleOffset.
                     if depend_client.config.cycle_offset > client.config.cycle_offset {
                         panic!(
-                            "{}: ClientConfig {:3} dependent process {:3} has larger cycle_offset",
+                            "{}: ClientConfig {:03} dependent process {:03} has larger cycle_offset",
                             LOG_TAG, client.config.client_id, depend
                         );
                     }
@@ -115,7 +115,7 @@ impl ManagerContext {
                     }
                 } else {
                     panic!(
-                        "{}: ClientConfig {:3} dependent process {:3} does not exist",
+                        "{}: ClientConfig {:03} dependent process {:03} does not exist",
                         LOG_TAG, client.config.client_id, depend
                     );
                 }

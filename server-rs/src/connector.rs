@@ -5,6 +5,7 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+const LOG_TAG: &str = "ClientConnector";
 
 use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
@@ -17,6 +18,8 @@ use std::time;
 use dps_message::{MESSAGE_LEN_MAX, Message, MessageType};
 
 use crate::Event;
+
+/* -------------------------------------------------------------------------- */
 
 pub struct ClientConnector {
     port: u16,
@@ -42,7 +45,8 @@ impl ClientConnector {
 
     pub fn start(&mut self, tx_channel: Sender<Event>) -> bool {
         info!(
-            "ClientConnector: start port={}, t/o={}",
+            "{}: start port={}, t/o={}",
+            LOG_TAG,
             self.port,
             ClientConnector::TIMEOUT_MS
         );
@@ -52,7 +56,7 @@ impl ClientConnector {
 
         // setup socket.
         let Ok(s) = ClientConnector::create_socket(self.port) else {
-            error!("ClientConnector: Failed to create socket");
+            error!("{}: Failed to create socket", LOG_TAG);
             return false;
         };
         self.socket = Some(s.try_clone().unwrap());
@@ -70,13 +74,13 @@ impl ClientConnector {
 
     pub fn stop(&mut self) {
         if let Some(handle) = self.thread_handle.take() {
-            info!("ClientConnector: stop requested");
+            info!("{}: stop requested", LOG_TAG);
             self.stop_flag.store(true, Ordering::Relaxed);
             handle.join().unwrap();
-            info!("ClientConnector: stopped");
+            info!("{}: stopped", LOG_TAG);
             self.stop_flag.store(false, Ordering::Relaxed);
         } else {
-            warn!("ClientConnector: not started");
+            warn!("{}: not started", LOG_TAG);
         }
     }
 
@@ -87,11 +91,11 @@ impl ClientConnector {
                 if let Some(to_addr) = clients.get(&msg.cid) {
                     self.send_message(&msg, socket, to_addr);
                 } else {
-                    warn!("Connector: client is not connected id={}", msg.cid);
+                    warn!("{}: client is not connected id={}", LOG_TAG, msg.cid);
                 }
             }
         } else {
-            warn!("Connector: not started");
+            warn!("{}: not started", LOG_TAG);
         }
     }
 
@@ -122,8 +126,8 @@ impl ClientConnector {
             _ = tx_channel.send(Event::ClientMsg(msg));
         } else {
             warn!(
-                "Connector: invalid message from {}, {:?}",
-                src_addr, recv_msg
+                "{}: invalid message from {}, {:?}",
+                LOG_TAG, src_addr, recv_msg
             );
         }
     }
@@ -134,12 +138,12 @@ impl ClientConnector {
         clients: Arc<Mutex<HashMap<u16, SocketAddr>>>,
         tx_channel: Sender<Event>,
     ) {
-        debug!("ClientConnector: receive thread started.");
+        debug!("{}: receive thread started.", LOG_TAG);
         let mut recv_buf = [0u8; MESSAGE_LEN_MAX];
         loop {
             // check stop request.
             if stop_flag.load(Ordering::Relaxed) == true {
-                info!("ClientConnector: stop request detected, exitting");
+                info!("{}: stop request detected, exitting", LOG_TAG);
                 break;
             }
             // wait client w/ timeout for checking stop request.
@@ -154,20 +158,20 @@ impl ClientConnector {
                         );
                     }
                     Err(e) => {
-                        warn!("Connector: invalid UTF-8 from {}, {:?}", src_addr, e);
+                        warn!("{}: invalid UTF-8 from {}, {:?}", LOG_TAG, src_addr, e);
                     }
                 },
                 Err(e) => {
                     if e.kind() == std::io::ErrorKind::TimedOut {
                         // keep going.
                     } else {
-                        warn!("Connector: failed to read: {:?}", e);
+                        warn!("{}: failed to read: {:?}", LOG_TAG, e);
                         // todo: report and shutdown.
                     }
                 }
             }
         }
-        debug!("ClientConnector: receive thread stopped.");
+        debug!("{}: receive thread stopped.", LOG_TAG);
     }
 
     // ---
@@ -176,13 +180,13 @@ impl ClientConnector {
         match msg.to_str() {
             Ok(udpmsg) => {
                 if let Err(e) = socket.send_to(udpmsg.as_bytes(), to_addr) {
-                    error!("Failed to send to {}: {:?}", to_addr, e);
+                    error!("{}: Failed to send to {} {:?}", LOG_TAG, to_addr, e);
                 }
             }
             Err(e) => {
                 error!(
-                    "Failed to serialize message for client {}: {:?}",
-                    msg.cid, e
+                    "{}: Failed to serialize message for client {} {:?}",
+                    LOG_TAG, msg.cid, e
                 );
             }
         }

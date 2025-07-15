@@ -27,21 +27,21 @@ impl ClientConfig {
         // validate client_id.
         if client_id > CLIENT_ID_MAX {
             return Err(format!(
-                "[ClientConfig {}] Client ID {} is too large",
+                "[ClientConfig {:03}] Client ID {:03} is too large",
                 client_id, client_id
             ));
         }
         // validate cycle.
         if cycle == 0 {
             return Err(format!(
-                "[ClientConfig {}] Cycle must not be zero",
+                "[ClientConfig {:03}] Cycle must not be zero",
                 client_id
             ));
         }
         // validate cycle_offset.
         if cycle_offset >= cycle {
             return Err(format!(
-                "[ClientConfig {}] CycleOffset must be less than trigger cycle",
+                "[ClientConfig {:03}] CycleOffset must be less than trigger cycle",
                 client_id
             ));
         }
@@ -49,7 +49,7 @@ impl ClientConfig {
         for depend in &depends {
             if *depend > CLIENT_ID_MAX {
                 return Err(format!(
-                    "[ClientConfig {}] Depends {} is too large",
+                    "[ClientConfig {:03}] Depends {:03} is too large",
                     client_id, depend
                 ));
             }

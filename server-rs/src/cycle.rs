@@ -5,6 +5,7 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+const LOG_TAG: &str = "CycleGen";
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -34,14 +35,14 @@ impl CycleGenerator {
         // setup thread data and launch thread.
         let cycle_ms = self.cycle_ms as u64;
         let stop_flag = Arc::clone(&(self.stop_flag));
-        info!("CycleGen: start cycle={}ms", cycle_ms);
+        info!("{}: start cycle={}ms", LOG_TAG, cycle_ms);
         self.thread_handle = Some(thread::spawn(move || {
             let mut cycle_count: u64 = 0;
-            debug!("CycleGen: cycle thread started.");
+            debug!("{}: cycle thread started.", LOG_TAG);
             loop {
                 // check stop request.
                 if stop_flag.load(Ordering::Relaxed) == true {
-                    info!("CycleGen: stop request detected, exitting");
+                    info!("{}: stop request detected, exitting", LOG_TAG);
                     break;
                 }
                 // send event.
@@ -50,19 +51,19 @@ impl CycleGenerator {
                 // wait next.
                 thread::sleep(time::Duration::from_millis(cycle_ms));
             }
-            debug!("CycleGen: cycle thread stopped.");
+            debug!("{}: cycle thread stopped.", LOG_TAG);
         }));
     }
 
     pub fn stop(&mut self) {
         if let Some(h) = self.thread_handle.take() {
-            info!("CycleGen: stop requested");
+            info!("{}: stop requested", LOG_TAG);
             self.stop_flag.store(true, Ordering::Relaxed);
             h.join().unwrap();
-            info!("CycleGen: stopped");
+            info!("{}: stopped", LOG_TAG);
             self.stop_flag.store(false, Ordering::Relaxed);
         } else {
-            warn!("CycleGen: not started");
+            warn!("{}: not started", LOG_TAG);
         }
     }
 

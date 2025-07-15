@@ -2,6 +2,11 @@
 //! Handles event and control clients.
 //!
 
+extern crate log;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
+const LOG_TAG: &str = "EventManager";
+
 mod context;
 mod process;
 mod process_exitted;
@@ -65,6 +70,7 @@ impl EventManager {
     }
 
     pub fn process(&mut self, event: Event) -> EventResult {
+        trace!("{}: process {:?}", LOG_TAG, event);
         // get current processor.
         let Some(proc) = self.procs.get(&self.context.state) else {
             return Err(format!("state not found for {:?}", &self.context.state));
@@ -76,7 +82,7 @@ impl EventManager {
             Event::ClientMsg(msg) => {
                 if !self.context.clients.contains_key(&msg.cid) {
                     Err(format!(
-                        "unknown client message type={:?}, id={}",
+                        "unknown client message type={:?}, id={:03}",
                         msg.mtype, msg.cid
                     ))
                 } else {
@@ -86,7 +92,7 @@ impl EventManager {
                         MessageType::Done => proc.on_client_done(&mut self.context, &msg),
                         MessageType::Exit => proc.on_client_exit(&mut self.context, &msg),
                         _ => Err(format!(
-                            "not a client message type={:?}, id={}",
+                            "not a client message type={:?}, id={:03}",
                             msg.mtype, msg.cid
                         )),
                     }

@@ -5,6 +5,7 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
+const LOG_TAG: &str = "StateCommon";
 
 use dps_message::{Message, MessageType};
 
@@ -34,10 +35,13 @@ pub trait ManagerProc {
         }
         // check client state.
         let Some(client) = context.clients.get_mut(&message.cid) else {
-            return Err(format!("client {} does not exist", message.cid));
+            return Err(format!("client {:03} does not exist", message.cid));
         };
         if client.state == ClientState::None {
-            warn!("client {} is already disconnected, dropped.", message.cid);
+            warn!(
+                "{}: client {:03} is already disconnected, dropped.",
+                LOG_TAG, message.cid
+            );
             return Ok(vec![]);
         }
         // send ok to trigger client.
@@ -67,12 +71,12 @@ pub trait ManagerProc {
 
     fn going_to_exit(&self, context: &mut ManagerContext, responses: &mut Vec<Message>) {
         if context.num_active_clients == 0 {
-            debug!("no clients connected, go to exitted");
+            info!("{}: no clients connected, go to exitted", LOG_TAG);
             context.set_state(ManagerState::Exitted);
         } else {
-            debug!(
-                "{} clients connected, go to exitting",
-                context.num_active_clients
+            info!(
+                "{}: {} clients connected, go to exitting",
+                LOG_TAG, context.num_active_clients
             );
             let ready_clients: Vec<u16> = context.graph.get_ready_processes();
             for ready_client in ready_clients {

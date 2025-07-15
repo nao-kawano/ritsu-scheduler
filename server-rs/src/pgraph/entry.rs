@@ -104,13 +104,13 @@ impl ProcessEntry {
         };
         if ok_to_change {
             info!(
-                "{}: pid {:3}, state {:?} -> {:?}",
+                "{}: pid {:03}, state {:?} -> {:?}",
                 LOG_TAG, self.pid, self.state, new_state
             );
             self.state = new_state;
         } else {
             warn!(
-                "{}: pid {:3}, state change failed {:?} -> {:?}",
+                "{}: pid {:03}, state change failed {:?} -> {:?}",
                 LOG_TAG, self.pid, self.state, new_state
             );
         }
@@ -132,10 +132,13 @@ impl ProcessEntry {
     pub fn update_depend(&mut self, pid: u16) -> bool {
         if let Some(depend_value) = self.depends_on.get_mut(&pid) {
             if *depend_value {
-                warn!("{}: pid {:3}, already updated {:3}", LOG_TAG, self.pid, pid);
+                warn!(
+                    "{}: pid {:03}, already updated {:03}",
+                    LOG_TAG, self.pid, pid
+                );
                 return false;
             } else {
-                trace!("{}: pid {:3}, update depend {:3}", LOG_TAG, self.pid, pid);
+                trace!("{}: pid {:03}, update depend {:03}", LOG_TAG, self.pid, pid);
                 *depend_value = true;
                 return true;
             }
@@ -146,7 +149,7 @@ impl ProcessEntry {
 
     /// Clear the dependency status.
     pub fn clear_depends(&mut self) {
-        trace!("{}: pid {:3}, clear depend", LOG_TAG, self.pid);
+        trace!("{}: pid {:03}, clear depend", LOG_TAG, self.pid);
         for depend_value in self.depends_on.values_mut() {
             *depend_value = false;
         }

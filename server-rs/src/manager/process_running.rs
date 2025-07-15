@@ -32,7 +32,7 @@ impl ManagerProc for ManagerProcRunning {
 
     fn on_cycle_start(&self, context: &mut ManagerContext, _cycle: u64) -> EventResult {
         let cycle = self.update_cycle(context);
-        trace!("{}: on_cycle_start {:4}", LOG_TAG, cycle);
+        trace!("{}: on_cycle_start {:04}", LOG_TAG, cycle);
         let mut responses: Vec<Message> = Vec::new();
         // update state: check and start trigger=cycle clients.
         let mut changes: Vec<ProcessStateChange> = Vec::new();
@@ -71,12 +71,12 @@ impl ManagerProc for ManagerProcRunning {
     }
 
     fn on_client_join(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_join id={}", LOG_TAG, message.cid);
-        Err(format!("invalid Join from {}", message.cid))
+        trace!("{}: on_client_join id={:03}", LOG_TAG, message.cid);
+        Err(format!("invalid Join from {:03}", message.cid))
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_ready id={}", LOG_TAG, message.cid);
+        trace!("{}: on_client_ready id={:03}", LOG_TAG, message.cid);
         let mut responses: Vec<Message> = Vec::new();
         // update state.
         let r = context.graph.on_ready(message.cid);
@@ -99,7 +99,7 @@ impl ManagerProc for ManagerProcRunning {
     }
 
     fn on_client_done(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_done id={}", LOG_TAG, message.cid);
+        trace!("{}: on_client_done id={:03}", LOG_TAG, message.cid);
         let mut responses: Vec<Message> = Vec::new();
         // update state.
         let r = context.graph.on_done(message.cid);
@@ -127,7 +127,7 @@ impl ManagerProc for ManagerProcRunning {
     }
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_exit id={}", LOG_TAG, message.cid);
+        trace!("{}: on_client_exit id={:03}", LOG_TAG, message.cid);
         return self.handle_client_exit(context, message);
     }
 

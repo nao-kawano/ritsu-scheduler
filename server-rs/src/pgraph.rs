@@ -73,15 +73,15 @@ impl ProcessGraph {
     }
 
     pub fn on_start(&mut self, pid: u16) -> Result<Vec<ProcessStateChange>, String> {
-        trace!("{}: update pid {:3} by start", LOG_TAG, pid);
+        trace!("{}: update pid {:03} by start", LOG_TAG, pid);
         if !self.graph_start.contains(&pid) {
-            return Err(format!("process {:3} does not exist", pid));
+            return Err(format!("process {:03} does not exist", pid));
         }
         // check if dependency is met.
         if let Some(entry) = self.entries.get_mut(&pid) {
             if !entry.is_depends_ok() {
                 info!(
-                    "{}: pid {:3} has dependency unmet, skip start",
+                    "{}: pid {:03} has dependency unmet, skip start",
                     LOG_TAG, pid
                 );
                 return Ok(vec![]);
@@ -154,7 +154,7 @@ impl ProcessGraph {
                         }
                         _ => {
                             warn!(
-                                "{}: ignore skip for process {:3} in {:?}",
+                                "{}: ignore skip for process {:03} in {:?}",
                                 LOG_TAG, entry.pid, entry.state
                             );
                         }
@@ -177,16 +177,16 @@ impl ProcessGraph {
             Ok(changes)
         } else {
             return Err(format!(
-                "process {:3} likely the second skip has occurred.",
+                "process {:03} likely the second skip has occurred.",
                 pid
             ));
         }
     }
 
     pub fn on_ready(&mut self, pid: u16) -> Result<Vec<ProcessStateChange>, String> {
-        trace!("{}: update pid {:3} by ready", LOG_TAG, pid);
+        trace!("{}: update pid {:03} by ready", LOG_TAG, pid);
         if !self.entries.contains_key(&pid) {
-            return Err(format!("process {:3} does not exist", pid));
+            return Err(format!("process {:03} does not exist", pid));
         }
         // set target to ready.
         // if target is in skip, send Skip to retry.
@@ -211,7 +211,7 @@ impl ProcessGraph {
                 }
                 _ => {
                     warn!(
-                        "{}: ignore ready for process {:3} in {:?}",
+                        "{}: ignore ready for process {:03} in {:?}",
                         LOG_TAG, entry.pid, entry.state
                     );
                 }
@@ -221,14 +221,14 @@ impl ProcessGraph {
         if changes.len() > 0 {
             Ok(changes)
         } else {
-            return Err(format!("process {:3} cannot be ready", pid));
+            return Err(format!("process {:03} cannot be ready", pid));
         }
     }
 
     pub fn on_done(&mut self, pid: u16) -> Result<Vec<ProcessStateChange>, String> {
-        trace!("{}: update pid {:3} by done", LOG_TAG, pid);
+        trace!("{}: update pid {:03} by done", LOG_TAG, pid);
         if !self.entries.contains_key(&pid) {
-            return Err(format!("process {:3} does not exist", pid));
+            return Err(format!("process {:03} does not exist", pid));
         }
         // set target to done.
         // if target is in overrun, set skipped flag for stop starting afters.
@@ -250,7 +250,7 @@ impl ProcessGraph {
                 }
                 _ => {
                     warn!(
-                        "{}: ignore done for process {:3} in {:?}",
+                        "{}: ignore done for process {:03} in {:?}",
                         LOG_TAG, entry.pid, entry.state
                     );
                 }
@@ -260,14 +260,14 @@ impl ProcessGraph {
         if changes.len() > 0 && !skipped {
             if let Some(afters) = self.graph_forward.get(&pid).cloned() {
                 // update depends first.
-                trace!("{}: update after processes for pid {:3}", LOG_TAG, pid);
+                trace!("{}: update after processes for pid {:03}", LOG_TAG, pid);
                 for pid_after in &afters {
                     if let Some(entry) = self.entries.get_mut(pid_after) {
                         let _ = entry.update_depend(pid);
                     }
                 }
                 // start.
-                trace!("{}: start after processes for pid {:3}", LOG_TAG, pid);
+                trace!("{}: start after processes for pid {:03}", LOG_TAG, pid);
                 for pid_after in &afters {
                     if let Some(entry) = self.entries.get_mut(pid_after) {
                         if !entry.is_depends_ok() {
@@ -275,12 +275,12 @@ impl ProcessGraph {
                         } else {
                             if !entry.is_floating {
                                 trace!(
-                                    "{}: dependency met, waiting for next cycle {:3}",
+                                    "{}: dependency met, waiting for next cycle {:03}",
                                     LOG_TAG, pid_after
                                 );
                             } else {
                                 // dependency cleared, start.
-                                trace!("{}: starting pid {:3}", LOG_TAG, *pid_after);
+                                trace!("{}: starting pid {:03}", LOG_TAG, *pid_after);
                                 let mut change: ProcessStateChange =
                                     ProcessStateChange::new(&entry);
                                 if entry.set_state(ProcessState::Running) {
@@ -298,7 +298,7 @@ impl ProcessGraph {
         if changes.len() > 0 {
             Ok(changes)
         } else {
-            return Err(format!("process {:3} cannot be done", pid));
+            return Err(format!("process {:03} cannot be done", pid));
         }
     }
 
