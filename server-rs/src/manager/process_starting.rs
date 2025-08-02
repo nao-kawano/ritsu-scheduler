@@ -37,16 +37,24 @@ impl ManagerProc for ManagerProcStarting {
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
-            if client.state == ClientState::None {
-                debug!("{}: client {:03} is joined", LOG_TAG, message.cid);
-                client.set_client_state(ClientState::Sync);
-                context.num_active_clients += 1;
-                responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
-            } else {
-                warn!(
-                    "{}: client {:03} is already joined, dropped.",
-                    LOG_TAG, message.cid
-                );
+            match client.state {
+                ClientState::None => {
+                    debug!("{}: client {:03} is joined", LOG_TAG, message.cid);
+                    client.set_client_state(ClientState::Sync);
+                    context.num_active_clients += 1;
+                    responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
+                }
+                ClientState::Sync => {
+                    // maybe retransmission, send OK.
+                    warn!("{}: client {:03} retransmit join", LOG_TAG, message.cid);
+                    responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
+                }
+                _ => {
+                    warn!(
+                        "{}: client {:03} is already joined, dropped.",
+                        LOG_TAG, message.cid
+                    );
+                }
             }
         }
         Ok(responses)
@@ -54,23 +62,29 @@ impl ManagerProc for ManagerProcStarting {
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
         trace!("{}: on_client_ready id={:03}", LOG_TAG, message.cid);
-        let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
-            if client.state == ClientState::Sync {
-                debug!("{}: client {:03} is ready", LOG_TAG, message.cid);
-                client.set_client_state(ClientState::Active);
-                responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
-                // also update graph.
-                let r = context.graph.on_ready(message.cid);
-                if let Err(e) = r {
-                    return Err(e);
+            match client.state {
+                ClientState::Sync => {
+                    debug!("{}: client {:03} is ready", LOG_TAG, message.cid);
+                    client.set_client_state(ClientState::Active);
+                    // holding response for waiting others and trigger.
+                    // update graph.
+                    let r = context.graph.on_ready(message.cid);
+                    if let Err(e) = r {
+                        return Err(e);
+                    }
                 }
-            } else {
-                warn!(
-                    "{}: client {:03} is not in Idle, dropped.",
-                    LOG_TAG, message.cid
-                );
+                ClientState::Active => {
+                    // maybe retransmission, keep waiting others.
+                    debug!("{}: client {:03} retransmit ready", LOG_TAG, message.cid);
+                }
+                _ => {
+                    warn!(
+                        "{}: client {:03} is not in Idle, dropped.",
+                        LOG_TAG, message.cid
+                    );
+                }
             }
         }
         // check if all clients are ready.
@@ -84,7 +98,7 @@ impl ManagerProc for ManagerProcStarting {
                 context.set_state(ManagerState::Running);
             }
         }
-        Ok(responses)
+        Ok(vec![])
     }
 
     fn on_client_done(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {

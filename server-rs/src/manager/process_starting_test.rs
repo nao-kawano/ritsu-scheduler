@@ -118,9 +118,7 @@ fn test_on_client_ready() {
     let result = proc.on_client_ready(&mut ctx, &m).unwrap();
 
     // check result.
-    assert_eq!(result.len(), 1);
-    assert_eq!(result[0].mtype, MessageType::Ok);
-    assert_eq!(result[0].cid, 0);
+    assert_eq!(result.len(), 0);
     assert_eq!(ctx.state, ManagerState::Starting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
@@ -133,9 +131,7 @@ fn test_on_client_ready() {
     let result = proc.on_client_ready(&mut ctx, &m).unwrap();
 
     // check result.
-    assert_eq!(result.len(), 1);
-    assert_eq!(result[0].mtype, MessageType::Ok);
-    assert_eq!(result[0].cid, 2);
+    assert_eq!(result.len(), 0);
     assert_eq!(ctx.state, ManagerState::Running);
     assert_eq!(ctx.state_changed, true);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
