@@ -44,7 +44,7 @@ sequenceDiagram
     A -) M: EXIT
     M --) A: OK
       Note over A: None
-    
+
     B -) M: READY
     M --) B: *ERROR*
       Note over B: Disconnecting

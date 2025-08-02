@@ -44,12 +44,12 @@ Per client configuration below:
 
 - Specifies which processes must be completed before this process can run.
 - All specified processes must have the same Cycle.
-- This acts as an AND condition, meaning that this process will only run if 
+- This acts as an AND condition, meaning that this process will only run if
   both the cycle condition is met and all specified dependent processes have completed.
-  - If the dependent process has the same cycle and cycle offset, 
+  - If the dependent process has the same cycle and cycle offset,
     this process starts immediately after the dependent process completes.
-  - If the dependent process has a different cycle offset, 
-    this process starts when the specified cycle and cycle offset are reached, 
+  - If the dependent process has a different cycle offset,
+    this process starts when the specified cycle and cycle offset are reached,
     and only if the dependent process has already completed.
 - For example: `ID=0`, `Cycle=2`, `CycleOffset=0`, `Depends=""` and
   - `Cycle=2`, `CycleOffset=0`, `Depends="000"`
