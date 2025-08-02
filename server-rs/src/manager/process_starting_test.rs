@@ -9,6 +9,9 @@ fn create_context() -> ManagerContext {
         ClientConfig::new(2, 1, 0, vec![0]).unwrap(),
     ]);
     ctx.state = ManagerState::Starting;
+    ctx.clients.get_mut(&0).unwrap().last_mid = 9;
+    ctx.clients.get_mut(&1).unwrap().last_mid = 9;
+    ctx.clients.get_mut(&2).unwrap().last_mid = 9;
     return ctx;
 }
 
@@ -70,7 +73,7 @@ fn test_on_client_join() {
     ctx.num_active_clients = 1;
 
     // send event.
-    let m = Message::new(MessageType::Join, 1, None).unwrap();
+    let m = Message::new(MessageType::Join, 0, 1, None).unwrap();
     let result = proc.on_client_join(&mut ctx, &m).unwrap();
 
     // check result.
@@ -85,7 +88,7 @@ fn test_on_client_join() {
     assert_eq!(ctx.num_active_clients, 2);
 
     // send event.
-    let m = Message::new(MessageType::Join, 2, None).unwrap();
+    let m = Message::new(MessageType::Join, 0, 2, None).unwrap();
     let result = proc.on_client_join(&mut ctx, &m).unwrap();
 
     // check result.
@@ -114,7 +117,7 @@ fn test_on_client_ready() {
     ctx.num_active_clients = 3;
 
     // send event.
-    let m = Message::new(MessageType::Ready, 0, None).unwrap();
+    let m = Message::new(MessageType::Ready, 0, 0, None).unwrap();
     let result = proc.on_client_ready(&mut ctx, &m).unwrap();
 
     // check result.
@@ -127,7 +130,7 @@ fn test_on_client_ready() {
     assert_eq!(ctx.num_active_clients, 3);
 
     // send event.
-    let m = Message::new(MessageType::Ready, 2, None).unwrap();
+    let m = Message::new(MessageType::Ready, 0, 2, None).unwrap();
     let result = proc.on_client_ready(&mut ctx, &m).unwrap();
 
     // check result.
@@ -154,7 +157,7 @@ fn test_on_client_done() {
     ctx.num_active_clients = 3;
 
     // send event.
-    let m = Message::new(MessageType::Done, 0, None).unwrap();
+    let m = Message::new(MessageType::Done, 0, 0, None).unwrap();
     let result = proc.on_client_done(&mut ctx, &m).unwrap();
 
     // check result.
@@ -167,7 +170,7 @@ fn test_on_client_done() {
     assert_eq!(ctx.num_active_clients, 3);
 
     // send event.
-    let m = Message::new(MessageType::Done, 2, None).unwrap();
+    let m = Message::new(MessageType::Done, 0, 2, None).unwrap();
     let result = proc.on_client_done(&mut ctx, &m).unwrap();
 
     // check result.
@@ -192,11 +195,11 @@ fn test_on_client_exit() {
     ctx.clients.get_mut(&1).unwrap().state = ClientState::Sync;
     ctx.clients.get_mut(&2).unwrap().state = ClientState::Sync;
     ctx.num_active_clients = 3;
-    let m = Message::new(MessageType::Ready, 1, None).unwrap();
+    let m = Message::new(MessageType::Ready, 0, 1, None).unwrap();
     let _ = proc.on_client_ready(&mut ctx, &m).unwrap();
 
     // send event.
-    let m = Message::new(MessageType::Exit, 0, None).unwrap();
+    let m = Message::new(MessageType::Exit, 0, 0, None).unwrap();
     let result = proc.on_client_exit(&mut ctx, &m).unwrap();
 
     // check result.
@@ -251,7 +254,7 @@ fn test_on_shutdown() {
     ctx.clients.get_mut(&1).unwrap().state = ClientState::Sync;
     ctx.clients.get_mut(&2).unwrap().state = ClientState::Sync;
     ctx.num_active_clients = 3;
-    let m = Message::new(MessageType::Ready, 1, None).unwrap();
+    let m = Message::new(MessageType::Ready, 0, 1, None).unwrap();
     let _ = proc.on_client_ready(&mut ctx, &m).unwrap();
 
     // send event.

@@ -76,7 +76,7 @@ fn test_on_client_join() {
     // do nothing.
 
     // send event and check no-effect.
-    let m = Message::new(MessageType::Join, 0, None).unwrap();
+    let m = Message::new(MessageType::Join, 0, 0, None).unwrap();
     let result = proc.on_client_join(&mut ctx, &m);
     assert_eq!(result.is_err(), true);
     assert_eq!(check_context_changed(&ctx), false);
@@ -93,7 +93,7 @@ fn test_on_client_ready() {
     // do nothing.
 
     // send event and check no-effect.
-    let m = Message::new(MessageType::Ready, 0, None).unwrap();
+    let m = Message::new(MessageType::Ready, 0, 0, None).unwrap();
     let result = proc.on_client_join(&mut ctx, &m);
     assert_eq!(result.is_err(), true);
     assert_eq!(check_context_changed(&ctx), false);
@@ -110,7 +110,7 @@ fn test_on_client_done() {
     // do nothing.
 
     // send event and check no-effect.
-    let m = Message::new(MessageType::Done, 0, None).unwrap();
+    let m = Message::new(MessageType::Done, 0, 0, None).unwrap();
     let result = proc.on_client_join(&mut ctx, &m);
     assert_eq!(result.is_err(), true);
     assert_eq!(check_context_changed(&ctx), false);
@@ -127,7 +127,7 @@ fn test_on_client_exit() {
     // do nothing.
 
     // send event and check no-effect.
-    let m = Message::new(MessageType::Exit, 0, None).unwrap();
+    let m = Message::new(MessageType::Exit, 0, 0, None).unwrap();
     let result = proc.on_client_join(&mut ctx, &m);
     assert_eq!(result.is_err(), true);
     assert_eq!(check_context_changed(&ctx), false);

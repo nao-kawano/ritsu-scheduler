@@ -32,12 +32,18 @@ impl ManagerProc for ManagerProcExitting {
     }
 
     fn on_client_join(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_join id={:03}", LOG_TAG, message.cid);
+        trace!(
+            "{}: on_client_join@{} id={:03}",
+            LOG_TAG, message.mid, message.cid
+        );
         Err(format!("invalid Join from {:03}", message.cid))
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_ready id={:03}", LOG_TAG, message.cid);
+        trace!(
+            "{}: on_client_ready@{} id={:03}",
+            LOG_TAG, message.mid, message.cid
+        );
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
@@ -47,7 +53,9 @@ impl ManagerProc for ManagerProcExitting {
                     LOG_TAG, message.cid
                 );
                 client.set_client_state(ClientState::Exitting);
-                responses.push(Message::new(MessageType::Error, message.cid, None).unwrap());
+                responses.push(
+                    Message::new(MessageType::Error, client.last_mid, message.cid, None).unwrap(),
+                );
             } else {
                 warn!(
                     "{}: client {:03} is disconnected, dropped.",
@@ -59,7 +67,10 @@ impl ManagerProc for ManagerProcExitting {
     }
 
     fn on_client_done(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        warn!("{}: on_client_done id={:03} (nop)", LOG_TAG, message.cid);
+        warn!(
+            "{}: on_client_done@{} id={:03} (nop)",
+            LOG_TAG, message.mid, message.cid
+        );
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
@@ -69,7 +80,9 @@ impl ManagerProc for ManagerProcExitting {
                     LOG_TAG, message.cid
                 );
                 client.set_client_state(ClientState::Exitting);
-                responses.push(Message::new(MessageType::Error, message.cid, None).unwrap());
+                responses.push(
+                    Message::new(MessageType::Error, client.last_mid, message.cid, None).unwrap(),
+                );
             } else {
                 warn!(
                     "{}: client {:03} is disconnected, dropped.",
@@ -81,7 +94,10 @@ impl ManagerProc for ManagerProcExitting {
     }
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_exit id={:03}", LOG_TAG, message.cid);
+        trace!(
+            "{}: on_client_exit@{} id={:03}",
+            LOG_TAG, message.mid, message.cid
+        );
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
@@ -89,13 +105,17 @@ impl ManagerProc for ManagerProcExitting {
                 ClientState::None => {
                     // maybe retransmission.
                     warn!("{}: client {:03} retransmit exit", LOG_TAG, message.cid);
-                    responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
+                    responses.push(
+                        Message::new(MessageType::Ok, client.last_mid, message.cid, None).unwrap(),
+                    );
                 }
                 ClientState::Exitting => {
                     info!("{}: client {:03} is exit", LOG_TAG, message.cid);
                     client.set_client_state(ClientState::None);
                     context.num_active_clients -= 1;
-                    responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
+                    responses.push(
+                        Message::new(MessageType::Ok, client.last_mid, message.cid, None).unwrap(),
+                    );
                 }
                 _ => {
                     warn!(

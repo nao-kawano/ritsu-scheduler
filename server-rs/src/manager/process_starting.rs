@@ -33,7 +33,10 @@ impl ManagerProc for ManagerProcStarting {
     }
 
     fn on_client_join(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_join id={:03}", LOG_TAG, message.cid);
+        trace!(
+            "{}: on_client_join@{} id={:03}",
+            LOG_TAG, message.mid, message.cid
+        );
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
@@ -42,12 +45,16 @@ impl ManagerProc for ManagerProcStarting {
                     debug!("{}: client {:03} is joined", LOG_TAG, message.cid);
                     client.set_client_state(ClientState::Sync);
                     context.num_active_clients += 1;
-                    responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
+                    responses.push(
+                        Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap(),
+                    );
                 }
                 ClientState::Sync => {
                     // maybe retransmission, send OK.
                     warn!("{}: client {:03} retransmit join", LOG_TAG, message.cid);
-                    responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
+                    responses.push(
+                        Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap(),
+                    );
                 }
                 _ => {
                     warn!(
@@ -61,7 +68,10 @@ impl ManagerProc for ManagerProcStarting {
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_ready id={:03}", LOG_TAG, message.cid);
+        trace!(
+            "{}: on_client_ready@{} id={:03}",
+            LOG_TAG, message.mid, message.cid
+        );
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
             match client.state {
@@ -102,12 +112,18 @@ impl ManagerProc for ManagerProcStarting {
     }
 
     fn on_client_done(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        warn!("{}: on_client_done id={:03} (nop)", LOG_TAG, message.cid);
+        warn!(
+            "{}: on_client_done@{} id={:03} (nop)",
+            LOG_TAG, message.mid, message.cid
+        );
         Ok(vec![])
     }
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_exit id={:03}", LOG_TAG, message.cid);
+        trace!(
+            "{}: on_client_exit@{} id={:03}",
+            LOG_TAG, message.mid, message.cid
+        );
         return self.handle_client_exit(context, message);
     }
 

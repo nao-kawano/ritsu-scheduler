@@ -44,7 +44,7 @@ impl ManagerProc for ManagerProcExitted {
     fn on_client_exit(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
         warn!("{}: client {:03} retransmit exit", LOG_TAG, message.cid);
         return Ok(vec![
-            Message::new(MessageType::Ok, message.cid, None).unwrap(),
+            Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap(),
         ]);
     }
 

@@ -21,6 +21,11 @@ fn create_context_simple() -> ManagerContext {
     ctx.clients.get_mut(&2).unwrap().state = ClientState::Active;
     ctx.clients.get_mut(&3).unwrap().state = ClientState::Active;
     ctx.clients.get_mut(&10).unwrap().state = ClientState::Active;
+    ctx.clients.get_mut(&0).unwrap().last_mid = 9;
+    ctx.clients.get_mut(&1).unwrap().last_mid = 9;
+    ctx.clients.get_mut(&2).unwrap().last_mid = 9;
+    ctx.clients.get_mut(&3).unwrap().last_mid = 9;
+    ctx.clients.get_mut(&10).unwrap().last_mid = 9;
     return ctx;
 }
 
@@ -138,7 +143,7 @@ fn test_on_client_join() {
     // do nothing.
 
     // send event.
-    let m = Message::new(MessageType::Join, 0, None).unwrap();
+    let m = Message::new(MessageType::Join, 0, 0, None).unwrap();
     let result = proc.on_client_join(&mut ctx, &m);
 
     // check result.
@@ -156,7 +161,7 @@ fn test_on_client_ready_simple() {
     ctx.cycle_current = 0;
 
     // send event.
-    let m = Message::new(MessageType::Ready, 0, None).unwrap();
+    let m = Message::new(MessageType::Ready, 0, 0, None).unwrap();
     let result = proc.on_client_ready(&mut ctx, &m).unwrap();
 
     // check result.
@@ -187,7 +192,7 @@ fn test_on_client_done_simple() {
     let _ = ctx.graph.on_start(2);
 
     // send event.
-    let m = Message::new(MessageType::Done, 2, None).unwrap();
+    let m = Message::new(MessageType::Done, 0, 2, None).unwrap();
     let result = proc.on_client_done(&mut ctx, &m).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
 
@@ -218,7 +223,7 @@ fn test_on_client_exit() {
     let _ = ctx.graph.on_ready(10);
 
     // send event.
-    let m = Message::new(MessageType::Exit, 0, None).unwrap();
+    let m = Message::new(MessageType::Exit, 0, 0, None).unwrap();
     let result = proc.on_client_exit(&mut ctx, &m).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
 

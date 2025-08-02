@@ -43,14 +43,14 @@ pub trait ManagerProc {
                 LOG_TAG, message.cid
             );
             return Ok(vec![
-                Message::new(MessageType::Ok, message.cid, None).unwrap(),
+                Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap(),
             ]);
         }
         // send ok to trigger client.
         let mut responses: Vec<Message> = Vec::new();
         client.set_client_state(ClientState::None);
         context.num_active_clients -= 1;
-        responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
+        responses.push(Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap());
         // send exit to ready clients.
         self.going_to_exit(context, &mut responses);
         //
@@ -86,8 +86,13 @@ pub trait ManagerProc {
                     // exclude already exitted clients.
                     if client.state != ClientState::None {
                         responses.push(
-                            Message::new(MessageType::Error, client.config.client_id, None)
-                                .unwrap(),
+                            Message::new(
+                                MessageType::Error,
+                                client.last_mid,
+                                client.config.client_id,
+                                None,
+                            )
+                            .unwrap(),
                         );
                         client.set_client_state(ClientState::Exitting);
                     }

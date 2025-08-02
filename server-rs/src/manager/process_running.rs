@@ -49,17 +49,23 @@ impl ManagerProc for ManagerProcRunning {
         }
         // convert changes to response.
         for change in changes {
+            let c = context.clients.get(&change.pid).unwrap();
             match change.after {
                 ProcessState::Running => {
-                    responses.push(Message::new(MessageType::Ok, change.pid, None).unwrap());
+                    responses
+                        .push(Message::new(MessageType::Ok, c.last_mid, change.pid, None).unwrap());
                 }
                 ProcessState::Overrun => { /* keep going */ }
                 ProcessState::Skip => {
-                    responses.push(Message::new(MessageType::Skip, change.pid, None).unwrap());
+                    responses.push(
+                        Message::new(MessageType::Skip, c.last_mid, change.pid, None).unwrap(),
+                    );
                 }
                 ProcessState::SkipPrev => {
                     if change.before == ProcessState::Ready {
-                        responses.push(Message::new(MessageType::Skip, change.pid, None).unwrap());
+                        responses.push(
+                            Message::new(MessageType::Skip, c.last_mid, change.pid, None).unwrap(),
+                        );
                     }
                 }
                 _ => {
@@ -71,12 +77,18 @@ impl ManagerProc for ManagerProcRunning {
     }
 
     fn on_client_join(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_join id={:03}", LOG_TAG, message.cid);
+        trace!(
+            "{}: on_client_join@{} id={:03}",
+            LOG_TAG, message.mid, message.cid
+        );
         Err(format!("invalid Join from {:03}", message.cid))
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_ready id={:03}", LOG_TAG, message.cid);
+        trace!(
+            "{}: on_client_ready@{} id={:03}",
+            LOG_TAG, message.mid, message.cid
+        );
         let mut responses: Vec<Message> = Vec::new();
         // update state.
         let r = context.graph.on_ready(message.cid);
@@ -85,14 +97,18 @@ impl ManagerProc for ManagerProcRunning {
         };
         // convert changes to response.
         for change in changes {
+            let c = context.clients.get(&change.pid).unwrap();
             match change.after {
                 ProcessState::Ready => { /* keep waiting */ }
                 ProcessState::Skip => {
-                    responses.push(Message::new(MessageType::Skip, change.pid, None).unwrap());
+                    responses.push(
+                        Message::new(MessageType::Skip, c.last_mid, change.pid, None).unwrap(),
+                    );
                 }
                 ProcessState::Running => {
                     // maybe retransmission, send OK to start immideately.
-                    responses.push(Message::new(MessageType::Ok, change.pid, None).unwrap());
+                    responses
+                        .push(Message::new(MessageType::Ok, c.last_mid, change.pid, None).unwrap());
                 }
                 _ => {
                     warn!("{}: invalid state change by start {:?}", LOG_TAG, change);
@@ -103,7 +119,10 @@ impl ManagerProc for ManagerProcRunning {
     }
 
     fn on_client_done(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_done id={:03}", LOG_TAG, message.cid);
+        trace!(
+            "{}: on_client_done@{} id={:03}",
+            LOG_TAG, message.mid, message.cid
+        );
         let mut responses: Vec<Message> = Vec::new();
         // update state.
         let r = context.graph.on_done(message.cid);
@@ -112,16 +131,20 @@ impl ManagerProc for ManagerProcRunning {
         };
         // convert changes to response.
         for change in changes {
+            let c = context.clients.get(&change.pid).unwrap();
             match change.after {
                 ProcessState::Idle => {
                     // normal case or retransmission.
-                    responses.push(Message::new(MessageType::Ok, change.pid, None).unwrap());
+                    responses
+                        .push(Message::new(MessageType::Ok, c.last_mid, change.pid, None).unwrap());
                 }
                 ProcessState::SkipPrev => {
-                    responses.push(Message::new(MessageType::Ok, change.pid, None).unwrap());
+                    responses
+                        .push(Message::new(MessageType::Ok, c.last_mid, change.pid, None).unwrap());
                 }
                 ProcessState::Running => {
-                    responses.push(Message::new(MessageType::Ok, change.pid, None).unwrap());
+                    responses
+                        .push(Message::new(MessageType::Ok, c.last_mid, change.pid, None).unwrap());
                 }
                 _ => {
                     warn!("{}: invalid state change by start {:?}", LOG_TAG, change);
@@ -132,7 +155,10 @@ impl ManagerProc for ManagerProcRunning {
     }
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("{}: on_client_exit id={:03}", LOG_TAG, message.cid);
+        trace!(
+            "{}: on_client_exit@{} id={:03}",
+            LOG_TAG, message.mid, message.cid
+        );
         return self.handle_client_exit(context, message);
     }
 
