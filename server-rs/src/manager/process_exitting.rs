@@ -85,16 +85,24 @@ impl ManagerProc for ManagerProcExitting {
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
-            if client.state == ClientState::Exitting {
-                info!("{}: client {:03} is exit", LOG_TAG, message.cid);
-                client.set_client_state(ClientState::None);
-                context.num_active_clients -= 1;
-                responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
-            } else {
-                warn!(
-                    "{}: client {:03} is not in Exiting, dropped.",
-                    LOG_TAG, message.cid
-                );
+            match client.state {
+                ClientState::None => {
+                    // maybe retransmission.
+                    warn!("{}: client {:03} retransmit exit", LOG_TAG, message.cid);
+                    responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
+                }
+                ClientState::Exitting => {
+                    info!("{}: client {:03} is exit", LOG_TAG, message.cid);
+                    client.set_client_state(ClientState::None);
+                    context.num_active_clients -= 1;
+                    responses.push(Message::new(MessageType::Ok, message.cid, None).unwrap());
+                }
+                _ => {
+                    warn!(
+                        "{}: client {:03} is not in Exiting, dropped.",
+                        LOG_TAG, message.cid
+                    );
+                }
             }
         }
         // check if all clients are ready.

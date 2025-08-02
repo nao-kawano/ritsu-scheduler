@@ -7,7 +7,7 @@ extern crate log;
 use log::{debug, error, info, trace, warn};
 const LOG_TAG: &str = "StateExitted";
 
-use dps_message::Message;
+use dps_message::{Message, MessageType};
 
 use super::EventResult;
 use super::context::ManagerContext;
@@ -42,7 +42,10 @@ impl ManagerProc for ManagerProcExitted {
     }
 
     fn on_client_exit(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        return Err(format!("already exited, drop {:?}", message));
+        warn!("{}: client {:03} retransmit exit", LOG_TAG, message.cid);
+        return Ok(vec![
+            Message::new(MessageType::Ok, message.cid, None).unwrap(),
+        ]);
     }
 
     fn on_shutdown(&self, _context: &mut ManagerContext) -> EventResult {

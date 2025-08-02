@@ -39,10 +39,12 @@ pub trait ManagerProc {
         };
         if client.state == ClientState::None {
             warn!(
-                "{}: client {:03} is already disconnected, dropped.",
+                "{}: client {:03} is already disconnected, maybe retransmission.",
                 LOG_TAG, message.cid
             );
-            return Ok(vec![]);
+            return Ok(vec![
+                Message::new(MessageType::Ok, message.cid, None).unwrap(),
+            ]);
         }
         // send ok to trigger client.
         let mut responses: Vec<Message> = Vec::new();
