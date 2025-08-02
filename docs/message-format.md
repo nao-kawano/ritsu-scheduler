@@ -5,10 +5,12 @@ Message content is a simple String-based format:
 
 ```
 Message:
-  MessageType:ClientID[,Extras]
+  MessageType@MessageID:ClientID[,Extras]
 
 MessageType:
   -> string of message type (see next section for details)
+MessageID:
+  -> string of 1-digit decimal (e.g. "0" ~ "9")
 ClientID:
   -> string of 3-digit decimal with leading zero (e.g. "000" ~ "999")
 Extras: *for future use*
@@ -50,5 +52,19 @@ MessageType is divided into requests from the client and responses from the serv
   - Returned for "JOIN", "READY", "DONE".
   - Indicates that the request is invalid or the server is in an invalid state.
   - Except for "JOIN" errors, The client must send "EXIT" to the server and exit.
+
+## MessageID
+
+- The client assigns an arbitrary ID to each request.
+  - The same ID is used for retransmissions.
+  - Different IDs are assigned to different requests (e.g., incrementing).
+- The server includes the ID of the corresponding request in the response.
+- The client checks the ID in the response:
+  - Discards responses that do not match the expected response.
+  - This allows discarding duplicate responses from previous requests when the sequence has advanced.
+
+- NOTE:
+  - Messages are exchanged sequentially, one at a time.
+  - A single digit is used because it is sufficient to distinguish each message from the previous one.
 
 EOF

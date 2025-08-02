@@ -8,6 +8,10 @@ mod lib_test;
 
 /* -------------------------------------------------------------------------- */
 
+/// Message ID length in string.
+pub const MSG_ID_LEN: usize = 1;
+/// Maximum Message ID in number.
+pub const MSG_ID_MAX: u8 = 9;
 /// Client ID length in string.
 pub const CLIENT_ID_LEN: usize = 3;
 /// Maximum client ID in number.
@@ -21,8 +25,8 @@ pub const MESSAGE_LEN_MAX: usize = 512;
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum ParseError {
     TypeNotFound,
-    InvalidType,
-    ClientIdNotFound,
+    MessageIdNotFound,
+    InvalidMessageId,
     InvalidClientId,
     MessageTooLong,
 }
@@ -77,6 +81,8 @@ impl MessageType {
 pub struct Message {
     /// Message Type.
     pub mtype: MessageType,
+    /// Message ID.
+    pub mid: u8,
     /// Client ID.
     pub cid: u16,
     /// Extra Info.
@@ -87,18 +93,22 @@ impl Message {
     /// Create a new message.
     pub fn new(
         message_type: MessageType,
+        message_id: u8,
         client_id: u16,
         extras: Option<Vec<String>>,
     ) -> Result<Self, ParseError> {
         if client_id > CLIENT_ID_MAX {
-            Err(ParseError::InvalidClientId)
-        } else {
-            Ok(Message {
-                mtype: message_type,
-                cid: client_id,
-                extras: extras.unwrap_or(vec![]),
-            })
+            return Err(ParseError::InvalidClientId);
         }
+        if message_id > MSG_ID_MAX {
+            return Err(ParseError::InvalidMessageId);
+        }
+        Ok(Message {
+            mtype: message_type,
+            mid: message_id,
+            cid: client_id,
+            extras: extras.unwrap_or(vec![]),
+        })
     }
 
     /// Create a new message from a string.
@@ -106,14 +116,29 @@ impl Message {
         if msg.len() > MESSAGE_LEN_MAX {
             return Err(ParseError::MessageTooLong);
         }
-        let (msg_type_str, msg_payload_str) =
+        let (msg_header_str, msg_payload_str) =
             msg.split_once(":").ok_or(ParseError::TypeNotFound)?;
 
-        // check type.
+        // -- header
+        let (msg_type_str, msg_id_str) = msg_header_str
+            .split_once("@")
+            .ok_or(ParseError::MessageIdNotFound)?;
+
+        // check message type.
         let message_type: MessageType = MessageType::from_str(msg_type_str)?;
+        // check message id.
+        if msg_id_str.len() != MSG_ID_LEN {
+            return Err(ParseError::InvalidMessageId);
+        }
+        let message_id: u8 = msg_id_str
+            .parse::<u8>()
+            .ok() // Result to Option
+            .ok_or(ParseError::InvalidMessageId)?;
+
+        // -- payload
+        let msg_payload_str_vec: Vec<&str> = msg_payload_str.split(",").collect();
 
         // check client id.
-        let msg_payload_str_vec: Vec<&str> = msg_payload_str.split(",").collect();
         if msg_payload_str_vec[0].len() != CLIENT_ID_LEN {
             return Err(ParseError::InvalidClientId);
         }
@@ -135,6 +160,7 @@ impl Message {
 
         Ok(Message {
             mtype: message_type,
+            mid: message_id,
             cid: client_id,
             extras,
         })
@@ -142,17 +168,21 @@ impl Message {
 
     /// Convert to a string.
     pub fn to_str(&self) -> Result<String, ParseError> {
+        if self.mid > MSG_ID_MAX {
+            return Err(ParseError::InvalidMessageId);
+        }
         if self.cid > CLIENT_ID_MAX {
             return Err(ParseError::InvalidClientId);
         }
 
         let msg: String;
         if self.extras.len() < 1 {
-            msg = format!("{}:{:>03}", self.mtype.to_str(), self.cid);
+            msg = format!("{}@{:1}:{:>03}", self.mtype.to_str(), self.mid, self.cid);
         } else {
             msg = format!(
-                "{}:{:>03},{}",
+                "{}@{:1}:{:>03},{}",
                 self.mtype.to_str(),
+                self.mid,
                 self.cid,
                 self.extras.join(",")
             );

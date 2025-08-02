@@ -32,13 +32,15 @@ fn test_message_type_from_str() {
 #[test]
 fn test_message_new_no_extras() {
     let message_type = MessageType::Ready;
+    let message_id = 0;
     let client_id = 10;
 
-    let result = Message::new(message_type, client_id, None);
+    let result = Message::new(message_type, message_id, client_id, None);
 
     assert!(result.is_ok());
     let message = result.unwrap();
     assert_eq!(message.mtype, MessageType::Ready);
+    assert_eq!(message.mid, 0);
     assert_eq!(message.cid, 10);
     assert_eq!(message.extras, Vec::<String>::new());
 }
@@ -46,10 +48,11 @@ fn test_message_new_no_extras() {
 #[test]
 fn test_message_new_with_extras() {
     let message_type = MessageType::Ready;
+    let message_id = 1;
     let client_id = 10;
     let extras = Some(vec!["extra1".to_string(), "extra2".to_string()]);
 
-    let result = Message::new(message_type, client_id, extras);
+    let result = Message::new(message_type, message_id, client_id, extras);
 
     assert!(result.is_ok());
     let message = result.unwrap();
@@ -62,12 +65,26 @@ fn test_message_new_with_extras() {
 }
 
 #[test]
+fn test_message_new_invalid_message_id() {
+    let message_type = MessageType::Done;
+    let message_id = 10;
+    let client_id = 10;
+    let extras = Some(vec!["extra1".to_string(), "extra2".to_string()]);
+
+    let result = Message::new(message_type, message_id, client_id, extras);
+
+    assert!(result.is_err());
+    assert_eq!(result.unwrap_err(), ParseError::InvalidMessageId);
+}
+
+#[test]
 fn test_message_new_invalid_client_id() {
     let message_type = MessageType::Done;
+    let message_id = 1;
     let client_id = 1000;
     let extras = Some(vec!["extra1".to_string(), "extra2".to_string()]);
 
-    let result = Message::new(message_type, client_id, extras);
+    let result = Message::new(message_type, message_id, client_id, extras);
 
     assert!(result.is_err());
     assert_eq!(result.unwrap_err(), ParseError::InvalidClientId);
@@ -76,22 +93,24 @@ fn test_message_new_invalid_client_id() {
 #[test]
 fn test_message_from_str_no_extras() {
     {
-        let msg = "READY:100";
+        let msg = "READY@0:100";
         let msg = Message::from_str(msg);
         assert!(msg.is_ok());
 
         let msg = msg.unwrap();
         assert_eq!(msg.mtype, MessageType::Ready);
+        assert_eq!(msg.mid, 0);
         assert_eq!(msg.cid, 100);
         assert_eq!(msg.extras.len(), 0);
     }
     {
-        let msg = "READY:100,";
+        let msg = "READY@9:100,";
         let msg = Message::from_str(msg);
         assert!(msg.is_ok());
 
         let msg = msg.unwrap();
         assert_eq!(msg.mtype, MessageType::Ready);
+        assert_eq!(msg.mid, 9);
         assert_eq!(msg.cid, 100);
         assert_eq!(msg.extras.len(), 1);
         assert_eq!(msg.extras[0], String::new());
@@ -100,13 +119,14 @@ fn test_message_from_str_no_extras() {
 
 #[test]
 fn test_message_from_str_with_extras() {
-    let msg = "READY:000,ex1,ex2";
+    let msg = "READY@1:000,ex1,ex2";
     let msg = Message::from_str(msg);
     assert!(msg.is_ok());
 
     let msg = msg.unwrap();
     assert_eq!(msg.mtype, MessageType::Ready);
-    assert_eq!(msg.cid, 000);
+    assert_eq!(msg.mid, 1);
+    assert_eq!(msg.cid, 0);
     assert_eq!(msg.extras.len(), 2);
     assert_eq!(msg.extras[0], "ex1");
     assert_eq!(msg.extras[1], "ex2");
@@ -130,28 +150,34 @@ fn test_message_from_str_errors() {
         let msg = "xx:";
         let msg = Message::from_str(msg);
         assert!(msg.is_err());
-        assert_eq!(msg.unwrap_err(), ParseError::TypeNotFound);
+        assert_eq!(msg.unwrap_err(), ParseError::MessageIdNotFound);
     }
     {
         let msg = "READY:";
         let msg = Message::from_str(msg);
         assert!(msg.is_err());
-        assert_eq!(msg.unwrap_err(), ParseError::InvalidClientId);
+        assert_eq!(msg.unwrap_err(), ParseError::MessageIdNotFound);
     }
     {
-        let msg = "READY:1";
+        let msg = "READY@1:";
         let msg = Message::from_str(msg);
         assert!(msg.is_err());
         assert_eq!(msg.unwrap_err(), ParseError::InvalidClientId);
     }
     {
-        let msg = "READY:1234";
+        let msg = "READY@1:1";
         let msg = Message::from_str(msg);
         assert!(msg.is_err());
         assert_eq!(msg.unwrap_err(), ParseError::InvalidClientId);
     }
     {
-        let msg = format!("READY:000,{}", "0".repeat(MESSAGE_LEN_MAX + 1));
+        let msg = "READY@1:1234";
+        let msg = Message::from_str(msg);
+        assert!(msg.is_err());
+        assert_eq!(msg.unwrap_err(), ParseError::InvalidClientId);
+    }
+    {
+        let msg = format!("READY@1:000,{}", "0".repeat(MESSAGE_LEN_MAX + 1));
         let msg = Message::from_str(&msg);
         assert!(msg.is_err());
         assert_eq!(msg.unwrap_err(), ParseError::MessageTooLong);
@@ -162,29 +188,44 @@ fn test_message_from_str_errors() {
 fn test_message_to_str_no_extras() {
     let message = Message {
         mtype: MessageType::Ready,
+        mid: 0,
         cid: 123,
         extras: vec![],
     };
-    assert_eq!(message.to_str().unwrap(), "READY:123".to_string());
+    assert_eq!(message.to_str().unwrap(), "READY@0:123".to_string());
 }
 
 #[test]
 fn test_message_to_str_with_extras() {
     let message = Message {
         mtype: MessageType::Done,
+        mid: 1,
         cid: 456,
         extras: vec!["extra1".to_string(), "extra2".to_string()],
     };
     assert_eq!(
         message.to_str().unwrap(),
-        "DONE:456,extra1,extra2".to_string()
+        "DONE@1:456,extra1,extra2".to_string()
     );
+}
+
+#[test]
+fn test_message_to_str_invalid_msg_id() {
+    let message = Message {
+        mtype: MessageType::Exit,
+        mid: 10,
+        cid: 123,
+        extras: vec![],
+    };
+    assert!(message.to_str().is_err());
+    assert_eq!(message.to_str().unwrap_err(), ParseError::InvalidMessageId);
 }
 
 #[test]
 fn test_message_to_str_invalid_client_id() {
     let message = Message {
         mtype: MessageType::Exit,
+        mid: 9,
         cid: 1000,
         extras: vec![],
     };
@@ -196,6 +237,7 @@ fn test_message_to_str_invalid_client_id() {
 fn test_message_to_str_too_long() {
     let message = Message {
         mtype: MessageType::Exit,
+        mid: 0,
         cid: 999,
         extras: vec!["a".to_string().repeat(MESSAGE_LEN_MAX + 1)],
     };
