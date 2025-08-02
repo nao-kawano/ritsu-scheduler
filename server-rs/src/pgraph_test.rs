@@ -133,6 +133,7 @@ fn test_on_ready_normal() {
         entry.state = ProcessState::Idle;
     }
     g.entries.get_mut(&1).unwrap().state = ProcessState::Ready;
+    g.entries.get_mut(&30).unwrap().state = ProcessState::Running;
 
     // send event.
     let result = g.on_ready(0);
@@ -173,6 +174,17 @@ fn test_on_ready_normal() {
     }
 
     // send event.
+    let result = g.on_ready(30); // retransmission.
+    // check result.
+    assert_eq!(result.is_ok(), true);
+    if let Ok(changes) = &result {
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes.get(0).unwrap().pid, 30);
+        assert_eq!(changes.get(0).unwrap().before, ProcessState::Running);
+        assert_eq!(changes.get(0).unwrap().after, ProcessState::Running);
+    }
+
+    // send event.
     let result = g.on_ready(100);
     // check result.
     assert_eq!(result.is_ok(), false);
@@ -203,6 +215,17 @@ fn test_on_done_normal() {
         assert_eq!(changes.get(1).unwrap().pid, 10);
         assert_eq!(changes.get(1).unwrap().before, ProcessState::Ready);
         assert_eq!(changes.get(1).unwrap().after, ProcessState::Running);
+    }
+
+    // send event.
+    let result = g.on_done(0); // retransmission.
+    // check result.
+    assert_eq!(result.is_ok(), true);
+    if let Ok(changes) = &result {
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes.get(0).unwrap().pid, 0);
+        assert_eq!(changes.get(0).unwrap().before, ProcessState::Idle);
+        assert_eq!(changes.get(0).unwrap().after, ProcessState::Idle);
     }
 
     // send event.

@@ -209,6 +209,11 @@ impl ProcessGraph {
                     change.after = ProcessState::Skip;
                     changes.push(change);
                 }
+                ProcessState::Running => {
+                    // maybe retransmission, keep Running and send OK to start immideately.
+                    change.after = ProcessState::Running;
+                    changes.push(change);
+                }
                 _ => {
                     warn!(
                         "{}: ignore ready for process {:03} in {:?}",
@@ -245,6 +250,12 @@ impl ProcessGraph {
                 ProcessState::Overrun => {
                     entry.set_state(ProcessState::SkipPrev);
                     change.after = ProcessState::SkipPrev;
+                    changes.push(change);
+                    skipped = true;
+                }
+                ProcessState::Idle => {
+                    // maybe retransmission, keep Idle and send OK to start immideately.
+                    change.after = ProcessState::Idle;
                     changes.push(change);
                     skipped = true;
                 }
