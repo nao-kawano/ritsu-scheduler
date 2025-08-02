@@ -90,6 +90,10 @@ impl ManagerProc for ManagerProcRunning {
                 ProcessState::Skip => {
                     responses.push(Message::new(MessageType::Skip, change.pid, None).unwrap());
                 }
+                ProcessState::Running => {
+                    // maybe retransmission, send OK to start immideately.
+                    responses.push(Message::new(MessageType::Ok, change.pid, None).unwrap());
+                }
                 _ => {
                     warn!("{}: invalid state change by start {:?}", LOG_TAG, change);
                 }
@@ -110,6 +114,7 @@ impl ManagerProc for ManagerProcRunning {
         for change in changes {
             match change.after {
                 ProcessState::Idle => {
+                    // normal case or retransmission.
                     responses.push(Message::new(MessageType::Ok, change.pid, None).unwrap());
                 }
                 ProcessState::SkipPrev => {
