@@ -36,6 +36,7 @@ pub enum ClientState {
 pub struct ClientInfo {
     pub config: ClientConfig,
     pub state: ClientState,
+    pub last_mid: u8,
 }
 
 impl ClientInfo {
@@ -44,6 +45,7 @@ impl ClientInfo {
         ClientInfo {
             config,
             state: ClientState::None,
+            last_mid: 255,
         }
     }
 

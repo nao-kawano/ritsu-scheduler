@@ -86,6 +86,11 @@ impl EventManager {
                         msg.mtype, msg.cid
                     ))
                 } else {
+                    self.context
+                        .clients
+                        .get_mut(&msg.cid)
+                        .expect("client must be exist")
+                        .last_mid = msg.mid;
                     match msg.mtype {
                         MessageType::Join => proc.on_client_join(&mut self.context, &msg),
                         MessageType::Ready => proc.on_client_ready(&mut self.context, &msg),
