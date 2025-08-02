@@ -50,6 +50,7 @@ stateDiagram-v2
     None --> Sync : Recv JOIN
     Sync --> Ready : Recv READY
 
+    Sync --> None : Recv Exit
     Sync --> Exitting : goint to shutdown
     Active --> Exitting : going to shutdown
     Exitting --> None : Recv Exit
@@ -68,6 +69,8 @@ stateDiagram-v2
 
         SkipPrev --> Skip : Recv READY
         Skip --> Ready : Recv READY
+
+        Idle --> SkipPrev : missed READY for next cycle
     }
 ```
 
@@ -95,12 +98,17 @@ Note:
 - Skip
   - Client is Ready.
   - Server skips the run for the current cycle, sends `SKIP` to the client, and waits for `READY` again.
-    - This happens when the client is Ready, but a dependent process is not Ready for the current cycle.
+  - This happens when:
+    - The client is Ready, but a dependent process is not Ready for the current cycle.
+    - The client is Ready from SkipPrev.
 - SkipPrev
-  - Client is Ready.
-  - Server skips the run for the previous cycle, sends `SKIP` to the client, and waits for `READY` again.
-    - This happens when the client is Ready, but a dependent process was not completed in the previous cycle.
-  - Alternatively, the server detected that an overrun process is complete and is waiting for Ready.
+  - Client is Ready or Idle.
+  - Client cannot complete process for the previous cycle.
+  - This happens when:
+    - The client is Ready, but a dependent process was not completed in the previous cycle.
+      Sends `SKIP` to the client and waits for `READY` again.
+    - The server detected that an overrun process is complete and is waiting for `READY`.
+    - The server cannot receive `READY` until the next cycle starts and keeps waiting for `READY`.
 - Exitting
   - Client is Disconnecting.
   - Server is waiting for `EXIT`.
