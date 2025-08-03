@@ -1,0 +1,22 @@
+[server_config]
+port = 7878
+cycle_time = 1000
+
+[[client_configs]]
+client_id = 10
+cycle = 2
+cycle_offset = 0
+depends = []
+
+[[client_configs]]
+client_id = 11
+cycle = 2
+cycle_offset = 0
+depends = [10]
+
+[[client_configs]]
+client_id = 20
+cycle = 2
+cycle_offset = 1
+depends = []
+

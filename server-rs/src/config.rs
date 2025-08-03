@@ -4,12 +4,15 @@
 
 use dps_message::CLIENT_ID_MAX;
 
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ServerConfig {
     pub port: u16,
     pub cycle_time: u16,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ClientConfig {
     pub client_id: u16,
     pub cycle: u8,
@@ -67,6 +70,7 @@ impl ClientConfig {
     // private methods.
 }
 
+#[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct SchedulerConfig {
     pub server_config: ServerConfig,
     pub client_configs: Vec<ClientConfig>,

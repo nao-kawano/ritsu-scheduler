@@ -14,6 +14,7 @@ mod cycle;
 mod manager;
 mod pgraph;
 
+use std::fs;
 use std::io::Write;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
@@ -36,6 +37,7 @@ pub enum Event {
 
 /* -------------------------------------------------------------------------- */
 
+#[allow(dead_code)]
 fn load_sample_config() -> SchedulerConfig {
     let server_config = ServerConfig {
         port: 7878,
@@ -56,6 +58,20 @@ fn load_sample_config() -> SchedulerConfig {
     }
 }
 
+fn load_config(path: &str) -> SchedulerConfig {
+    let r = fs::read_to_string(path);
+    let Ok(content) = r else {
+        panic!("failed to read config file {}, {}", path, r.unwrap_err());
+    };
+
+    let r: Result<SchedulerConfig, toml::de::Error> = toml::from_str(&content);
+    let Ok(config) = r else {
+        panic!("failed to parse config file {}, {}", path, r.unwrap_err());
+    };
+
+    return config;
+}
+
 fn main() {
     // setup logger.
     unsafe { std::env::set_var("RUST_LOG", "trace") }; // for debugging.
@@ -73,8 +89,7 @@ fn main() {
     info!("Starting dps scheduler {}", env!("CARGO_PKG_VERSION"));
 
     // load configuration from file.
-    // currently, configuration is hardcoded in the code.
-    let config = load_sample_config();
+    let config = load_config("./config.toml");
 
     // setup channel between modules.
     let (tx, rx): (Sender<Event>, Receiver<Event>) = mpsc::channel();
