@@ -1,28 +1,49 @@
 import socket
 import datetime
 from enum import Enum
+from typing import Tuple
 
 
-def log(message: str):
+def log(message: str) -> None:
+    """
+    Log a message with a timestamp.
+    Args:
+        message (str): The message to log.
+    """
     now = datetime.datetime.now()
     timestamp = now.strftime("%H:%M:%S.%f")
     print("{} {}".format(timestamp, message))
 
 
 class RequestType(Enum):
-    JOIN = "JOIN"
-    READY = "READY"
-    DONE = "DONE"
-    EXIT = "EXIT"
+    """
+    Enum representing the types of requests the client can send.
+    """
+    JOIN = "JOIN"  # Request to join the server.
+    READY = "READY"  # Request to indicate the client is ready for the next task.
+    DONE = "DONE"  # Request to indicate the client has completed the task.
+    EXIT = "EXIT"  # Request to exit the server.
 
 
 class ResponseType(Enum):
-    OK = "OK"
-    SKIP = "SKIP"
-    ERROR = "ERROR"
+    """
+    Enum representing the types of responses the server can send.
+    """
+    OK = "OK"  # Response indicating success.
+    SKIP = "SKIP"  # Response indicating the task should be skipped.
+    ERROR = "ERROR"  # Response indicating an error occurred.
 
     @classmethod
     def from_str(cls, string_value: str) -> "ResponseType":
+        """
+        Convert a string value to a ResponseType enum member.
+        Args:
+            string_value (str): The string value to convert.
+        Returns:
+            ResponseType: The corresponding ResponseType enum member.
+        Raises:
+            ValueError: If the string value does not match any ResponseType.
+        """
         for e in ResponseType:
             if e.value == string_value:
                 return e
@@ -31,34 +52,66 @@ class ResponseType(Enum):
 
 
 class Config:
-    PACKET_SIZE: int = 512  # bytes.
+    """
+    Configuration class for the DPSClient.
+    """
+    PACKET_SIZE: int = 512  # Size of the packets used for communication.
 
-    RETRY_TIME_SEC_JOIN: float = 0.020  # sec.
-    RETRY_COUNT_JOIN: int = 3  # times.
+    # Retry time for JOIN request in seconds.
+    RETRY_TIME_SEC_JOIN: float = 0.020
+    # Retry count for JOIN request.
+    RETRY_COUNT_JOIN: int = 3
 
+    # Retry time for READY request during startup in seconds.
     RETRY_TIME_SEC_READY_STARTUP: float = 5.000
-    RETRY_COUNT_READY_STARTUP: int = 0  # times. set by __init__()
+    # Retry count for READY request during startup. Set in __init__.
+    RETRY_COUNT_READY_STARTUP: int = 0
 
-    RETRY_TIME_SEC_READY: float = 0.000  # sec. set by __init__()
-    RETRY_COUNT_READY: int = 3  # times.
+    # # Retry time for READY request in seconds. Set in __init__.
+    RETRY_TIME_SEC_READY: float = 0.000
+    # Retry count for READY request.
+    RETRY_COUNT_READY: int = 3
 
-    RETRY_TIME_SEC_DONE: float = 0.050  # sec.
-    RETRY_COUNT_DONE: int = 3  # times.
+    # Retry time for DONE request in seconds.
+    RETRY_TIME_SEC_DONE: float = 0.050
+    # Retry count for DONE request.
+    RETRY_COUNT_DONE: int = 3
 
-    RETRY_TIME_SEC_EXIT: float = 0.020  # sec.
-    RETRY_COUNT_EXIT: int = 3  # times.
+    # Retry time for EXIT request in seconds.
+    RETRY_TIME_SEC_EXIT: float = 0.020
+    # Retry count for EXIT request.
+    RETRY_COUNT_EXIT: int = 3
 
-    def __init__(self, run_cycle_time_ms: int, startup_wait_ms: int):
+    def __init__(self, run_cycle_time_ms: int, startup_wait_ms: int) -> None:
+        """
+        Initialize the Config object.
+        Args:
+            run_cycle_time_ms (int): The run cycle time in milliseconds.
+            startup_wait_ms (int): The startup wait time in milliseconds.
+        """
         self.RETRY_COUNT_READY_STARTUP = int(
             startup_wait_ms / (1000 * self.RETRY_TIME_SEC_READY_STARTUP))
         self.RETRY_TIME_SEC_READY = float(run_cycle_time_ms / 1000)
 
 
 class DPSClient:
-    def __init__(self, host: str, port: int, client_id: int, run_cycle_time_ms: int, startup_wait_ms: int):
-        self.host = host
-        self.port = port
-        self.client_id = client_id
+    """
+    A client for the DPS.
+    """
+
+    def __init__(self, host: str, port: int, client_id: int, run_cycle_time_ms: int, startup_wait_ms: int) -> None:
+        """
+        Initialize the DPSClient object.
+        Args:
+            host (str): The host address of the server.
+            port (int): The port number of the server.
+            client_id (int): The ID of the client.
+            run_cycle_time_ms (int): The run cycle time in milliseconds.
+            startup_wait_ms (int): The startup wait time in milliseconds.
+        """
+        self.host: str = host
+        self.port: int = port
+        self.client_id: int = client_id
         self.config: Config = Config(run_cycle_time_ms, startup_wait_ms)
         self.sock: socket.socket = None
         self.connected: bool = False
@@ -66,6 +119,11 @@ class DPSClient:
         self.message_id: int = 0
 
     def join(self) -> bool:
+        """
+        Join to the DPS server.
+        Returns:
+            bool: True if the join was successful, False otherwise.
+        """
         if self.connected:
             log("already joined, skip")
             return True
@@ -82,9 +140,11 @@ class DPSClient:
                 return False
 
     def exit(self) -> None:
+        """
+        Exit from the DPS server.
+        """
         if not self.connected:
             log("not connected, skip")
-            return True
         else:
             _ = self._send_request(RequestType.EXIT,
                                    self.config.RETRY_TIME_SEC_EXIT,
@@ -92,9 +152,15 @@ class DPSClient:
             self.sock.close()
             self.sock = None
             self.connected = False
-            return True
 
     def wait_next(self) -> ResponseType:
+        """
+        Wait for the next process timing from the server.
+        Returns:
+            ResponseType: The response type from the server.
+        Raises:
+            RuntimeError: If the client is not connected.
+        """
         if not self.connected:
             raise RuntimeError("wait_next called before connected")
         if self.startup:
@@ -109,6 +175,13 @@ class DPSClient:
         return resp_type
 
     def notify_done(self) -> ResponseType:
+        """
+        Notify the server that the task is done.
+        Returns:
+            ResponseType: The response type from the server.
+        Raises:
+            RuntimeError: If the client is not connected.
+        """
         if not self.connected:
             raise RuntimeError("notify_done called before connected")
         resp_type = self._send_request(RequestType.DONE,
@@ -117,6 +190,15 @@ class DPSClient:
         return resp_type
 
     def _send_request(self, req_type: RequestType, timeout_sec: float, retry_count: int) -> ResponseType:
+        """
+        Send a request to the server and handle the response.
+        Args:
+            req_type (RequestType): The type of request to send.
+            timeout_sec (float): The timeout in seconds for the request.
+            retry_count (int): The number of times to retry the request.
+        Returns:
+            ResponseType: The response type from the server.
+        """
         ret_resp_type: ResponseType = ResponseType.ERROR
         packet: bytes = self._create_packet(req_type)
         self.sock.settimeout(timeout_sec)
@@ -148,6 +230,13 @@ class DPSClient:
         return ret_resp_type
 
     def _create_packet(self, request: RequestType) -> bytes:
+        """
+        Create a packet to send to the server.
+        Args:
+            request (RequestType): The type of request to create the packet for.
+        Returns:
+            bytes: The encoded packet.
+        """
         # update message_id before send.
         self.message_id += 1
         if self.message_id > 9:
@@ -156,7 +245,16 @@ class DPSClient:
         packet_str: str = "{}@{:d}:{:03d}".format(request.value, self.message_id, self.client_id)
         return packet_str.encode("utf-8")
 
-    def _parse_packet(self, data: bytes) -> tuple[ResponseType, int]:
+    def _parse_packet(self, data: bytes) -> Tuple[ResponseType, int]:
+        """
+        Parse a packet received from the server.
+        Args:
+            data (bytes): The data received from the server.
+        Returns:
+            Tuple[ResponseType, int]: A tuple containing the response type and message ID.
+        Raises:
+            ValueError: If the packet format is invalid.
+        """
         packet_str: str = data.decode(encoding='utf-8')
         parts = packet_str.split(":", maxsplit=1)
         if len(parts) != 2:
@@ -200,8 +298,8 @@ if __name__ == '__main__':
                         help="max run count (times)")
     args = parser.parse_args()
 
-    PROC_COUNT_MAX = args.proc_count
-    proc_count = 0
+    PROC_COUNT_MAX: int = args.proc_count
+    proc_count: int = 0
 
     client: DPSClient = DPSClient(
         args.host,
@@ -211,11 +309,11 @@ if __name__ == '__main__':
         args.startup_wait_time
     )
 
-    joined = client.join()
+    joined: bool = client.join()
     log("## client joined={}".format(joined))
     while joined:
         try:
-            resp_type = client.wait_next()
+            resp_type: ResponseType = client.wait_next()
             log("## start count={}".format(proc_count))
             if resp_type == ResponseType.OK:
                 time.sleep(float(args.proc_time / 1000))
@@ -228,10 +326,11 @@ if __name__ == '__main__':
             # for Example
             proc_count += 1
             if proc_count >= PROC_COUNT_MAX:
-                log("## goint to exit")
+                log("## completed, goint to exit")
                 joined = False
             log("")
         except KeyboardInterrupt:
+            log("## abort, goint to exit")
             break
     client.exit()
 
