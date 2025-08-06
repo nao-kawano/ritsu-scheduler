@@ -8,21 +8,25 @@ when the sender implements the following retransmission control mechanisms.
 ### Retransmission
 
 - The client retransmits if there is no response from the server.
-- The retransmission interval and number of retries are defined according to the message type:
+- The retransmission interval and number of retries are defined as guidlines according to the message type:
   - `JOIN`
-    - Retransmission interval: approximately 10ms
+    - Retransmission interval: approximately 20ms
     - Number of retries: 3
     - On expiration: terminate
   - `READY` (before cyclic operation)
-    - Retransmission interval: execution cycle (e.g., 100ms if cycle=2 with a 500ms period)
-    - Number of retries: set based on the waiting period for other clients to start
+    - Retransmission interval: set based on the startup time until all other clients are started
+    - Number of retries: set based on the startup time until all other clients are started
     - On expiration: send `EXIT`
   - `READY` (in cyclic operation)
-    - Retransmission interval: execution cycle (e.g., 100ms if cycle=2 with a 500ms period)
-    - Number of retries: 1
+    - Retransmission interval: execution cycle (e.g., 200ms if cycle=2 with a cycle_time 100ms)
+    - Number of retries: 3
     - On expiration: send `EXIT`
+  - `DONE`
+    - Retransmission interval: approximately 50ms (depends on process count)
+    - Number of retries: 3
+    - On expiration: terminate
   - `EXIT`
-    - Retransmission interval: approximately 10ms
+    - Retransmission interval: approximately 20ms
     - Number of retries: 3
     - On expiration: terminate
 
