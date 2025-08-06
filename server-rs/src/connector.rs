@@ -89,6 +89,7 @@ impl ClientConnector {
             let clients = self.clients.lock().unwrap();
             for msg in msgs {
                 if let Some(to_addr) = clients.get(&msg.cid) {
+                    trace!("{}: sending response {:?}", LOG_TAG, msg);
                     self.send_message(&msg, socket, to_addr);
                 } else {
                     warn!("{}: client is not connected id={}", LOG_TAG, msg.cid);
