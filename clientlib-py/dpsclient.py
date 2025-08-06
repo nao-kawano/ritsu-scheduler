@@ -1,7 +1,10 @@
 import socket
 import datetime
 from enum import Enum
-from typing import Tuple
+from typing import Tuple, Optional
+
+PACKET_FORMAT: str = "{}@{:d}:{:03d}"
+PACKET_ENCODING: str = "utf-8"
 
 
 def log(message: str) -> None:
@@ -12,7 +15,7 @@ def log(message: str) -> None:
     """
     now = datetime.datetime.now()
     timestamp = now.strftime("%H:%M:%S.%f")
-    print("{} {}".format(timestamp, message))
+    print(f"{timestamp} {message}")
 
 
 class RequestType(Enum):
@@ -44,11 +47,10 @@ class ResponseType(Enum):
         Raises:
             ValueError: If the string value does not match any ResponseType.
         """
-        for e in ResponseType:
-            if e.value == string_value:
-                return e
-        raise ValueError(
-            "failed to convert str to ResponseType: {}".format(string_value))
+        try:
+            return ResponseType(string_value)
+        except ValueError:
+            raise ValueError(f"Invalid ResponseType: {string_value}")
 
 
 class Config:
@@ -113,7 +115,7 @@ class DPSClient:
         self.port: int = port
         self.client_id: int = client_id
         self.config: Config = Config(run_cycle_time_ms, startup_wait_ms)
-        self.sock: socket.socket = None
+        self.sock: Optional[socket.socket] = None
         self.connected: bool = False
         self.startup: bool = True
         self.message_id: int = 0
@@ -163,15 +165,13 @@ class DPSClient:
         """
         if not self.connected:
             raise RuntimeError("wait_next called before connected")
-        if self.startup:
-            self.startup = False
-            resp_type = self._send_request(RequestType.READY,
-                                           self.config.RETRY_TIME_SEC_READY_STARTUP,
-                                           self.config.RETRY_COUNT_READY_STARTUP)
-        else:
-            resp_type = self._send_request(RequestType.READY,
-                                           self.config.RETRY_TIME_SEC_READY,
-                                           self.config.RETRY_COUNT_READY)
+
+        timeout_sec = self.config.RETRY_TIME_SEC_READY_STARTUP if self.startup else self.config.RETRY_TIME_SEC_READY
+        retry_count = self.config.RETRY_COUNT_READY_STARTUP if self.startup else self.config.RETRY_COUNT_READY
+
+        resp_type = self._send_request(RequestType.READY, timeout_sec, retry_count)
+        self.startup = False
+
         return resp_type
 
     def notify_done(self) -> ResponseType:
@@ -203,29 +203,21 @@ class DPSClient:
         packet: bytes = self._create_packet(req_type)
         self.sock.settimeout(timeout_sec)
         for count in range(retry_count+1):
-            log("sending {}@{} to server ({}/{}) with t/o {} sec".format(
-                req_type.value, self.message_id,
-                count+1, 1+retry_count, timeout_sec))
+            log(f"sending {req_type.value}@{self.message_id} to server ({count+1}/{1+retry_count}) with t/o {timeout_sec} sec")
             self.sock.sendto(packet, (self.host, self.port))
             try:
                 data, _ = self.sock.recvfrom(self.config.PACKET_SIZE)
-                (resp_type, resp_id) = self._parse_packet(data)
-                # check sequence.
+                resp_type, resp_id = self._parse_packet(data)
                 if resp_id != self.message_id:
-                    log("{} message id missmatch, expected {}, actual {}, continue".format(
-                        req_type.value, self.message_id, resp_id))
+                    log(f"{req_type.value} message id mismatch, expected {self.message_id}, actual {resp_id}, continue")
                     continue
-                # check response.
-                if resp_type == ResponseType.OK:
-                    log("got OK for {}".format(req_type.value))
-                else:
-                    log("got {} for {}".format(resp_type.value, req_type.value))
+                log(f"got {resp_type.value} for {req_type.value}")
                 ret_resp_type = resp_type
                 break
             except socket.timeout:
-                log("{} timeout, retrying...".format(req_type.value))
+                log(f"{req_type.value} timeout, retrying...")
             except Exception as e:
-                log("Error in receive for {}: {}".format(req_type.value, e))
+                log(f"Error in receive for {req_type.value}: {e}")
                 break
         return ret_resp_type
 
@@ -237,13 +229,9 @@ class DPSClient:
         Returns:
             bytes: The encoded packet.
         """
-        # update message_id before send.
-        self.message_id += 1
-        if self.message_id > 9:
-            self.message_id = 0
-        # create packet.
-        packet_str: str = "{}@{:d}:{:03d}".format(request.value, self.message_id, self.client_id)
-        return packet_str.encode("utf-8")
+        self.message_id = (self.message_id + 1) % 10  # update message_id before send.
+        packet_str: str = PACKET_FORMAT.format(request.value, self.message_id, self.client_id)
+        return packet_str.encode(PACKET_ENCODING)
 
     def _parse_packet(self, data: bytes) -> Tuple[ResponseType, int]:
         """
@@ -255,26 +243,26 @@ class DPSClient:
         Raises:
             ValueError: If the packet format is invalid.
         """
-        packet_str: str = data.decode(encoding='utf-8')
+        packet_str: str = data.decode(encoding=PACKET_ENCODING)
         parts = packet_str.split(":", maxsplit=1)
         if len(parts) != 2:
-            raise ValueError("Invalid format, separater(:) not found: {}".format(packet_str))
+            raise ValueError(f"Invalid format, separator(:) not found: {packet_str}")
         # -- header
         headers = parts[0].split("@", maxsplit=1)
         if len(headers) != 2:
-            raise ValueError("Invalid format, separater(@) not found: {}".format(parts[0]))
+            raise ValueError(f"Invalid format, separator(@) not found: {parts[0]}")
         resp_type = ResponseType.from_str(headers[0])
         resp_id = int(headers[1])
         if resp_id < 0 or resp_id > 9:
-            raise ValueError("Invalid message id {}".format(parts[0]))
+            raise ValueError(f"Invalid message id {parts[0]}")
         # -- payload
         bodies = parts[1].split(",")
         if len(bodies[0]) != 3:
-            raise ValueError("Invalid client id {}".format(parts[1]))
+            raise ValueError(f"Invalid client id {parts[1]}")
         client_id = int(bodies[0])
         if client_id != self.client_id:
-            raise ValueError("Invalid client id missmatch, expected {}, actual {}".format(
-                self.client_id, client_id))
+            raise ValueError(
+                f"Invalid client id mismatch, expected {self.client_id}, actual {client_id}")
 
         return (resp_type, resp_id)
 
@@ -310,11 +298,11 @@ if __name__ == '__main__':
     )
 
     joined: bool = client.join()
-    log("## client joined={}".format(joined))
+    log(f"## client joined={joined}")
     while joined:
         try:
             resp_type: ResponseType = client.wait_next()
-            log("## start count={}".format(proc_count))
+            log(f"## start count={proc_count}")
             if resp_type == ResponseType.OK:
                 time.sleep(float(args.proc_time / 1000))
                 client.notify_done()
