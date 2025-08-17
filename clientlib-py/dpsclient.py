@@ -131,6 +131,7 @@ class DPSClient:
             return True
         else:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            self.sock.bind(("0.0.0.0", 0))
             resp_type = self._send_request(RequestType.JOIN,
                                            self.config.RETRY_TIME_SEC_JOIN,
                                            self.config.RETRY_COUNT_JOIN)
@@ -199,6 +200,7 @@ class DPSClient:
         Returns:
             ResponseType: The response type from the server.
         """
+        self._clear_recv_buffer()
         ret_resp_type: ResponseType = ResponseType.ERROR
         packet: bytes = self._create_packet(req_type)
         self.sock.settimeout(timeout_sec)
@@ -265,6 +267,20 @@ class DPSClient:
                 f"Invalid client id mismatch, expected {self.client_id}, actual {client_id}")
 
         return (resp_type, resp_id)
+
+    def _clear_recv_buffer(self) -> None:
+        """Clears the receive buffer by reading and discarding any data present.
+
+        This method is used to ensure that the buffer is empty before
+        performing a new operation, preventing interference from stale data.
+        """
+        self.sock.setblocking(False)
+        while True:
+            try:
+                _, _ = self.sock.recvfrom(self.config.PACKET_SIZE)
+            except BlockingIOError:
+                break
+        self.sock.setblocking(True)
 
 
 if __name__ == '__main__':
