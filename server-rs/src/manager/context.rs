@@ -11,8 +11,8 @@ use std::collections::HashMap;
 
 use super::ManagerState;
 use crate::config::ClientConfig;
-use crate::pgraph::ProcessGraph;
-use crate::pgraph::entry::ProcessEntry;
+use dps_core::entry::ProcessEntry;
+use dps_core::scheduler::Scheduler as ProcessGraph;
 
 #[cfg(test)]
 #[path = "context_test.rs"]

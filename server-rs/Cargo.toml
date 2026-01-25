@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+dps-core.workspace = true
 dps-message.workspace = true
 chrono.workspace = true
 log.workspace = true

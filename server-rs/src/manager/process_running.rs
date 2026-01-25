@@ -12,8 +12,8 @@ use super::EventResult;
 use super::context::ManagerContext;
 use super::process::ManagerProc;
 use crate::config::ClientConfig;
-use crate::pgraph::ProcessStateChange;
-use crate::pgraph::entry::ProcessState;
+use dps_core::entry::ProcessState;
+use dps_core::scheduler::ProcessStateChange;
 
 #[cfg(test)]
 #[path = "process_running_test.rs"]

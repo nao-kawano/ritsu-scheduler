@@ -12,7 +12,6 @@ mod config;
 mod connector;
 mod cycle;
 mod manager;
-mod pgraph;
 
 use std::fs;
 use std::io::Write;

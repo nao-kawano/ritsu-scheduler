@@ -180,6 +180,7 @@ version = "0.1.0"
 dependencies = [
  "chrono",
  "ctrlc",
+ "dps-core",
  "dps-message",
  "env_logger",
  "log",
