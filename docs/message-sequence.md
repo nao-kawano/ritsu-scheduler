@@ -11,64 +11,64 @@ The client starts by sending a "JOIN" and "READY" message to the server.
 
 ```mermaid
 sequenceDiagram
-  participant M as Scheduler
+  participant S as Scheduler
   participant A as ProcessA
   participant B as ProcessB
 
   Note over A: None
   Note over B: None
 
-  A -) M: JOIN
+  A -) S: JOIN
   Note over A: Connecting
-  M --) A: OK
+  S --) A: OK
 
-  A -) M: READY
+  A -) S: READY
   Note over A: Ready
 
-  B -) M: JOIN
+  B -) S: JOIN
   Note over B: Connecting
-  M --) B: OK
+  S --) B: OK
 
-  B -) M: READY
+  B -) S: READY
   Note over B: Ready
 
-  Note over M,B: all process is joined and ready, startup completed
+  Note over S,B: all process is joined and ready, startup completed
 
-  Note over M,B: ( Processing... )
+  Note over S,B: ( Processing... )
 
-  A -) M: READY
+  A -) S: READY
   alt Scheduler initiated shutdown
-    Note over M: response ERROR in shutdown
-    M --) A: *ERROR*
+    Note over S: response ERROR in shutdown
+    S --) A: *ERROR*
       Note over A: Disconnecting
-    A -) M: EXIT
-    M --) A: OK
+    A -) S: EXIT
+    S --) A: OK
       Note over A: None
 
-    B -) M: READY
-    M --) B: *ERROR*
+    B -) S: READY
+    S --) B: *ERROR*
       Note over B: Disconnecting
-    B -) M: EXIT
-    M --) B: OK
+    B -) S: EXIT
+    S --) B: OK
       Note over B: None
 
   else Process initiated shutdown
     Note over B: send EXIT
-    B -) M: EXIT
+    B -) S: EXIT
       Note over B: Disconnecting
-      Note over M: go to shutdown state
-    M --) B: OK
+      Note over S: go to shutdown state
+    S --) B: OK
       Note over B: None
 
-    Note over M: response ERROR in shutdown
-    M --) A: *ERROR*
+    Note over S: response ERROR in shutdown
+    S --) A: *ERROR*
       Note over A: Disconnecting
-    A -) M: EXIT
-    M --) A: OK
+    A -) S: EXIT
+    S --) A: OK
       Note over A: None
   end
 
-  Note over M,B: all process is exitted, shutdown complete
+  Note over S,B: all process is exitted, shutdown complete
 ```
 
 ## Basic Scheduling
@@ -78,54 +78,54 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant M as Scheduler
+  participant S as Scheduler
   participant A as ProcessA
   participant B as ProcessB
   participant C as ProcessC
 
-  A -) M: READY
+  A -) S: READY
     Note over A: Ready
-  B -) M: READY
+  B -) S: READY
     Note over B: Ready
-  C -) M: READY
+  C -) S: READY
     Note over C: Ready
 
-  M ->> M: trigger (time-based)
-  Note over M: check dependency -> run Process A
+  S ->> S: trigger (time-based)
+  Note over S: check dependency -> run Process A
 
-  M --) A: OK
+  S --) A: OK
   Note over A: Running
   A ->> A: process
-  A -) M: DONE
+  A -) S: DONE
   Note over A: Idle
-  M --) A: OK
+  S --) A: OK
 
-  Note over M: check dependency -> run Process B and C
-  M --) B: OK
+  Note over S: check dependency -> run Process B and C
+  S --) B: OK
   Note over B: Running
-  M --) C: OK
+  S --) C: OK
   Note over C: Running
 
-  A -) M: READY
+  A -) S: READY
     Note over A: Ready
 
   B ->> B: process
   C ->> C: process
 
-  B -) M: DONE
+  B -) S: DONE
   Note over B: Idle
-  M --) B: OK
-  B -) M: READY
+  S --) B: OK
+  B -) S: READY
     Note over B: Ready
 
-  C -) M: DONE
+  C -) S: DONE
   Note over C: Idle
-  M --) C: OK
-  C -) M: READY
+  S --) C: OK
+  C -) S: READY
     Note over C: Ready
 
-  M ->> M: trigger (time-based)
-  Note over M,C: same pattern as before
+  S ->> S: trigger (time-based)
+  Note over S,C: same pattern as before
 ```
 
 EOF

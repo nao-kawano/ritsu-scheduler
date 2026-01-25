@@ -23,48 +23,48 @@ This is a simplified diagram, see also detailed documents for a complete underst
 
 ```mermaid
 sequenceDiagram
-  participant M as Scheduler
+  participant S as Scheduler
   participant A as ProcessA
   participant B as ProcessB
   participant C as ProcessC
 
-  A -) M: READY
+  A -) S: READY
     Note over A: waiting for trigger
-  B -) M: READY
+  B -) S: READY
     Note over B: waiting for trigger
-  C -) M: READY
+  C -) S: READY
     Note over C: waiting for trigger
 
-  M ->> M: trigger (time-based)
-  Note over M: check dependency -> run Process A
+  S ->> S: trigger (time-based)
+  Note over S: check dependency -> run Process A
 
-  M --) A: OK
+  S --) A: OK
   Note over A: received trigger, ok to process
   A ->> A: process
-  A -) M: DONE
+  A -) S: DONE
 
-  Note over M: check dependency -> run Process B and C
-  M --) B: OK
+  Note over S: check dependency -> run Process B and C
+  S --) B: OK
   Note over B: received trigger, ok to process
-  M --) C: OK
+  S --) C: OK
   Note over C: received trigger, ok to process
 
-  A -) M: READY
+  A -) S: READY
     Note over A: waiting for trigger
 
   B ->> B: process
   C ->> C: process
 
-  B -) M: DONE
-  B -) M: READY
+  B -) S: DONE
+  B -) S: READY
     Note over B: waiting for trigger
 
-  C -) M: DONE
-  C -) M: READY
+  C -) S: DONE
+  C -) S: READY
     Note over C: waiting for trigger
 
-  M ->> M: trigger (time-based)
-  Note over M,C: same pattern as before
+  S ->> S: trigger (time-based)
+  Note over S,C: same pattern as before
 ```
 
 ## Components of this repository

@@ -12,38 +12,38 @@ At the start of each cycle, verify that the process and its dependent processes 
 
 ```mermaid
 sequenceDiagram
-  participant M as Scheduler
+  participant S as Scheduler
   participant A as ProcessA
 
-  A -) M: READY
+  A -) S: READY
   Note over A: Ready
 
-Note over M,A: << cycle N >>
+Note over S,A: << cycle N >>
 
-  Note over M: Check process A status.<br />-> OK
-  M --) A: OK
+  Note over S: Check process A status.<br />-> OK
+  S --) A: OK
   Note over A: Running
   A ->> A: process
 
-Note over M,A: << cycle N+1 >>
-  Note over M: Check process A status.<br />Still Running -> mark as Overrun
+Note over S,A: << cycle N+1 >>
+  Note over S: Check process A status.<br />Still Running -> mark as Overrun
 
   Note over A: processing...
-  A -) M: DONE
+  A -) S: DONE
   Note over A: Idle
-  Note over M: skip to start after processes
-  M --) A: OK
+  Note over S: skip to start after processes
+  S --) A: OK
 
-  A -) M: READY
+  A -) S: READY
   Note over A: Ready
-  Note over M: skip this cycle
-  M --) A: *SKIP*
+  Note over S: skip this cycle
+  S --) A: *SKIP*
     Note over A: send READY again
 
-  A -) M: READY
+  A -) S: READY
   Note over A: Ready
 
-Note over M,A: << cycle N+2 >>
+Note over S,A: << cycle N+2 >>
 ```
 
 ## Examples

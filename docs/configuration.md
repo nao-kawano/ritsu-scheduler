@@ -5,7 +5,7 @@ The scheduler controls process execution based on periodic cycles and process de
 Each process can be configured with a trigger to determine when it runs.
 These triggers can be time-based cycles or the completion of other processes.
 
-## Server Configuration
+## Server (Scheduler) Configuration
 
 ### Port
 
@@ -16,7 +16,7 @@ These triggers can be time-based cycles or the completion of other processes.
 - Specify cycles using a time-based interval (e.g., 50ms).
   - The scheduler checks which processes should be run at each cycle.
 
-## Client Configuration
+## Client (Process) Configuration
 
 Per client configuration below:
 
