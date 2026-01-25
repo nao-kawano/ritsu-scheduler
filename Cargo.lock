@@ -163,6 +163,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "dps-core"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "log",
+]
+
+[[package]]
 name = "dps-message"
 version = "0.1.0"
 
