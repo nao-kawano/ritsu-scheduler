@@ -24,7 +24,7 @@ pub struct ManagerProcStarting;
 impl ManagerProc for ManagerProcStarting {
     fn enter_state(&self, context: &mut ManagerContext) {
         trace!("{}: enter_state", LOG_TAG);
-        context.graph.reset_state();
+        context.sched.reset_state();
     }
 
     fn on_cycle_start(&self, _context: &mut ManagerContext, _cycle: u64) -> EventResult {
@@ -80,7 +80,7 @@ impl ManagerProc for ManagerProcStarting {
                     client.set_client_state(ClientState::Active);
                     // holding response for waiting others and trigger.
                     // update graph.
-                    let r = context.graph.on_ready(message.cid);
+                    let r = context.sched.on_ready(message.cid);
                     if let Err(e) = r {
                         return Err(e);
                     }

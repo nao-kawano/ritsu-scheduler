@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use super::ManagerState;
 use crate::config::ClientConfig;
 use dps_core::entry::ProcessEntry;
-use dps_core::scheduler::Scheduler as ProcessGraph;
+use dps_core::scheduler::Scheduler;
 
 #[cfg(test)]
 #[path = "context_test.rs"]
@@ -71,7 +71,7 @@ pub struct ManagerContext {
     pub num_active_clients: usize,
     // for execution.
     pub cycle_current: u32, // 0..CYCLE_MAX
-    pub graph: ProcessGraph,
+    pub sched: Scheduler,
     pub graph_start: Vec<u16>, // shortcut for cycle start.
 }
 
@@ -131,7 +131,7 @@ impl ManagerContext {
                 graph_start.push(client.config.client_id);
             }
         }
-        let graph: ProcessGraph = ProcessGraph::new(entries);
+        let graph: Scheduler = Scheduler::new(entries);
         // create context.
         ManagerContext {
             state: ManagerState::Starting,
@@ -139,7 +139,7 @@ impl ManagerContext {
             clients,
             num_active_clients: 0,
             cycle_current: 0,
-            graph,
+            sched: graph,
             graph_start,
         }
     }

@@ -26,6 +26,7 @@ pub trait ManagerProc {
     fn on_shutdown(&self, context: &mut ManagerContext) -> EventResult;
 
     // common process.
+
     fn handle_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
         // check manager state.
         match context.state {
@@ -80,7 +81,7 @@ pub trait ManagerProc {
                 "{}: {} clients connected, go to exitting",
                 LOG_TAG, context.num_active_clients
             );
-            let ready_clients: Vec<u16> = context.graph.get_ready_processes();
+            let ready_clients: Vec<u16> = context.sched.get_ready_processes();
             for ready_client in ready_clients {
                 if let Some(client) = context.clients.get_mut(&ready_client) {
                     // exclude already exitted clients.

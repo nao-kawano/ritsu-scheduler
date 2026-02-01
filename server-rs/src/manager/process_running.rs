@@ -39,7 +39,7 @@ impl ManagerProc for ManagerProcRunning {
         for client_id in &context.graph_start {
             let client = context.clients.get_mut(client_id).unwrap();
             if self.is_target_cycle(context.cycle_current, &client.config) {
-                let r = context.graph.on_start(*client_id);
+                let r = context.sched.on_start(*client_id);
                 if let Ok(cs) = r {
                     changes.extend(cs);
                 } else {
@@ -91,7 +91,7 @@ impl ManagerProc for ManagerProcRunning {
         );
         let mut responses: Vec<Message> = Vec::new();
         // update state.
-        let r = context.graph.on_ready(message.cid);
+        let r = context.sched.on_ready(message.cid);
         let Ok(changes) = r else {
             return Err(r.unwrap_err());
         };
@@ -125,7 +125,7 @@ impl ManagerProc for ManagerProcRunning {
         );
         let mut responses: Vec<Message> = Vec::new();
         // update state.
-        let r = context.graph.on_done(message.cid);
+        let r = context.sched.on_done(message.cid);
         let Ok(changes) = r else {
             return Err(r.unwrap_err());
         };

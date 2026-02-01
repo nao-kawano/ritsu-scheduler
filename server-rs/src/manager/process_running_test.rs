@@ -56,11 +56,11 @@ fn test_on_cycle_start_simple() {
 
     // setup condition.
     ctx.cycle_current = ManagerContext::CYCLE_MAX;
-    let _ = ctx.graph.on_ready(0);
-    let _ = ctx.graph.on_ready(1);
-    let _ = ctx.graph.on_ready(2);
-    let _ = ctx.graph.on_ready(3);
-    let _ = ctx.graph.on_ready(10);
+    let _ = ctx.sched.on_ready(0);
+    let _ = ctx.sched.on_ready(1);
+    let _ = ctx.sched.on_ready(2);
+    let _ = ctx.sched.on_ready(3);
+    let _ = ctx.sched.on_ready(10);
 
     // send event: cycle=0
     let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
@@ -184,12 +184,12 @@ fn test_on_client_done_simple() {
 
     // setup condition.
     ctx.cycle_current = 1;
-    let _ = ctx.graph.on_ready(0);
-    let _ = ctx.graph.on_ready(1);
-    let _ = ctx.graph.on_ready(2);
-    let _ = ctx.graph.on_ready(3);
-    let _ = ctx.graph.on_ready(10);
-    let _ = ctx.graph.on_start(2);
+    let _ = ctx.sched.on_ready(0);
+    let _ = ctx.sched.on_ready(1);
+    let _ = ctx.sched.on_ready(2);
+    let _ = ctx.sched.on_ready(3);
+    let _ = ctx.sched.on_ready(10);
+    let _ = ctx.sched.on_start(2);
 
     // send event.
     let m = Message::new(MessageType::Done, 0, 2, None).unwrap();
@@ -217,10 +217,10 @@ fn test_on_client_exit() {
     let proc = ManagerProcRunning;
 
     // setup condition.
-    let _ = ctx.graph.on_start(1);
-    let _ = ctx.graph.on_ready(2);
-    let _ = ctx.graph.on_ready(3);
-    let _ = ctx.graph.on_ready(10);
+    let _ = ctx.sched.on_start(1);
+    let _ = ctx.sched.on_ready(2);
+    let _ = ctx.sched.on_ready(3);
+    let _ = ctx.sched.on_ready(10);
 
     // send event.
     let m = Message::new(MessageType::Exit, 0, 0, None).unwrap();
@@ -251,9 +251,9 @@ fn test_on_shutdown() {
     let proc = ManagerProcRunning;
 
     // setup condition.
-    let _ = ctx.graph.on_ready(2);
-    let _ = ctx.graph.on_start(3);
-    let _ = ctx.graph.on_ready(10);
+    let _ = ctx.sched.on_ready(2);
+    let _ = ctx.sched.on_start(3);
+    let _ = ctx.sched.on_ready(10);
 
     // send event.
     let result = proc.on_shutdown(&mut ctx).unwrap();
