@@ -1,5 +1,5 @@
 //!
-//! Process status in graph.
+//! Process entry in graph.
 //!
 
 extern crate log;
@@ -29,10 +29,10 @@ pub enum ProcessState {
 /// Represents the process.
 #[derive(Debug, Clone)]
 pub struct ProcessEntry {
-    pub(super) pid: u16,
-    pub(super) state: ProcessState,
-    pub(super) depends_on: HashMap<u16, bool>,
-    pub(super) is_floating: bool,
+    pub(crate) pid: u16,
+    pub(crate) state: ProcessState,
+    pub(crate) depends_on: HashMap<u16, bool>,
+    pub(crate) is_floating: bool,
 }
 
 impl ProcessEntry {
@@ -47,7 +47,7 @@ impl ProcessEntry {
     }
 
     /// Reset state and dependency.
-    pub fn reset(&mut self) {
+    pub(crate) fn reset(&mut self) {
         self.state = ProcessState::Idle;
         self.clear_depends();
     }
@@ -71,7 +71,7 @@ impl ProcessEntry {
     }
 
     /// Set the state of the process.
-    pub fn set_state(&mut self, new_state: ProcessState) -> bool {
+    pub(crate) fn set_state(&mut self, new_state: ProcessState) -> bool {
         let ok_to_change = match self.state {
             ProcessState::Ready => match new_state {
                 ProcessState::Running => true,
@@ -129,7 +129,7 @@ impl ProcessEntry {
     }
 
     /// Update the dependency status.
-    pub fn update_depend(&mut self, pid: u16) -> bool {
+    pub(crate) fn update_depend(&mut self, pid: u16) -> bool {
         if let Some(depend_value) = self.depends_on.get_mut(&pid) {
             if *depend_value {
                 warn!(
@@ -148,7 +148,7 @@ impl ProcessEntry {
     }
 
     /// Clear the dependency status.
-    pub fn clear_depends(&mut self) {
+    pub(crate) fn clear_depends(&mut self) {
         trace!("{}: pid {:03}, clear depend", LOG_TAG, self.pid);
         for depend_value in self.depends_on.values_mut() {
             *depend_value = false;

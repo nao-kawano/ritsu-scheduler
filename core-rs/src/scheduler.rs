@@ -26,7 +26,7 @@ pub struct ProcessStateChange {
 }
 
 impl ProcessStateChange {
-    pub fn new(entry: &ProcessEntry) -> Self {
+    pub(crate) fn new(entry: &ProcessEntry) -> Self {
         ProcessStateChange {
             pid: entry.pid,
             before: entry.state,
