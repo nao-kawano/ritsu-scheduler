@@ -1,6 +1,6 @@
 # Message Format
 
-Massage length is up to 512 bytes.
+Message length is up to 512 bytes.
 Message content is a simple String-based format:
 
 ```
@@ -51,7 +51,7 @@ MessageType is divided into requests from the client and responses from the serv
 - "ERROR"
   - Returned for "JOIN", "READY", "DONE".
   - Indicates that the request is invalid or the server is in an invalid state.
-  - Except for "JOIN" errors, The client must send "EXIT" to the server and exit.
+  - Except for "JOIN" errors, the client must send "EXIT" to the server and exit.
 
 ## MessageID
 

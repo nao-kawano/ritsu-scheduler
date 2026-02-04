@@ -39,7 +39,7 @@ stateDiagram-v2
 
 ## Server Side
 
-This section explains how the server manages the states of each clients internally.
+This section explains how the server manages the states of each client internally.
 
 Understanding the server-side state management is critical for ensuring proper coordination and
 control of client processes.
@@ -50,11 +50,11 @@ stateDiagram-v2
     None --> Sync : Recv JOIN
     Sync --> Ready : Recv READY
 
-    Sync --> None : Recv Exit
-    Sync --> Exitting : goint to shutdown
-    Active --> Exitting : going to shutdown
-    Exitting --> None : Recv Exit
-    Active --> None : Recv Exit
+    Sync --> None : Recv EXIT
+    Sync --> Exiting : going to shutdown
+    Active --> Exiting : going to shutdown
+    Exiting --> None : Recv EXIT
+    Active --> None : Recv EXIT
 
     State Active {
         Ready --> Running : cycle and dependency met
@@ -109,7 +109,7 @@ Note:
       Sends `SKIP` to the client and waits for `READY` again.
     - The server detected that an overrun process is complete and is waiting for `READY`.
     - The server cannot receive `READY` until the next cycle starts and keeps waiting for `READY`.
-- Exitting
+- Exiting
   - Client is Disconnecting.
   - Server is waiting for `EXIT`.
 
