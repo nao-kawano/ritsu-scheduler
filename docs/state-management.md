@@ -22,7 +22,7 @@ stateDiagram-v2
 
     State Active {
         Ready --> Running : Recv OK
-        Ready --> Ready : Recv Skip
+        Ready --> Ready : Recv SKIP or LATE
 
         Running --> Idle : Process Complete
         note right of Idle : (entry) Send DONE
@@ -60,17 +60,13 @@ stateDiagram-v2
         Ready --> Running : cycle and dependency met
         Running --> Idle : Recv DONE
         Idle --> Ready : Recv READY
-
-        Ready --> Skip : skipped current cycle
-        Ready --> SkipPrev : skipped previous cycle
+        Ready --> Idle : skipped current cycle
 
         Running --> Overrun : detected overrun
-        Overrun --> SkipPrev : Recv DONE
+        Overrun --> Late : Recv DONE
 
-        SkipPrev --> Skip : Recv READY
-        Skip --> Ready : Recv READY
-
-        Idle --> SkipPrev : missed READY for next cycle
+        Idle --> Late : missed READY for next cycle
+        Late --> Idle : Recv READY
     }
 ```
 
@@ -85,6 +81,8 @@ Note:
 - Ready
   - Client is Ready.
   - Server holds the response until the target cycle starts and all dependencies are met.
+    - The client is Ready, but a dependent process was not completed in the previous cycle,
+      so the server sends `SKIP` to the client and waits for `READY` again in Idle.
 - Running
   - Client is Running.
   - Server is waiting for `DONE`.
@@ -95,20 +93,12 @@ Note:
   - Client is Running.
   - Server detected an overrun and is waiting for `DONE`.
     - An overrun occurs when the previous execution has not completed by the start of the next cycle.
-- Skip
-  - Client is Ready.
-  - Server skips the run for the current cycle, sends `SKIP` to the client, and waits for `READY` again.
+- Late
+  - Client is Idle.
+  - Server skips the run for the current cycle. It waits for `READY` and responds with `LATE`.
   - This happens when:
-    - The client is Ready, but a dependent process is not Ready for the current cycle.
-    - The client is Ready from SkipPrev.
-- SkipPrev
-  - Client is Ready or Idle.
-  - Client cannot complete process for the previous cycle.
-  - This happens when:
-    - The client is Ready, but a dependent process was not completed in the previous cycle.
-      Sends `SKIP` to the client and waits for `READY` again.
+    - The server has not received `READY` by the start of the next cycle and keeps waiting for `READY`.
     - The server detected that an overrun process is complete and is waiting for `READY`.
-    - The server cannot receive `READY` until the next cycle starts and keeps waiting for `READY`.
 - Exiting
   - Client is Disconnecting.
   - Server is waiting for `EXIT`.

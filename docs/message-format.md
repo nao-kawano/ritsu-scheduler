@@ -48,6 +48,10 @@ MessageType is divided into requests from the client and responses from the serv
   - Returned for "READY".
   - Indicates that the trigger has been canceled.
   - The client needs to send "READY" again to request the next trigger.
+- "LATE"
+  - Returned for "READY".
+  - Indicates that the process has overrun and missed the next trigger.
+  - The client needs to send "READY" again to request the next trigger.
 - "ERROR"
   - Returned for "JOIN", "READY", "DONE".
   - Indicates that the request is invalid or the server is in an invalid state.
