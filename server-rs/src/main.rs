@@ -126,7 +126,7 @@ fn main() {
             Err(e) => warn!("Error while processing, continue: {}", e),
         }
         // check if exit.
-        if event_manager.get_state() == ManagerState::Exitted {
+        if event_manager.get_state() == ManagerState::Exited {
             break;
         }
     }

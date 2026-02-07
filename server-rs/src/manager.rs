@@ -9,8 +9,8 @@ const LOG_TAG: &str = "EventManager";
 
 mod context;
 mod process;
-mod process_exitted;
-mod process_exitting;
+mod process_exited;
+mod process_exiting;
 mod process_running;
 mod process_starting;
 
@@ -23,8 +23,8 @@ use crate::Event;
 use crate::config::ClientConfig;
 use context::ManagerContext;
 use process::ManagerProc;
-use process_exitted::ManagerProcExitted;
-use process_exitting::ManagerProcExitting;
+use process_exited::ManagerProcExited;
+use process_exiting::ManagerProcExiting;
 use process_running::ManagerProcRunning;
 use process_starting::ManagerProcStarting;
 
@@ -36,8 +36,8 @@ pub type EventResult = Result<Vec<Message>, String>;
 pub enum ManagerState {
     Starting, // waiting for all client is Ready
     Running,  // running
-    Exitting, // waiting for all client is Exit
-    Exitted,  // inactive
+    Exiting,  // waiting for all client is Exit
+    Exited,   // inactive
 }
 
 /* -------------------------------------------------------------------------- */
@@ -55,8 +55,8 @@ impl EventManager {
         let mut procs: HashMap<ManagerState, Box<dyn ManagerProc>> = HashMap::new();
         procs.insert(ManagerState::Starting, Box::new(ManagerProcStarting));
         procs.insert(ManagerState::Running, Box::new(ManagerProcRunning));
-        procs.insert(ManagerState::Exitting, Box::new(ManagerProcExitting));
-        procs.insert(ManagerState::Exitted, Box::new(ManagerProcExitted));
+        procs.insert(ManagerState::Exiting, Box::new(ManagerProcExiting));
+        procs.insert(ManagerState::Exited, Box::new(ManagerProcExited));
         // enter initial state.
         if let Some(initial_state) = procs.get(&context.state) {
             initial_state.enter_state(&mut context);

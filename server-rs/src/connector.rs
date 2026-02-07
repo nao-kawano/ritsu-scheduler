@@ -144,7 +144,7 @@ impl ClientConnector {
         loop {
             // check stop request.
             if stop_flag.load(Ordering::Relaxed) == true {
-                info!("{}: stop request detected, exitting", LOG_TAG);
+                info!("{}: stop request detected, exiting", LOG_TAG);
                 break;
             }
             // wait client w/ timeout for checking stop request.

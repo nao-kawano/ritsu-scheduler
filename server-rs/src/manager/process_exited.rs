@@ -5,7 +5,7 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "StateExitted";
+const LOG_TAG: &str = "StateExited";
 
 use dps_message::{Message, MessageType};
 
@@ -14,13 +14,13 @@ use super::context::ManagerContext;
 use super::process::ManagerProc;
 
 #[cfg(test)]
-#[path = "process_exitted_test.rs"]
-mod process_exitted_test;
+#[path = "process_exited_test.rs"]
+mod process_exited_test;
 
 /* -------------------------------------------------------------------------- */
 
-pub struct ManagerProcExitted;
-impl ManagerProc for ManagerProcExitted {
+pub struct ManagerProcExited;
+impl ManagerProc for ManagerProcExited {
     fn enter_state(&self, _context: &mut ManagerContext) {
         trace!("{}: enter_state", LOG_TAG);
     }
@@ -30,7 +30,7 @@ impl ManagerProc for ManagerProcExitted {
     }
 
     fn on_client_join(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        return Err(format!("already exitted, drop {:?}", message));
+        return Err(format!("already exited, drop {:?}", message));
     }
 
     fn on_client_ready(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {

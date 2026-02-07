@@ -5,7 +5,7 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "StateExitting";
+const LOG_TAG: &str = "StateExiting";
 
 use dps_message::{Message, MessageType};
 
@@ -15,13 +15,13 @@ use super::context::{ClientState, ManagerContext};
 use super::process::ManagerProc;
 
 #[cfg(test)]
-#[path = "process_exitting_test.rs"]
-mod process_exitting_test;
+#[path = "process_exiting_test.rs"]
+mod process_exiting_test;
 
 /* -------------------------------------------------------------------------- */
 
-pub struct ManagerProcExitting;
-impl ManagerProc for ManagerProcExitting {
+pub struct ManagerProcExiting;
+impl ManagerProc for ManagerProcExiting {
     fn enter_state(&self, _context: &mut ManagerContext) {
         trace!("{}: enter_state", LOG_TAG);
     }
@@ -52,7 +52,7 @@ impl ManagerProc for ManagerProcExitting {
                     "{}: send error to client {:03} for ready",
                     LOG_TAG, message.cid
                 );
-                client.set_client_state(ClientState::Exitting);
+                client.set_client_state(ClientState::Exiting);
                 responses.push(
                     Message::new(MessageType::Error, client.last_mid, message.cid, None).unwrap(),
                 );
@@ -79,7 +79,7 @@ impl ManagerProc for ManagerProcExitting {
                     "{}: send error to client {:03} for done",
                     LOG_TAG, message.cid
                 );
-                client.set_client_state(ClientState::Exitting);
+                client.set_client_state(ClientState::Exiting);
                 responses.push(
                     Message::new(MessageType::Error, client.last_mid, message.cid, None).unwrap(),
                 );
@@ -109,7 +109,7 @@ impl ManagerProc for ManagerProcExitting {
                         Message::new(MessageType::Ok, client.last_mid, message.cid, None).unwrap(),
                     );
                 }
-                ClientState::Exitting => {
+                ClientState::Exiting => {
                     info!("{}: client {:03} is exit", LOG_TAG, message.cid);
                     client.set_client_state(ClientState::None);
                     context.num_active_clients -= 1;
@@ -127,8 +127,8 @@ impl ManagerProc for ManagerProcExitting {
         }
         // check if all clients are ready.
         if context.num_active_clients == 0 {
-            info!("{}: all client is exit, go to exitted", LOG_TAG);
-            context.set_state(ManagerState::Exitted);
+            info!("{}: all client is exit, go to exited", LOG_TAG);
+            context.set_state(ManagerState::Exited);
         }
         Ok(responses)
     }

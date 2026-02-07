@@ -30,7 +30,7 @@ pub enum ClientState {
     /// Client is Ready or Running. Controlling under ProcessGraph.
     Active,
     /// Client received `Error` and will send `Exit`.
-    Exitting,
+    Exiting,
 }
 
 pub struct ClientInfo {

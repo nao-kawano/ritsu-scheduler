@@ -233,13 +233,13 @@ fn test_on_client_exit() {
     assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Error);
     assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Error);
     assert_eq!(rmap.get(&10).unwrap().mtype, MessageType::Error);
-    assert_eq!(ctx.state, ManagerState::Exitting);
+    assert_eq!(ctx.state, ManagerState::Exiting);
     assert_eq!(ctx.state_changed, true);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::None);
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exitting);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Exitting);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Exitting);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exiting);
+    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Exiting);
+    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Exiting);
     assert_eq!(ctx.num_active_clients, 4);
 }
 
@@ -263,12 +263,12 @@ fn test_on_shutdown() {
     assert_eq!(result.len(), 2);
     assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Error);
     assert_eq!(rmap.get(&10).unwrap().mtype, MessageType::Error);
-    assert_eq!(ctx.state, ManagerState::Exitting);
+    assert_eq!(ctx.state, ManagerState::Exiting);
     assert_eq!(ctx.state_changed, true);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exitting);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exiting);
     assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Exitting);
+    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Exiting);
     assert_eq!(ctx.num_active_clients, 5);
 }

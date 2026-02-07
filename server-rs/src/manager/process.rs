@@ -74,17 +74,17 @@ pub trait ManagerProc {
 
     fn going_to_exit(&self, context: &mut ManagerContext, responses: &mut Vec<Message>) {
         if context.num_active_clients == 0 {
-            info!("{}: no clients connected, go to exitted", LOG_TAG);
-            context.set_state(ManagerState::Exitted);
+            info!("{}: no clients connected, go to exited", LOG_TAG);
+            context.set_state(ManagerState::Exited);
         } else {
             info!(
-                "{}: {} clients connected, go to exitting",
+                "{}: {} clients connected, go to exiting",
                 LOG_TAG, context.num_active_clients
             );
             let ready_clients: Vec<u16> = context.sched.get_ready_processes();
             for ready_client in ready_clients {
                 if let Some(client) = context.clients.get_mut(&ready_client) {
-                    // exclude already exitted clients.
+                    // exclude already exited clients.
                     if client.state != ClientState::None {
                         responses.push(
                             Message::new(
@@ -95,11 +95,11 @@ pub trait ManagerProc {
                             )
                             .unwrap(),
                         );
-                        client.set_client_state(ClientState::Exitting);
+                        client.set_client_state(ClientState::Exiting);
                     }
                 }
             }
-            context.set_state(ManagerState::Exitting);
+            context.set_state(ManagerState::Exiting);
         }
     }
 }

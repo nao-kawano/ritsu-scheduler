@@ -12,13 +12,13 @@ fn create_context() -> ManagerContext {
         ClientConfig::new(1, 2, 1, vec![]).unwrap(),
         ClientConfig::new(2, 1, 0, vec![0]).unwrap(),
     ]);
-    ctx.state = ManagerState::Exitted;
+    ctx.state = ManagerState::Exited;
     return ctx;
 }
 
 fn check_context_changed(ctx: &ManagerContext) -> bool {
     let mut ret = false;
-    ret |= ctx.state != ManagerState::Exitted;
+    ret |= ctx.state != ManagerState::Exited;
     ret |= ctx.state_changed != false;
     ret |= ctx.clients.get(&0).unwrap().state != ClientState::None;
     ret |= ctx.clients.get(&1).unwrap().state != ClientState::None;
@@ -32,7 +32,7 @@ fn test_enter_state() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
-    let proc = ManagerProcExitted;
+    let proc = ManagerProcExited;
 
     // setup condition.
     // do nothing.
@@ -41,7 +41,7 @@ fn test_enter_state() {
     proc.enter_state(&mut ctx);
 
     // check result.
-    assert_eq!(ctx.state, ManagerState::Exitted);
+    assert_eq!(ctx.state, ManagerState::Exited);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::None);
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::None);
@@ -54,7 +54,7 @@ fn test_on_cycle_start() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
-    let proc = ManagerProcExitted;
+    let proc = ManagerProcExited;
 
     // setup condition.
     // do nothing.
@@ -70,7 +70,7 @@ fn test_on_client_join() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
-    let proc = ManagerProcExitted;
+    let proc = ManagerProcExited;
 
     // setup condition.
     // do nothing.
@@ -87,7 +87,7 @@ fn test_on_client_ready() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
-    let proc = ManagerProcExitted;
+    let proc = ManagerProcExited;
 
     // setup condition.
     // do nothing.
@@ -104,7 +104,7 @@ fn test_on_client_done() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
-    let proc = ManagerProcExitted;
+    let proc = ManagerProcExited;
 
     // setup condition.
     // do nothing.
@@ -121,7 +121,7 @@ fn test_on_client_exit() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
-    let proc = ManagerProcExitted;
+    let proc = ManagerProcExited;
 
     // setup condition.
     // do nothing.
@@ -138,7 +138,7 @@ fn test_on_shutdown() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
-    let proc = ManagerProcExitted;
+    let proc = ManagerProcExited;
 
     // setup condition.
     // do nothing.

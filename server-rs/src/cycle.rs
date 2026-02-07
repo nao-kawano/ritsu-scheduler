@@ -42,7 +42,7 @@ impl CycleGenerator {
             loop {
                 // check stop request.
                 if stop_flag.load(Ordering::Relaxed) == true {
-                    info!("{}: stop request detected, exitting", LOG_TAG);
+                    info!("{}: stop request detected, exiting", LOG_TAG);
                     break;
                 }
                 // send event.

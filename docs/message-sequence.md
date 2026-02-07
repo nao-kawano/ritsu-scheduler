@@ -68,7 +68,7 @@ sequenceDiagram
       Note over A: None
   end
 
-  Note over S,B: all process is exitted, shutdown complete
+  Note over S,B: all process is exited, shutdown complete
 ```
 
 ## Basic Scheduling
