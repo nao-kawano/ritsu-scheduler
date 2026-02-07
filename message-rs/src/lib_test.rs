@@ -9,6 +9,7 @@ fn test_message_type_to_str() {
     assert_eq!(MessageType::Exit.to_str(), "EXIT".to_string());
     assert_eq!(MessageType::Ok.to_str(), "OK".to_string());
     assert_eq!(MessageType::Skip.to_str(), "SKIP".to_string());
+    assert_eq!(MessageType::Late.to_str(), "LATE".to_string());
     assert_eq!(MessageType::Error.to_str(), "ERROR".to_string());
 }
 
@@ -20,6 +21,7 @@ fn test_message_type_from_str() {
     assert_eq!(MessageType::from_str("EXIT"), Ok(MessageType::Exit));
     assert_eq!(MessageType::from_str("OK"), Ok(MessageType::Ok));
     assert_eq!(MessageType::from_str("SKIP"), Ok(MessageType::Skip));
+    assert_eq!(MessageType::from_str("LATE"), Ok(MessageType::Late));
     assert_eq!(MessageType::from_str("ERROR"), Ok(MessageType::Error));
     assert_eq!(
         MessageType::from_str("INVALID"),

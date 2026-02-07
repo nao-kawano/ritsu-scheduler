@@ -42,6 +42,7 @@ pub enum MessageType {
     Exit,
     Ok,
     Skip,
+    Late,
     Error,
 }
 
@@ -55,6 +56,7 @@ impl MessageType {
             MessageType::Exit => "EXIT".to_string(),
             MessageType::Ok => "OK".to_string(),
             MessageType::Skip => "SKIP".to_string(),
+            MessageType::Late => "LATE".to_string(),
             MessageType::Error => "ERROR".to_string(),
         }
     }
@@ -68,6 +70,7 @@ impl MessageType {
             "EXIT" => Ok(MessageType::Exit),
             "OK" => Ok(MessageType::Ok),
             "SKIP" => Ok(MessageType::Skip),
+            "LATE" => Ok(MessageType::Late),
             "ERROR" => Ok(MessageType::Error),
             _ => Err(ParseError::TypeNotFound),
         }
