@@ -11,8 +11,8 @@ use std::collections::HashMap;
 
 use super::ManagerState;
 use crate::config::ClientConfig;
-use dps_core::entry::ProcessEntry;
-use dps_core::scheduler::Scheduler;
+use dps_core::ProcessEntry;
+use dps_core::Scheduler;
 
 #[cfg(test)]
 #[path = "context_test.rs"]
