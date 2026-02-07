@@ -98,12 +98,12 @@ The server receives the client's request, but the client does not receive the re
   - Recovery: Client retransmits `READY`. Server receives duplicate `READY`.
   - Duplicate: Server keeps current state and resends `OK` (or holds response if trigger is not ready).
 - `READY` (in cyclic operation)
-  - Server state: `Running` or `Idle` (Transitioned from `Ready` or `Late`)
+  - Server state: `Running`, `Skip` or `Idle` (Transitioned from `Ready`, `Ready` or `Late`)
   - Action: Client does not receive the response (`OK`, `SKIP` or `LATE`).
   - Recovery: Client retransmits `READY` after timeout. Server receives duplicate `READY`.
   - Duplicate:
     - If Server state is `Running`, keeps current state and resends `OK`.
-    - If Server state is `Idle`, transitions to `Ready` and waits for the next cycle.
+    - If Server state is `Skip` or `Idle`, transitions to `Ready` and waits for the next cycle.
       - (Note: This simplifies server logic. The client won't be notified about the missed `SKIP`/`LATE`.)
 - `DONE`
   - Server state: `Idle` (Transitioned from `Running`)

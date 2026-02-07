@@ -60,7 +60,9 @@ stateDiagram-v2
         Ready --> Running : cycle and dependency met
         Running --> Idle : Recv DONE
         Idle --> Ready : Recv READY
-        Ready --> Idle : skipped current cycle
+
+        Ready --> Skip : cycle skipped
+        Skip --> Ready : Recv READY
 
         Running --> Overrun : detected overrun
         Overrun --> Late : Recv DONE
@@ -81,8 +83,6 @@ Note:
 - Ready
   - Client is Ready.
   - Server holds the response until the target cycle starts and all dependencies are met.
-    - The client is Ready, but a dependent process was not completed in the previous cycle,
-      so the server sends `SKIP` to the client and waits for `READY` again in Idle.
 - Running
   - Client is Running.
   - Server is waiting for `DONE`.
@@ -93,11 +93,17 @@ Note:
   - Client is Running.
   - Server detected an overrun and is waiting for `DONE`.
     - An overrun occurs when the previous execution has not completed by the start of the next cycle.
+- Skip
+  - Client is Idle.
+  - Server skips the run for the current cycle. The Server sends `SKIP` to the client and waits for `READY` again.
+  - This happens when:
+    - Client is in Ready but dependent process is not completed for previous cycle.
+    - Client is still waiting for dependencies to be met in previous cycle.
 - Late
   - Client is Idle.
   - Server skips the run for the current cycle. It waits for `READY` and responds with `LATE`.
   - This happens when:
-    - The server has not received `READY` by the start of the next cycle and keeps waiting for `READY`.
+    - The server has not received `READY` by the start of the current cycle and keeps waiting for `READY`.
     - The server detected that an overrun process is complete and is waiting for `READY`.
 - Exiting
   - Client is Disconnecting.
