@@ -17,64 +17,64 @@ fn create_entries() -> HashMap<u16, ProcessEntry> {
 fn test_new() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let g = Scheduler::new(create_entries());
+    let sched = Scheduler::new(create_entries());
 
     // setup condition.
     // do nothing.
 
     // check result.
-    assert_eq!(g.entries.len(), 6);
-    assert_eq!(g.graph_start.len(), 3);
-    assert_eq!(g.graph_start.contains(&0), true);
-    assert_eq!(g.graph_start.contains(&1), true);
-    assert_eq!(g.graph_start.contains(&20), true);
-    assert_eq!(g.graph_forward.len(), 5);
-    assert_eq!(g.graph_forward.get(&0).unwrap().contains(&10), true);
-    assert_eq!(g.graph_forward.get(&0).unwrap().contains(&11), true);
-    assert_eq!(g.graph_forward.get(&1).unwrap().contains(&11), true);
-    assert_eq!(g.graph_forward.get(&10).unwrap().contains(&20), true);
-    assert_eq!(g.graph_forward.get(&11).unwrap().contains(&20), true);
-    assert_eq!(g.graph_forward.get(&20).unwrap().contains(&30), true);
+    assert_eq!(sched.entries.len(), 6);
+    assert_eq!(sched.graph_start.len(), 3);
+    assert_eq!(sched.graph_start.contains(&0), true);
+    assert_eq!(sched.graph_start.contains(&1), true);
+    assert_eq!(sched.graph_start.contains(&20), true);
+    assert_eq!(sched.graph_forward.len(), 5);
+    assert_eq!(sched.graph_forward.get(&0).unwrap().contains(&10), true);
+    assert_eq!(sched.graph_forward.get(&0).unwrap().contains(&11), true);
+    assert_eq!(sched.graph_forward.get(&1).unwrap().contains(&11), true);
+    assert_eq!(sched.graph_forward.get(&10).unwrap().contains(&20), true);
+    assert_eq!(sched.graph_forward.get(&11).unwrap().contains(&20), true);
+    assert_eq!(sched.graph_forward.get(&20).unwrap().contains(&30), true);
 }
 
 #[test]
 fn test_reset_state() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let mut g = Scheduler::new(create_entries());
+    let mut sched = Scheduler::new(create_entries());
 
     // setup condition.
-    for (_, entry) in g.entries.iter_mut() {
+    for (_, entry) in sched.entries.iter_mut() {
         entry.state = ProcessState::Ready;
     }
 
     // send event.
-    g.reset_state();
+    sched.reset_state();
 
     // check result.
-    assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Idle);
-    assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Idle);
-    assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Idle);
-    assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Idle);
-    assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Idle);
-    assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Idle);
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Idle);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Idle);
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Idle);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Idle);
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Idle);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Idle);
 }
 
 #[test]
 fn test_on_start_normal() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let mut g = Scheduler::new(create_entries());
+    let mut sched = Scheduler::new(create_entries());
 
     // setup condition.
-    for (_, entry) in g.entries.iter_mut() {
+    for (_, entry) in sched.entries.iter_mut() {
         entry.state = ProcessState::Ready;
     }
 
     // send event.
-    let result = g.on_start(0);
+    let result = sched.on_start(0);
     // check result.
-    assert_eq!(result.is_ok(), true);
+    assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
         assert_eq!(changes.get(0).unwrap().pid, 0);
@@ -83,9 +83,9 @@ fn test_on_start_normal() {
     }
 
     // send event.
-    let result = g.on_start(1);
+    let result = sched.on_start(1);
     // check result.
-    assert_eq!(result.is_ok(), true);
+    assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
         assert_eq!(changes.get(0).unwrap().pid, 1);
@@ -93,28 +93,26 @@ fn test_on_start_normal() {
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Running);
     }
 
-    // send event.
-    let result = g.on_start(10);
+    // send event. floating process is ignored.
+    let result = sched.on_start(10);
     // check result.
-    assert_eq!(result.is_ok(), false);
+    assert!(result.is_err());
 
-    // send event.
-    let result = g.on_start(100);
+    // send event. invalid process is ignored.
+    let result = sched.on_start(100);
     // check result.
-    assert_eq!(result.is_ok(), false);
+    assert!(result.is_err());
 
-    // send event.
-    let result = g.on_done(0);
-    assert_eq!(result.is_ok(), true);
-    let result = g.on_done(1);
-    assert_eq!(result.is_ok(), true);
-    let result = g.on_done(10);
-    assert_eq!(result.is_ok(), true);
-    let result = g.on_done(11);
-    assert_eq!(result.is_ok(), true);
-    let result = g.on_start(20);
+    // --- setup for process 20 start ---
+    let _ = sched.on_done(0); // 0 finishes, updates 10's and 11's dependency on 0 -> start 10.
+    let _ = sched.on_done(1); // 1 finishes, updates 11's dependency on 1 -> start 11.
+    // Now call on_done for 10 and 11 to satisfy 20's dependencies.
+    let _ = sched.on_done(10); // 10 finishes, updates 20's dependency on 10.
+    let _ = sched.on_done(11); // 11 finishes, updates 20's dependency on 11.
+
+    let result = sched.on_start(20);
     // check result.
-    assert_eq!(result.is_ok(), true);
+    assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
         assert_eq!(changes.get(0).unwrap().pid, 20);
@@ -127,19 +125,19 @@ fn test_on_start_normal() {
 fn test_on_ready_normal() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let mut g = Scheduler::new(create_entries());
+    let mut sched = Scheduler::new(create_entries());
 
     // setup condition.
-    for (_, entry) in g.entries.iter_mut() {
+    for (_, entry) in sched.entries.iter_mut() {
         entry.state = ProcessState::Idle;
     }
-    g.entries.get_mut(&1).unwrap().state = ProcessState::Ready;
-    g.entries.get_mut(&30).unwrap().state = ProcessState::Running;
+    sched.entries.get_mut(&1).unwrap().state = ProcessState::Ready;
+    sched.entries.get_mut(&30).unwrap().state = ProcessState::Running;
 
     // send event.
-    let result = g.on_ready(0);
+    let result = sched.on_ready(0);
     // check result.
-    assert_eq!(result.is_ok(), true);
+    assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
         assert_eq!(changes.get(0).unwrap().pid, 0);
@@ -147,15 +145,21 @@ fn test_on_ready_normal() {
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Ready);
     }
 
-    // send event.
-    let result = g.on_ready(1);
+    // send event. maybe retransmission.
+    let result = sched.on_ready(1);
     // check result.
-    assert_eq!(result.is_err(), true);
+    assert!(result.is_ok());
+    if let Ok(changes) = &result {
+        assert_eq!(changes.len(), 1);
+        assert_eq!(changes.get(0).unwrap().pid, 1);
+        assert_eq!(changes.get(0).unwrap().before, ProcessState::Ready);
+        assert_eq!(changes.get(0).unwrap().after, ProcessState::Ready);
+    }
 
     // send event.
-    let result = g.on_ready(10);
+    let result = sched.on_ready(10);
     // check result.
-    assert_eq!(result.is_ok(), true);
+    assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
         assert_eq!(changes.get(0).unwrap().pid, 10);
@@ -164,9 +168,9 @@ fn test_on_ready_normal() {
     }
 
     // send event.
-    let result = g.on_ready(20);
+    let result = sched.on_ready(20);
     // check result.
-    assert_eq!(result.is_ok(), true);
+    assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
         assert_eq!(changes.get(0).unwrap().pid, 20);
@@ -174,10 +178,10 @@ fn test_on_ready_normal() {
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Ready);
     }
 
-    // send event.
-    let result = g.on_ready(30); // retransmission.
+    // send event. maybe retransmission.
+    let result = sched.on_ready(30);
     // check result.
-    assert_eq!(result.is_ok(), true);
+    assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
         assert_eq!(changes.get(0).unwrap().pid, 30);
@@ -186,28 +190,28 @@ fn test_on_ready_normal() {
     }
 
     // send event.
-    let result = g.on_ready(100);
+    let result = sched.on_ready(100);
     // check result.
-    assert_eq!(result.is_ok(), false);
+    assert!(result.is_err());
 }
 
 #[test]
 fn test_on_done_normal() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let mut g = Scheduler::new(create_entries());
+    let mut sched = Scheduler::new(create_entries());
 
     // setup condition.
-    for (_, entry) in g.entries.iter_mut() {
+    for (_, entry) in sched.entries.iter_mut() {
         entry.state = ProcessState::Ready;
     }
-    g.entries.get_mut(&0).unwrap().state = ProcessState::Running;
-    g.entries.get_mut(&1).unwrap().state = ProcessState::Running;
+    sched.entries.get_mut(&0).unwrap().state = ProcessState::Running;
+    sched.entries.get_mut(&1).unwrap().state = ProcessState::Running;
 
     // send event.
-    let result = g.on_done(0);
+    let result = sched.on_done(0);
     // check result.
-    assert_eq!(result.is_ok(), true);
+    assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 2);
         assert_eq!(changes.get(0).unwrap().pid, 0);
@@ -219,10 +223,11 @@ fn test_on_done_normal() {
     }
 
     // send event.
-    let result = g.on_done(0); // retransmission.
+    let result = sched.on_done(0); // retransmission.
     // check result.
-    assert_eq!(result.is_ok(), true);
+    assert!(result.is_ok());
     if let Ok(changes) = &result {
+        // for response OK to retransmission.
         assert_eq!(changes.len(), 1);
         assert_eq!(changes.get(0).unwrap().pid, 0);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Idle);
@@ -230,9 +235,9 @@ fn test_on_done_normal() {
     }
 
     // send event.
-    let result = g.on_done(1);
+    let result = sched.on_done(1);
     // check result.
-    assert_eq!(result.is_ok(), true);
+    assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 2);
         assert_eq!(changes.get(0).unwrap().pid, 1);
@@ -244,18 +249,18 @@ fn test_on_done_normal() {
     }
 
     // send event.
-    let result = g.on_done(100);
+    let result = sched.on_done(100);
     // check result.
-    assert_eq!(result.is_ok(), false);
+    assert!(result.is_err());
 }
 
 #[test]
 fn test_find_forward_all() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let g = Scheduler::new(create_entries());
-    let es = &g.entries;
-    let fd = &g.graph_forward;
+    let sched = Scheduler::new(create_entries());
+    let es = &sched.entries;
+    let fd = &sched.graph_forward;
 
     // setup condition.
     // do nothing.
@@ -292,9 +297,9 @@ fn test_find_forward_all() {
 fn test_find_forward_same_cycle() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let g = Scheduler::new(create_entries());
-    let es = &g.entries;
-    let fd = &g.graph_forward;
+    let sched = Scheduler::new(create_entries());
+    let es = &sched.entries;
+    let fd = &sched.graph_forward;
 
     // setup condition.
     // do nothing.
@@ -330,536 +335,149 @@ fn test_find_forward_same_cycle() {
 // -----------------------------------------------------------------------------
 
 #[test]
-fn test_skip1() {
+fn test_scenario_overrun_and_late() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let mut g = Scheduler::new(create_entries());
+    let mut sched = Scheduler::new(create_entries());
+
+    // scenario:
+    // - process 0 is overrun.
 
     // setup condition.
-    for (_, entry) in g.entries.iter_mut() {
+    for (_, entry) in sched.entries.iter_mut() {
         entry.state = ProcessState::Ready;
     }
 
-    // scenario:
-    // - offset0/first process is overrun.
-    // 0
-    {
-        let _ = g.on_start(0);
-        let _ = g.on_start(1);
+    // == cycle:0
+    let changes = sched.on_start(0).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Running);
 
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Running);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Running);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-    // 1
-    {
-        let _ = g.on_start(20); // no effect due to dependency unmet.
+    // NOTE: Processes sharing the same activation cycle are handled consecutively, ensuring that no interleaved events occur.
+    let changes = sched.on_start(1).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Running);
+    let changes = sched.on_done(1).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Idle);
+    let changes = sched.on_ready(1).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready);
 
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Running);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Running);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-    // 2
-    {
-        let _ = g.on_start(0);
+    // == cycle:1
+    let changes = sched.on_start(20).unwrap();
+    assert_eq!(changes.len(), 0);
 
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Overrun); // mark as Overrun.
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Running);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::SkipPrev); // send SKIP for prev.
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::SkipPrev); // send SKIP for prev.
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::SkipPrev); // send SKIP for prev.
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::SkipPrev); // send SKIP for prev.
+    // == cycle:2
+    // 0 marked as overrun. All dependent processes that ware Ready will become skip.
+    let changes = sched.on_start(0).unwrap();
+    assert_eq!(changes.len(), 5);
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Overrun);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready); // not affected
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Skip); // Skip
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Skip); // Skip
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Skip); // Skip
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Skip); // Skip
 
-        let _ = g.on_start(1);
+    let changes = sched.on_start(1).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Overrun);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Skip); // Skip
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Skip);
 
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Overrun); // mark as Overrun.
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::SkipPrev);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::SkipPrev); // already skipped.
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::SkipPrev); // already skipped.
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::SkipPrev); // already skipped.
+    let _ = sched.on_ready(1).unwrap();
+    let _ = sched.on_ready(10).unwrap();
+    let _ = sched.on_ready(11).unwrap();
+    let _ = sched.on_ready(20).unwrap();
+    let _ = sched.on_ready(30).unwrap();
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Overrun);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Ready);
 
-        let _ = g.on_ready(10);
-        let _ = g.on_ready(11);
-        let _ = g.on_ready(20);
-        let _ = g.on_ready(30);
+    // 0 is done
+    let changes = sched.on_done(0).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Late);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready); // keep Ready
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Ready); // keep Ready
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Ready);
 
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Skip); // send SKIP for current.
+    // 0 sends ready
+    let changes = sched.on_ready(0).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Idle);
 
-        let _ = g.on_ready(10);
-        let _ = g.on_ready(11);
-        let _ = g.on_ready(20);
-        let _ = g.on_ready(30);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-
-        let _ = g.on_done(0);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::SkipPrev); // send OK.
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-
-        let _ = g.on_done(1);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::SkipPrev);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::SkipPrev); // send OK.
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-
-        let _ = g.on_ready(0);
-        let _ = g.on_ready(1);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-
-        let _ = g.on_ready(0);
-        let _ = g.on_ready(1);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-    // 3
-    {
-        let _ = g.on_start(20); // no effect due to dependency unmet.
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
+    // 0 sends ready again
+    let changes = sched.on_ready(0).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Ready);
 }
 
 #[test]
-fn test_skip2() {
+fn test_scenario_idle_and_late() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let mut g = Scheduler::new(create_entries());
+    let mut sched = Scheduler::new(create_entries());
+
+    // scenario:
+    // - process 0, 1 are completed
+    // - process 10, 11 are done but not ready
 
     // setup condition.
-    for (_, entry) in g.entries.iter_mut() {
+    for (_, entry) in sched.entries.iter_mut() {
         entry.state = ProcessState::Ready;
     }
 
-    // scenario:
-    // - offset0/second process is overrun.
-    // 0
-    {
-        let _ = g.on_start(0);
-        let _ = g.on_done(0);
-        let _ = g.on_ready(0);
-        let _ = g.on_start(1);
-        let _ = g.on_done(1);
-        let _ = g.on_ready(1);
+    // == cycle:0
+    let _ = sched.on_start(0).unwrap();
+    let _ = sched.on_start(1).unwrap();
+    let _ = sched.on_done(0).unwrap();
+    let _ = sched.on_done(1).unwrap();
+    let _ = sched.on_ready(0).unwrap();
+    let _ = sched.on_ready(1).unwrap();
 
-        let _ = g.on_done(11);
+    let _ = sched.on_done(10).unwrap();
+    let _ = sched.on_done(11).unwrap();
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Idle);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Idle);
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Ready);
 
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Running);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Idle);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-    // 1
-    {
-        let _ = g.on_start(20); // no effect due to dependency unmet.
+    // == cycle:1
+    let _ = sched.on_start(20).unwrap();
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Idle);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Idle);
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Running);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Ready);
 
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Running);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Idle);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-    // 2
-    {
-        let _ = g.on_start(0);
+    // == cycle:2
+    let changes = sched.on_start(0).unwrap();
+    assert_eq!(changes.len(), 5);
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready); // not affected
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Late); // mark as Late
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Late); // mark as Late
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Overrun); // mark as Overrun
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Skip);
 
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Overrun); // mark as Overrun.
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::SkipPrev); // mark as Skip.
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::SkipPrev); // send SKIP for prev.
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::SkipPrev); // send SKIP for prev.
-
-        let _ = g.on_start(1);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Skip);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::SkipPrev); // already skipped.
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::SkipPrev); // already skipped.
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::SkipPrev); // already skipped.
-
-        let _ = g.on_ready(11);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Skip);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Skip);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::SkipPrev);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::SkipPrev);
-
-        let _ = g.on_ready(0);
-        let _ = g.on_ready(1);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Skip);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::SkipPrev);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::SkipPrev);
-
-        let _ = g.on_ready(20);
-        let _ = g.on_ready(30);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Skip);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Skip);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Skip);
-
-        let _ = g.on_ready(11);
-        let _ = g.on_ready(20);
-        let _ = g.on_ready(30);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-
-        let _ = g.on_done(10);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::SkipPrev); // send OK.
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-
-        let _ = g.on_ready(10);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-
-        let _ = g.on_ready(10);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-    // 3
-    {
-        let _ = g.on_start(20); // no effect due to dependency unmet.
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-}
-
-#[test]
-fn test_skip3() {
-    // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
-    let mut g = Scheduler::new(create_entries());
-
-    // setup condition.
-    for (_, entry) in g.entries.iter_mut() {
-        entry.state = ProcessState::Ready;
-    }
-
-    // scenario:
-    // - offset1/first process is overrun.
-    // 0
-    {
-        let _ = g.on_start(0);
-        let _ = g.on_done(0);
-        let _ = g.on_ready(0);
-        let _ = g.on_start(1);
-        let _ = g.on_done(1);
-        let _ = g.on_ready(1);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Running);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Running);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-
-        let _ = g.on_done(10);
-        let _ = g.on_ready(10);
-        let _ = g.on_done(11);
-        let _ = g.on_ready(11);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-    // 1
-    {
-        let _ = g.on_start(20);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Running);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-    // 2
-    {
-        let _ = g.on_start(0);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Overrun); // mark as Overrun.
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::SkipPrev); // send SKIP for prev.
-
-        let _ = g.on_start(1);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Skip);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Skip);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Skip); // already skipped.
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Overrun); // already skipped.
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::SkipPrev); // already skipped.
-
-        let _ = g.on_ready(0);
-        let _ = g.on_ready(1);
-        let _ = g.on_ready(10);
-        let _ = g.on_ready(11);
-        let _ = g.on_ready(30);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Skip);
-
-        let _ = g.on_ready(30);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Overrun);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-
-        let _ = g.on_done(20);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::SkipPrev);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-
-        let _ = g.on_ready(20);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Skip);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-
-        let _ = g.on_ready(20);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-    // 3
-    {
-        let _ = g.on_start(20); // no effect due to dependency unmet.
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-}
-
-#[test]
-fn test_skip4() {
-    // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
-    let mut g = Scheduler::new(create_entries());
-
-    // setup condition.
-    for (_, entry) in g.entries.iter_mut() {
-        entry.state = ProcessState::Ready;
-    }
-
-    // scenario:
-    // - offset1/second process is overrun.
-    // 0
-    {
-        let _ = g.on_start(0);
-        let _ = g.on_done(0);
-        let _ = g.on_ready(0);
-        let _ = g.on_start(1);
-        let _ = g.on_done(1);
-        let _ = g.on_ready(1);
-
-        let _ = g.on_done(10);
-        let _ = g.on_ready(10);
-        let _ = g.on_done(11);
-        let _ = g.on_ready(11);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-    // 1
-    {
-        let _ = g.on_start(20);
-        let _ = g.on_done(20);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Idle);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Running);
-
-        let _ = g.on_ready(20);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Running);
-    }
-    // 2
-    {
-        let _ = g.on_start(0);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready); // send SKIP for current.
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Overrun); // mark as Overrun.
-
-        let _ = g.on_start(1);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Skip);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Skip); // send SKIP for current.
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Skip);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Skip); // already skipped.
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Skip); // already skipped.
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Overrun); // already skipped.
-
-        let _ = g.on_ready(0);
-        let _ = g.on_ready(1);
-        let _ = g.on_ready(10);
-        let _ = g.on_ready(11);
-        let _ = g.on_ready(20);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Overrun);
-
-        let _ = g.on_done(30);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::SkipPrev); // send OK.
-
-        let _ = g.on_ready(30);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Skip); // send SKIP for current.
-
-        let _ = g.on_ready(30);
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
-    // 3
-    {
-        let _ = g.on_start(20); // no effect due to dependency unmet.
-
-        assert_eq!(g.entries.get(&0).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&1).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&10).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&11).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&20).unwrap().state, ProcessState::Ready);
-        assert_eq!(g.entries.get(&30).unwrap().state, ProcessState::Ready);
-    }
+    let changes = sched.on_start(1).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Skip); // Skip
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Late);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Late);
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Overrun);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Skip);
 }

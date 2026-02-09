@@ -29,30 +29,39 @@ fn test_set_state() {
     let mut entry = ProcessEntry::new(1, &vec![], false);
     assert_eq!(entry.state, ProcessState::Idle);
 
-    // normal.
+    // normal Idle -> Ready -> Running -> Idle flow.
+    entry.state = ProcessState::Idle; // Ensure starting from Idle
     assert!(entry.set_state(ProcessState::Ready));
     assert!(entry.set_state(ProcessState::Running));
     assert!(entry.set_state(ProcessState::Idle));
-    assert!(entry.set_state(ProcessState::Ready));
-    // skip in idle.
-    assert!(entry.set_state(ProcessState::Running));
-    assert!(entry.set_state(ProcessState::Idle));
-    assert!(entry.set_state(ProcessState::SkipPrev));
-    assert!(entry.set_state(ProcessState::Skip));
-    assert!(entry.set_state(ProcessState::Ready));
-    // skip in ready for current.
-    assert!(entry.set_state(ProcessState::Skip));
-    assert!(entry.set_state(ProcessState::Ready));
-    // skip in ready for previous.
-    assert!(entry.set_state(ProcessState::SkipPrev));
-    assert!(entry.set_state(ProcessState::Skip));
-    assert!(entry.set_state(ProcessState::Ready));
-    // skip in running.
+
+    // Running -> Overrun -> Late -> Idle flow.
+    entry.state = ProcessState::Ready; // Ensure starting from Ready
     assert!(entry.set_state(ProcessState::Running));
     assert!(entry.set_state(ProcessState::Overrun));
-    assert!(entry.set_state(ProcessState::SkipPrev));
+    assert!(entry.set_state(ProcessState::Late));
+    assert!(entry.set_state(ProcessState::Idle));
+    assert!(entry.set_state(ProcessState::Ready));
+
+    // Idle -> Late -> Idle flow.
+    entry.state = ProcessState::Idle; // Ensure starting from Idle
+    assert!(entry.set_state(ProcessState::Late));
+    assert!(entry.set_state(ProcessState::Idle));
+    assert!(entry.set_state(ProcessState::Ready));
+
+    // Ready -> Skip -> Ready
+    entry.state = ProcessState::Ready;
     assert!(entry.set_state(ProcessState::Skip));
     assert!(entry.set_state(ProcessState::Ready));
+
+    // Invalid transitions
+    entry.state = ProcessState::Ready;
+    assert!(!entry.set_state(ProcessState::Overrun)); // From Ready to Overrun is invalid
+    assert!(!entry.set_state(ProcessState::Late)); // From Ready to Late is invalid
+
+    entry.state = ProcessState::Running;
+    assert!(!entry.set_state(ProcessState::Ready)); // Running to Ready is invalid
+    assert!(!entry.set_state(ProcessState::Late)); // Running to Late is invalid
 }
 
 #[test]

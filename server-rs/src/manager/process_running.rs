@@ -61,14 +61,14 @@ impl ManagerProc for ManagerProcRunning {
                         Message::new(MessageType::Skip, c.last_mid, change.pid, None).unwrap(),
                     );
                 }
-                ProcessState::SkipPrev => {
+                ProcessState::Late => {
                     if change.before == ProcessState::Ready {
                         responses.push(
                             Message::new(MessageType::Skip, c.last_mid, change.pid, None).unwrap(),
                         );
                     }
                 }
-                _ => {
+                ProcessState::Ready | ProcessState::Idle => {
                     warn!("{}: invalid state change by start {:?}", LOG_TAG, change);
                 }
             }
@@ -99,18 +99,25 @@ impl ManagerProc for ManagerProcRunning {
         for change in changes {
             let c = context.clients.get(&change.pid).unwrap();
             match change.after {
-                ProcessState::Ready => { /* keep waiting */ }
+                ProcessState::Ready => { /* maybe retransmission, keep waiting */ }
+                ProcessState::Running => {
+                    // maybe retransmission, send OK to start immediately.
+                    responses
+                        .push(Message::new(MessageType::Ok, c.last_mid, change.pid, None).unwrap());
+                }
+                ProcessState::Idle => {
+                    if change.before == ProcessState::Late {
+                        responses.push(
+                            Message::new(MessageType::Late, c.last_mid, change.pid, None).unwrap(),
+                        );
+                    }
+                }
                 ProcessState::Skip => {
                     responses.push(
                         Message::new(MessageType::Skip, c.last_mid, change.pid, None).unwrap(),
                     );
                 }
-                ProcessState::Running => {
-                    // maybe retransmission, send OK to start immideately.
-                    responses
-                        .push(Message::new(MessageType::Ok, c.last_mid, change.pid, None).unwrap());
-                }
-                _ => {
+                ProcessState::Overrun | ProcessState::Late => {
                     warn!("{}: invalid state change by start {:?}", LOG_TAG, change);
                 }
             }
@@ -133,21 +140,21 @@ impl ManagerProc for ManagerProcRunning {
         for change in changes {
             let c = context.clients.get(&change.pid).unwrap();
             match change.after {
+                ProcessState::Running => {
+                    responses
+                        .push(Message::new(MessageType::Ok, c.last_mid, change.pid, None).unwrap());
+                }
                 ProcessState::Idle => {
                     // normal case or retransmission.
                     responses
                         .push(Message::new(MessageType::Ok, c.last_mid, change.pid, None).unwrap());
                 }
-                ProcessState::SkipPrev => {
+                ProcessState::Late => {
                     responses
                         .push(Message::new(MessageType::Ok, c.last_mid, change.pid, None).unwrap());
                 }
-                ProcessState::Running => {
-                    responses
-                        .push(Message::new(MessageType::Ok, c.last_mid, change.pid, None).unwrap());
-                }
-                _ => {
-                    warn!("{}: invalid state change by start {:?}", LOG_TAG, change);
+                ProcessState::Ready | ProcessState::Overrun | ProcessState::Skip => {
+                    warn!("{}: invalid state change by done {:?}", LOG_TAG, change);
                 }
             }
         }

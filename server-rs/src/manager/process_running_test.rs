@@ -6,38 +6,32 @@ use crate::manager::context::ClientState;
 
 use std::collections::HashMap;
 
-fn create_context_simple() -> ManagerContext {
+fn create_context_scenarios() -> ManagerContext {
     let mut ctx = ManagerContext::new(vec![
-        ClientConfig::new(0, 3, 0, vec![]).unwrap(),
-        ClientConfig::new(1, 3, 0, vec![]).unwrap(),
-        ClientConfig::new(2, 3, 1, vec![]).unwrap(),
-        ClientConfig::new(3, 3, 2, vec![]).unwrap(),
-        ClientConfig::new(10, 3, 1, vec![2]).unwrap(),
+        // CID, Cycle, Offset, Depends
+        ClientConfig::new(0, 2, 0, vec![]).unwrap(),
+        ClientConfig::new(1, 2, 0, vec![0]).unwrap(), // Floating (depends on 0, same offset)
+        ClientConfig::new(2, 2, 1, vec![1]).unwrap(), // Non-Floating (depends on 1, different offset)
+        ClientConfig::new(3, 2, 1, vec![]).unwrap(),  // Root (offset 1)
     ]);
     ctx.state = ManagerState::Running;
     ctx.num_active_clients = ctx.clients.len();
-    ctx.clients.get_mut(&0).unwrap().state = ClientState::Active;
-    ctx.clients.get_mut(&1).unwrap().state = ClientState::Active;
-    ctx.clients.get_mut(&2).unwrap().state = ClientState::Active;
-    ctx.clients.get_mut(&3).unwrap().state = ClientState::Active;
-    ctx.clients.get_mut(&10).unwrap().state = ClientState::Active;
-    ctx.clients.get_mut(&0).unwrap().last_mid = 9;
-    ctx.clients.get_mut(&1).unwrap().last_mid = 9;
-    ctx.clients.get_mut(&2).unwrap().last_mid = 9;
-    ctx.clients.get_mut(&3).unwrap().last_mid = 9;
-    ctx.clients.get_mut(&10).unwrap().last_mid = 9;
-    return ctx;
+    for client in ctx.clients.values_mut() {
+        client.state = ClientState::Active;
+        client.last_mid = 9;
+    }
+    ctx
 }
 
 #[test]
 fn test_enter_state() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let mut ctx = create_context_simple();
+    let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
     // setup condition.
-    // do nothing.
+    ctx.cycle_current = 5;
 
     // send event.
     proc.enter_state(&mut ctx);
@@ -48,227 +42,238 @@ fn test_enter_state() {
 }
 
 #[test]
-fn test_on_cycle_start_simple() {
+fn test_normal_cycle_flow() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let mut ctx = create_context_simple();
+    let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
     // setup condition.
-    ctx.cycle_current = ManagerContext::CYCLE_MAX;
-    let _ = ctx.sched.on_ready(0);
-    let _ = ctx.sched.on_ready(1);
-    let _ = ctx.sched.on_ready(2);
-    let _ = ctx.sched.on_ready(3);
-    let _ = ctx.sched.on_ready(10);
+    proc.enter_state(&mut ctx);
+    for i in 0..=3 {
+        let _ = ctx.sched.on_ready(i);
+    }
 
-    // send event: cycle=0
+    // --- Cycle 0 ---
+    // CID 0 should start.
     let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
-    // check result.
-    assert_eq!(result.len(), 2);
+    assert_eq!(result.len(), 1);
     assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Ok);
-    assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Ok);
-    assert_eq!(ctx.state, ManagerState::Running);
-    assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
 
-    // send event: cycle=1
+    // CID 0 sends DONE -> CID 1 should start immediately (Floating).
+    let m_done0 = Message::new(MessageType::Done, 1, 0, None).unwrap();
+    let result = proc.on_client_done(&mut ctx, &m_done0).unwrap();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
+    assert_eq!(result.len(), 2);
+    assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Ok); // Ack for 0
+    assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Ok); // Start for 1
+
+    // CID 1 sends DONE -> CID 2 is Ready but waits for Offset 1 (Non-Floating).
+    let m_done1 = Message::new(MessageType::Done, 5, 1, None).unwrap();
+    let result = proc.on_client_done(&mut ctx, &m_done1).unwrap();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
+    assert_eq!(result.len(), 1);
+    assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Ok); // Ack for 1
+
+    // --- Cycle 1 ---
+    // CID 2 (dependency met) and CID 3 (root) should start.
+    let result = proc.on_cycle_start(&mut ctx, 124).unwrap();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
+    assert_eq!(result.len(), 2);
+    assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Ok); // Start for 2
+    assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Ok); // Start for 3
+}
+
+#[test]
+fn test_client_ready_late() {
+    // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
+    let mut ctx = create_context_scenarios();
+    let proc = ManagerProcRunning;
+
+    // setup condition.
+    proc.enter_state(&mut ctx);
+    for i in 1..=3 {
+        let _ = ctx.sched.on_ready(i);
+    }
+
+    // --- Cycle 0 ---
+    // CID 0 is in Idle, mark as Late.
+    // CID 1, 2 is Skip.
     let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
-    // check result.
-    assert_eq!(result.len(), 1);
-    assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Ok);
-    assert_eq!(ctx.state, ManagerState::Running);
-    assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
+    assert_eq!(result.len(), 2);
+    assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Skip);
+    assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Skip);
 
-    // send event: cycle=2
-    let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
-    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
-    // check result.
-    assert_eq!(result.len(), 1);
-    assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Ok);
-    assert_eq!(ctx.state, ManagerState::Running);
-    assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
-
-    // send event: cycle=3, client 10 skipped, all other clients still running.
-    let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
-    // check result.
+    // CID 1, 2 sends READY again.
+    let m_ready1 = Message::new(MessageType::Ready, 1, 1, None).unwrap();
+    let result = proc.on_client_ready(&mut ctx, &m_ready1).unwrap();
     assert_eq!(result.len(), 0);
-    assert_eq!(ctx.state, ManagerState::Running);
-    assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
+    let m_ready2 = Message::new(MessageType::Ready, 1, 2, None).unwrap();
+    let result = proc.on_client_ready(&mut ctx, &m_ready2).unwrap();
+    assert_eq!(result.len(), 0);
 
-    // send event: cycle=4, client 10 skipped, all other clients still running.
-    let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
+    // Late Ready arrives from CID 0.
+    let m_ready0 = Message::new(MessageType::Ready, 1, 0, None).unwrap();
+    let result = proc.on_client_ready(&mut ctx, &m_ready0).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
-    // check result.
     assert_eq!(result.len(), 1);
-    assert_eq!(rmap.get(&10).unwrap().mtype, MessageType::Skip);
-    assert_eq!(ctx.state, ManagerState::Running);
-    assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
+    assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Late);
+
+    // Rtry Ready arrives from CID 0.
+    let m_ready0 = Message::new(MessageType::Ready, 2, 0, None).unwrap();
+    let result = proc.on_client_ready(&mut ctx, &m_ready0).unwrap();
+    assert_eq!(result.len(), 0);
+}
+
+#[test]
+fn test_overrun_and_skip_chain() {
+    // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
+    let mut ctx = create_context_scenarios();
+    let proc = ManagerProcRunning;
+
+    // setup condition.
+    proc.enter_state(&mut ctx);
+    for i in 0..=3 {
+        let _ = ctx.sched.on_ready(i);
+    }
+
+    // --- Cycle 0 ---
+    // CID 0 starts.
+    let _ = proc.on_cycle_start(&mut ctx, 123).unwrap();
+    // CID 0 is still RUNNING (Overrun trigger).
+
+    // --- Cycle 1 ---
+    // CID 3 starts, CID 2 waits for 1.
+    let _ = proc.on_cycle_start(&mut ctx, 124).unwrap();
+
+    // CID 3 completed.
+    let m_done3 = Message::new(MessageType::Done, 1, 3, None).unwrap();
+    let _ = proc.on_client_done(&mut ctx, &m_done3).unwrap();
+    let m_ready3 = Message::new(MessageType::Ready, 2, 3, None).unwrap();
+    let _ = proc.on_client_ready(&mut ctx, &m_ready3).unwrap();
+
+    // --- Cycle 2 ---
+    // CID 0 is still Running -> Overrun.
+    // Dependents (CID 1, and eventually CID 2) should be Skipped.
+    let result = proc.on_cycle_start(&mut ctx, 125).unwrap();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
+    assert_eq!(result.len(), 2);
+    assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Skip);
+    assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Skip);
+}
+
+#[test]
+fn test_retransmission_handling() {
+    // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
+    let mut ctx = create_context_scenarios();
+    let proc = ManagerProcRunning;
+
+    // setup condition.
+    proc.enter_state(&mut ctx);
+    for i in 0..=3 {
+        let _ = ctx.sched.on_ready(i);
+    }
+
+    // 1. Ready retransmission while Running.
+    let _ = proc.on_cycle_start(&mut ctx, 123); // CID 0 is Running.
+    let m_ready0 = Message::new(MessageType::Ready, 1, 0, None).unwrap();
+    let result = proc.on_client_ready(&mut ctx, &m_ready0).unwrap();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
+    assert_eq!(result.len(), 1);
+    assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Ok); // Should allow to continue.
+
+    // 2. Done retransmission while Idle.
+    let m_done0 = Message::new(MessageType::Done, 2, 0, None).unwrap();
+    let _ = proc.on_client_done(&mut ctx, &m_done0); // CID 0 becomes Idle.
+    let result = proc.on_client_done(&mut ctx, &m_done0).unwrap();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
+    assert_eq!(result.len(), 1);
+    assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Ok); // Ack for retransmission.
 }
 
 #[test]
 fn test_on_client_join() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let mut ctx = create_context_simple();
+    let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
     // setup condition.
-    // do nothing.
+    proc.enter_state(&mut ctx);
 
-    // send event.
-    let m = Message::new(MessageType::Join, 0, 0, None).unwrap();
+    // ignore JOIN.
+    let m = Message::new(MessageType::Join, 1, 0, None).unwrap();
     let result = proc.on_client_join(&mut ctx, &m);
-
-    // check result.
-    assert_eq!(result.is_err(), true);
-}
-
-#[test]
-fn test_on_client_ready_simple() {
-    // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
-    let mut ctx = create_context_simple();
-    let proc = ManagerProcRunning;
-
-    // setup condition.
-    ctx.cycle_current = 0;
-
-    // send event.
-    let m = Message::new(MessageType::Ready, 0, 0, None).unwrap();
-    let result = proc.on_client_ready(&mut ctx, &m).unwrap();
-
-    // check result.
-    assert_eq!(result.len(), 0);
-    assert_eq!(ctx.state, ManagerState::Running);
-    assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
-}
-
-#[test]
-fn test_on_client_done_simple() {
-    // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
-    let mut ctx = create_context_simple();
-    let proc = ManagerProcRunning;
-
-    // setup condition.
-    ctx.cycle_current = 1;
-    let _ = ctx.sched.on_ready(0);
-    let _ = ctx.sched.on_ready(1);
-    let _ = ctx.sched.on_ready(2);
-    let _ = ctx.sched.on_ready(3);
-    let _ = ctx.sched.on_ready(10);
-    let _ = ctx.sched.on_start(2);
-
-    // send event.
-    let m = Message::new(MessageType::Done, 0, 2, None).unwrap();
-    let result = proc.on_client_done(&mut ctx, &m).unwrap();
-    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
-
-    // check result.
-    assert_eq!(result.len(), 2);
-    assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Ok);
-    assert_eq!(rmap.get(&10).unwrap().mtype, MessageType::Ok);
-    assert_eq!(ctx.state, ManagerState::Running);
-    assert_eq!(ctx.state_changed, false);
-    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Active);
+    assert!(result.is_err());
 }
 
 #[test]
 fn test_on_client_exit() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let mut ctx = create_context_simple();
+    let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
     // setup condition.
-    let _ = ctx.sched.on_start(1);
-    let _ = ctx.sched.on_ready(2);
-    let _ = ctx.sched.on_ready(3);
-    let _ = ctx.sched.on_ready(10);
+    proc.enter_state(&mut ctx);
+    for i in 0..=3 {
+        let _ = ctx.sched.on_ready(i);
+    }
 
-    // send event.
-    let m = Message::new(MessageType::Exit, 0, 0, None).unwrap();
-    let result = proc.on_client_exit(&mut ctx, &m).unwrap();
+    // --- Cycle 0 ---
+    // CID 0 starts.
+    let _ = proc.on_cycle_start(&mut ctx, 123).unwrap();
+
+    // CID 0 exits.
+    // Manager should transition to Exiting and notify others.
+    let m_exit0 = Message::new(MessageType::Exit, 5, 0, None).unwrap();
+    let result = proc.on_client_exit(&mut ctx, &m_exit0).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
-
-    // check result.
     assert_eq!(result.len(), 4);
     assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Ok);
+    assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Error);
     assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Error);
     assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Error);
-    assert_eq!(rmap.get(&10).unwrap().mtype, MessageType::Error);
+    // Manager state change to Exitting.
     assert_eq!(ctx.state, ManagerState::Exiting);
     assert_eq!(ctx.state_changed, true);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::None);
-    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Exiting);
     assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exiting);
     assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Exiting);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Exiting);
-    assert_eq!(ctx.num_active_clients, 4);
+    assert_eq!(ctx.num_active_clients, 3);
 }
 
 #[test]
 fn test_on_shutdown() {
     // create objects.
     let _ = env_logger::builder().is_test(true).try_init();
-    let mut ctx = create_context_simple();
+    let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
     // setup condition.
-    let _ = ctx.sched.on_ready(2);
-    let _ = ctx.sched.on_start(3);
-    let _ = ctx.sched.on_ready(10);
+    proc.enter_state(&mut ctx);
+    for i in 2..=3 {
+        let _ = ctx.sched.on_ready(i);
+    }
 
     // send event.
     let result = proc.on_shutdown(&mut ctx).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
-
-    // check result.
     assert_eq!(result.len(), 2);
     assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Error);
-    assert_eq!(rmap.get(&10).unwrap().mtype, MessageType::Error);
+    assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Error);
+    // Manager should transition to Exiting and notify others.
     assert_eq!(ctx.state, ManagerState::Exiting);
     assert_eq!(ctx.state_changed, true);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
     assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exiting);
-    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&10).unwrap().state, ClientState::Exiting);
-    assert_eq!(ctx.num_active_clients, 5);
+    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Exiting);
+    assert_eq!(ctx.num_active_clients, 4);
 }

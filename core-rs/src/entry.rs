@@ -23,7 +23,7 @@ pub enum ProcessState {
     Overrun,
     Idle,
     Skip,
-    SkipPrev, // skipped previous due to dependency unmet, and also skip current cycle.
+    Late,
 }
 
 /// Represents the process.
@@ -76,7 +76,6 @@ impl ProcessEntry {
             ProcessState::Ready => match new_state {
                 ProcessState::Running => true,
                 ProcessState::Skip => true,
-                ProcessState::SkipPrev => true,
                 _ => false,
             },
             ProcessState::Running => match new_state {
@@ -85,20 +84,20 @@ impl ProcessEntry {
                 _ => false,
             },
             ProcessState::Overrun => match new_state {
-                ProcessState::SkipPrev => true,
+                ProcessState::Late => true,
                 _ => false,
             },
             ProcessState::Idle => match new_state {
                 ProcessState::Ready => true,
-                ProcessState::SkipPrev => true,
+                ProcessState::Late => true,
                 _ => false,
             },
             ProcessState::Skip => match new_state {
                 ProcessState::Ready => true,
                 _ => false,
             },
-            ProcessState::SkipPrev => match new_state {
-                ProcessState::Skip => true,
+            ProcessState::Late => match new_state {
+                ProcessState::Idle => true,
                 _ => false,
             },
         };
