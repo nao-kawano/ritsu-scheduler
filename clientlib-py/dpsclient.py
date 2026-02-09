@@ -1,7 +1,6 @@
 import socket
 import datetime
 from enum import Enum
-from typing import Tuple, Optional
 
 PACKET_FORMAT: str = "{}@{:d}:{:03d}"
 PACKET_ENCODING: str = "utf-8"
@@ -60,40 +59,40 @@ class Config:
     PACKET_SIZE: int = 512  # Size of the packets used for communication.
 
     # Retry time for JOIN request in seconds.
-    RETRY_TIME_SEC_JOIN: float = 0.020
+    RETRY_SEC_JOIN: float = 0.020
     # Retry count for JOIN request.
     RETRY_COUNT_JOIN: int = 3
 
     # Retry time for READY request during startup in seconds.
-    RETRY_TIME_SEC_READY_STARTUP: float = 1.000
+    RETRY_SEC_READY_STARTUP: float = 1.000
     # Retry count for READY request during startup. Set in __init__.
     RETRY_COUNT_READY_STARTUP: int = 0
 
     # # Retry time for READY request in seconds. Set in __init__.
-    RETRY_TIME_SEC_READY: float = 0.000
+    RETRY_SEC_READY: float = 0.000
     # Retry count for READY request.
     RETRY_COUNT_READY: int = 3
 
     # Retry time for DONE request in seconds.
-    RETRY_TIME_SEC_DONE: float = 0.050
+    RETRY_SEC_DONE: float = 0.020
     # Retry count for DONE request.
     RETRY_COUNT_DONE: int = 3
 
     # Retry time for EXIT request in seconds.
-    RETRY_TIME_SEC_EXIT: float = 0.020
+    RETRY_SEC_EXIT: float = 0.020
     # Retry count for EXIT request.
     RETRY_COUNT_EXIT: int = 3
 
-    def __init__(self, run_cycle_time_ms: int, startup_wait_ms: int) -> None:
+    def __init__(self, run_cycle_sec: float, startup_wait_sec: float) -> None:
         """
         Initialize the Config object.
         Args:
-            run_cycle_time_ms (int): The run cycle time in milliseconds.
-            startup_wait_ms (int): The startup wait time in milliseconds.
+            run_cycle_sec (float): The run cycle time in seconds.
+            startup_wait_sec (float): The startup wait time in seconds.
         """
         self.RETRY_COUNT_READY_STARTUP = int(
-            startup_wait_ms / (1000 * self.RETRY_TIME_SEC_READY_STARTUP))
-        self.RETRY_TIME_SEC_READY = float(run_cycle_time_ms / 1000)
+            startup_wait_sec / self.RETRY_SEC_READY_STARTUP)
+        self.RETRY_SEC_READY = run_cycle_sec * 1.1  # with mergin
 
 
 class DPSClient:
@@ -101,21 +100,21 @@ class DPSClient:
     A client for the DPS.
     """
 
-    def __init__(self, host: str, port: int, client_id: int, run_cycle_time_ms: int, startup_wait_ms: int) -> None:
+    def __init__(self, host: str, port: int, client_id: int, run_cycle_sec: float, startup_wait_sec: float) -> None:
         """
         Initialize the DPSClient object.
         Args:
             host (str): The host address of the server.
             port (int): The port number of the server.
             client_id (int): The ID of the client.
-            run_cycle_time_ms (int): The run cycle time in milliseconds.
-            startup_wait_ms (int): The startup wait time in milliseconds.
+            run_cycle_sec (float): The run cycle time in seconds.
+            startup_wait_sec (float): The startup wait time in seconds.
         """
         self.host: str = host
         self.port: int = port
         self.client_id: int = client_id
-        self.config: Config = Config(run_cycle_time_ms, startup_wait_ms)
-        self.sock: Optional[socket.socket] = None
+        self.config: Config = Config(run_cycle_sec, startup_wait_sec)
+        self.sock: socket.socket | None = None
         self.connected: bool = False
         self.startup: bool = True
         self.message_id: int = 0
@@ -133,7 +132,7 @@ class DPSClient:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.sock.bind(("0.0.0.0", 0))
             resp_type = self._send_request(RequestType.JOIN,
-                                           self.config.RETRY_TIME_SEC_JOIN,
+                                           self.config.RETRY_SEC_JOIN,
                                            self.config.RETRY_COUNT_JOIN)
             if resp_type == ResponseType.OK:
                 self.connected = True
@@ -150,7 +149,7 @@ class DPSClient:
             log("not connected, skip")
         else:
             _ = self._send_request(RequestType.EXIT,
-                                   self.config.RETRY_TIME_SEC_EXIT,
+                                   self.config.RETRY_SEC_EXIT,
                                    self.config.RETRY_COUNT_EXIT)
             self.sock.close()
             self.sock = None
@@ -167,7 +166,7 @@ class DPSClient:
         if not self.connected:
             raise RuntimeError("wait_next called before connected")
 
-        timeout_sec = self.config.RETRY_TIME_SEC_READY_STARTUP if self.startup else self.config.RETRY_TIME_SEC_READY
+        timeout_sec = self.config.RETRY_SEC_READY_STARTUP if self.startup else self.config.RETRY_SEC_READY
         retry_count = self.config.RETRY_COUNT_READY_STARTUP if self.startup else self.config.RETRY_COUNT_READY
 
         resp_type = self._send_request(RequestType.READY, timeout_sec, retry_count)
@@ -186,7 +185,7 @@ class DPSClient:
         if not self.connected:
             raise RuntimeError("notify_done called before connected")
         resp_type = self._send_request(RequestType.DONE,
-                                       self.config.RETRY_TIME_SEC_DONE,
+                                       self.config.RETRY_SEC_DONE,
                                        self.config.RETRY_COUNT_DONE)
         return resp_type
 
@@ -204,7 +203,7 @@ class DPSClient:
         ret_resp_type: ResponseType = ResponseType.ERROR
         packet: bytes = self._create_packet(req_type)
         self.sock.settimeout(timeout_sec)
-        for count in range(retry_count+1):
+        for count in range(1 + retry_count):
             log(f"sending {req_type.value}@{self.message_id} to server ({count+1}/{1+retry_count}) with t/o {timeout_sec} sec")
             self.sock.sendto(packet, (self.host, self.port))
             try:
@@ -235,7 +234,7 @@ class DPSClient:
         packet_str: str = PACKET_FORMAT.format(request.value, self.message_id, self.client_id)
         return packet_str.encode(PACKET_ENCODING)
 
-    def _parse_packet(self, data: bytes) -> Tuple[ResponseType, int]:
+    def _parse_packet(self, data: bytes) -> tuple[ResponseType, int]:
         """
         Parse a packet received from the server.
         Args:
@@ -255,16 +254,17 @@ class DPSClient:
             raise ValueError(f"Invalid format, separator(@) not found: {parts[0]}")
         resp_type = ResponseType.from_str(headers[0])
         resp_id = int(headers[1])
-        if resp_id < 0 or resp_id > 9:
+        if resp_id < 0 or resp_id > 9:  # message id must be 1 digit.
             raise ValueError(f"Invalid message id {parts[0]}")
         # -- payload
         bodies = parts[1].split(",")
-        if len(bodies[0]) != 3:
+        if len(bodies[0]) != 3:  # client id must be 3-digit.
             raise ValueError(f"Invalid client id {parts[1]}")
         client_id = int(bodies[0])
         if client_id != self.client_id:
             raise ValueError(
                 f"Invalid client id mismatch, expected {self.client_id}, actual {client_id}")
+        # TODO: parse extras.
 
         return (resp_type, resp_id)
 
@@ -285,6 +285,7 @@ class DPSClient:
 
 if __name__ == '__main__':
     # Example usage:
+    import sys
     import time
     import argparse
 
@@ -292,12 +293,12 @@ if __name__ == '__main__':
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address")
     parser.add_argument("--port", type=int, default=7878, help="Port number")
     parser.add_argument("--client_id", type=int, default=1, help="Client ID: 0~999")
-    parser.add_argument("--run_cycle_time", type=int, default=2000,
-                        help="Execution cycle time (ms): 200 if cycle=2, cycle_time=100")
-    parser.add_argument("--startup_wait_time", type=int, default=60 * 1000,
-                        help="Startup wait time (ms)")
-    parser.add_argument("--proc_time", type=int, default=400,
-                        help="Simulated process time (ms)")
+    parser.add_argument("--run_cycle_sec", type=float, default=2.0,
+                        help="Execution cycle time (sec): 2.0 if cycle=2, cycle_time=1.0")
+    parser.add_argument("--startup_wait_sec", type=float, default=60.0,
+                        help="Startup wait time (sec)")
+    parser.add_argument("--proc_time_sec", type=float, default=0.4,
+                        help="Simulated process time (sec)")
     parser.add_argument("--proc_count", type=int, default=5,
                         help="max run count (times)")
     args = parser.parse_args()
@@ -309,30 +310,38 @@ if __name__ == '__main__':
         args.host,
         args.port,
         args.client_id,
-        args.run_cycle_time,
-        args.startup_wait_time
+        args.run_cycle_sec,
+        args.startup_wait_sec
     )
 
     joined: bool = client.join()
-    log(f"## client joined={joined}")
-    while joined:
+    if not joined:
+        log(f"## failed to joine, exit")
+        sys.exit(-1)
+
+    log(f"## client joined")
+    while True:
         try:
             resp_type: ResponseType = client.wait_next()
             log(f"## start count={proc_count}")
             if resp_type == ResponseType.OK:
-                time.sleep(float(args.proc_time / 1000))
+                log("got OK, do some process")
+                # some process here.
+                time.sleep(args.proc_time_sec)
+                # client must send DONE and send READY (wait_next).
                 client.notify_done()
             elif resp_type == ResponseType.SKIP:
+                # client must send READY (wait_next) for next proc.
                 log("got SKIP, retry")
             else:
+                # client must send EXIT if got ERROR.
                 log("got ERROR, going to exit")
-                joined = False
-            # for Example
+                break
+            # logic for a sample program.
             proc_count += 1
             if proc_count >= PROC_COUNT_MAX:
                 log("## completed, goint to exit")
-                joined = False
-            log("")
+                break
         except KeyboardInterrupt:
             log("## abort, goint to exit")
             break
