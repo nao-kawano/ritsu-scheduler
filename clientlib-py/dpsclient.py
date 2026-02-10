@@ -205,21 +205,21 @@ class DPSClient:
         packet: bytes = self._create_packet(req_type)
         self.sock.settimeout(timeout_sec)
         for count in range(1 + retry_count):
-            log(f"sending {req_type.value}@{self.message_id} to server ({count+1}/{1+retry_count}) with t/o {timeout_sec} sec")
+            log(f">> send {req_type.value}@{self.message_id} ({count+1}/{1+retry_count}) with t/o {timeout_sec} sec")
             self.sock.sendto(packet, (self.host, self.port))
             try:
                 data, _ = self.sock.recvfrom(self.config.PACKET_SIZE)
                 resp_type, resp_id = self._parse_packet(data)
                 if resp_id != self.message_id:
-                    log(f"{req_type.value} message id mismatch, expected {self.message_id}, actual {resp_id}, continue")
+                    log(f"<< !! {req_type.value} mid mismatch, expected {self.message_id}, actual {resp_id}, continue")
                     continue
-                log(f"got {resp_type.value} for {req_type.value}")
+                log(f"<< recv {resp_type.value} for {req_type.value}")
                 ret_resp_type = resp_type
                 break
             except socket.timeout:
-                log(f"{req_type.value} timeout, retrying...")
+                log(f"-- {req_type.value} timeout, retrying...")
             except Exception as e:
-                log(f"Error in receive for {req_type.value}: {e}")
+                log(f"!! Error in receive for {req_type.value}: {e}")
                 break
         return ret_resp_type
 
@@ -326,7 +326,7 @@ if __name__ == '__main__':
             resp_type: ResponseType = client.wait_next()
             log(f"## start count={proc_count}")
             if resp_type == ResponseType.OK:
-                log("got OK, do some process")
+                log(f"got OK, do some process with {args.proc_time_sec} sec ...")
                 # some process here.
                 time.sleep(args.proc_time_sec)
                 # client must send DONE and send READY (wait_next).
