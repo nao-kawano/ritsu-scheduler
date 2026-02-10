@@ -33,6 +33,7 @@ class ResponseType(Enum):
     """
     OK = "OK"  # Response indicating success.
     SKIP = "SKIP"  # Response indicating the task should be skipped.
+    LATE = "LATE"  # Response indicating the process is too late.
     ERROR = "ERROR"  # Response indicating an error occurred.
 
     @classmethod
@@ -333,6 +334,9 @@ if __name__ == '__main__':
             elif resp_type == ResponseType.SKIP:
                 # client must send READY (wait_next) for next proc.
                 log("got SKIP, retry")
+            elif resp_type == ResponseType.LATE:
+                # client must send READY (wait_next) for next proc.
+                log("got LATE, retry")
             else:
                 # client must send EXIT if got ERROR.
                 log("got ERROR, going to exit")
