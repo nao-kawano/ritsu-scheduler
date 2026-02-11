@@ -6,7 +6,7 @@ use std::thread::{self, JoinHandle};
 
 struct MockResponse {
     response: Message,
-    delay: u32,
+    delay_sec: f64,
 }
 
 fn start_mock_server(
@@ -55,9 +55,9 @@ fn start_mock_server(
                     // response.
                     if let Some(r) = responses.get_mut(seq) {
                         // delay for response.
-                        if r.delay > 0 {
-                            println!("MockServer delay {} ms", r.delay);
-                            std::thread::sleep(Duration::from_millis(r.delay as u64));
+                        if r.delay_sec > 0.0 {
+                            println!("MockServer delay {} sec", r.delay_sec);
+                            std::thread::sleep(Duration::from_secs_f64(r.delay_sec));
                         }
                         // send.
                         r.response.mid = req_mid;
@@ -115,14 +115,14 @@ fn test_join() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -149,14 +149,14 @@ fn test_join_retry_ok() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_join + 5,
+            delay_sec: client.config.retry_sec_join + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -184,14 +184,15 @@ fn test_join_retry_ng() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_join * (client.config.retry_count_join + 1) + 5,
+            delay_sec: client.config.retry_sec_join * (client.config.retry_count_join as f64 + 1.0)
+                + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -222,14 +223,14 @@ fn test_join_precond() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -252,8 +253,8 @@ fn test_ready_startup() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
-    client.config.retry_time_msec_ready_startup = 100;
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+    client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
     // setup condition.
@@ -261,12 +262,12 @@ fn test_ready_startup() {
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_ready_startup / 2,
+            delay_sec: client.config.retry_sec_ready_startup / 2.0,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -295,8 +296,8 @@ fn test_ready_startup_retry_ok() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
-    client.config.retry_time_msec_ready_startup = 100;
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+    client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
     // setup condition.
@@ -304,12 +305,12 @@ fn test_ready_startup_retry_ok() {
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_ready_startup + 5,
+            delay_sec: client.config.retry_sec_ready_startup + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -339,8 +340,8 @@ fn test_ready_startup_retry_ng() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
-    client.config.retry_time_msec_ready_startup = 100;
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+    client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
     // setup condition.
@@ -348,14 +349,14 @@ fn test_ready_startup_retry_ng() {
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_ready_startup
-                * (client.config.retry_count_ready_startup + 1)
-                + 5,
+            delay_sec: client.config.retry_sec_ready_startup
+                * (client.config.retry_count_ready_startup as f64 + 1.0)
+                + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -389,8 +390,8 @@ fn test_ready_startup_precond() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
-    client.config.retry_time_msec_ready_startup = 100;
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+    client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
     // setup condition.
@@ -409,8 +410,8 @@ fn test_ready() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
-    client.config.retry_time_msec_ready_startup = 100;
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+    client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
     // setup condition.
@@ -418,22 +419,22 @@ fn test_ready() {
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Done.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_ready / 2,
+            delay_sec: client.config.retry_sec_ready / 2.0,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -466,8 +467,8 @@ fn test_ready_retry_ok() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
-    client.config.retry_time_msec_ready_startup = 100;
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+    client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
     // setup condition.
@@ -475,22 +476,22 @@ fn test_ready_retry_ok() {
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Done.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_ready + 5,
+            delay_sec: client.config.retry_sec_ready + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -523,8 +524,8 @@ fn test_ready_retry_ng() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
-    client.config.retry_time_msec_ready_startup = 100;
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+    client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
     // setup condition.
@@ -532,22 +533,24 @@ fn test_ready_retry_ng() {
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Done.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_ready * (client.config.retry_count_ready + 1) + 5,
+            delay_sec: client.config.retry_sec_ready
+                * (client.config.retry_count_ready as f64 + 1.0)
+                + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -583,24 +586,25 @@ fn test_done_retry_ng() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Done.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_done * (client.config.retry_count_done + 1) + 5,
+            delay_sec: client.config.retry_sec_done * (client.config.retry_count_done as f64 + 1.0)
+                + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -636,7 +640,7 @@ fn test_done_precond() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
     // do nothing.
@@ -654,19 +658,19 @@ fn test_exit() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Exit.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_exit / 2,
+            delay_sec: client.config.retry_sec_exit / 2.0,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -695,19 +699,19 @@ fn test_exit_retry_ok() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Exit.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_exit + 5,
+            delay_sec: client.config.retry_sec_exit + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -737,19 +741,20 @@ fn test_exit_retry_ng() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: 0,
+            delay_sec: 0.0,
         },
         // Exit.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay: client.config.retry_time_msec_exit * (client.config.retry_count_exit + 1) + 5,
+            delay_sec: client.config.retry_sec_exit * (client.config.retry_count_exit as f64 + 1.0)
+                + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -782,7 +787,7 @@ fn test_exit_precond() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 100, 1000);
+    let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
     // do nothing.

@@ -38,13 +38,13 @@ impl DPSClient {
         host: String,
         port: u16,
         client_id: u16,
-        run_cycle_time_ms: u32,
-        startup_wait_ms: u32,
+        run_cycle_sec: f64,
+        startup_wait_sec: f64,
     ) -> Self {
         DPSClient {
             server_addr: format!("{}:{}", host, port),
             client_id,
-            config: DPSClientConfig::new(run_cycle_time_ms, startup_wait_ms),
+            config: DPSClientConfig::new(run_cycle_sec, startup_wait_sec),
             sock: None,
             connected: false,
             startup: true,
@@ -79,7 +79,7 @@ impl DPSClient {
                     self.sock = Some(sock);
                     let resp_type = self._send_request(
                         MessageType::Join,
-                        self.config.retry_time_msec_join,
+                        self.config.retry_sec_join,
                         self.config.retry_count_join,
                     );
                     if resp_type == MessageType::Ok {
@@ -104,7 +104,7 @@ impl DPSClient {
         } else {
             let _ = self._send_request(
                 MessageType::Exit,
-                self.config.retry_time_msec_exit,
+                self.config.retry_sec_exit,
                 self.config.retry_count_exit,
             );
             if let Some(sock) = &self.sock {
@@ -121,10 +121,10 @@ impl DPSClient {
             panic!("wait_next called before connected");
         }
 
-        let timeout_msec = if self.startup {
-            self.config.retry_time_msec_ready_startup
+        let timeout_sec = if self.startup {
+            self.config.retry_sec_ready_startup
         } else {
-            self.config.retry_time_msec_ready
+            self.config.retry_sec_ready
         };
         let retry_count = if self.startup {
             self.config.retry_count_ready_startup
@@ -132,7 +132,7 @@ impl DPSClient {
             self.config.retry_count_ready
         };
 
-        let resp_type = self._send_request(MessageType::Ready, timeout_msec, retry_count);
+        let resp_type = self._send_request(MessageType::Ready, timeout_sec, retry_count);
         self.startup = false;
 
         resp_type
@@ -144,7 +144,7 @@ impl DPSClient {
         }
         let resp_type = self._send_request(
             MessageType::Done,
-            self.config.retry_time_msec_done,
+            self.config.retry_sec_done,
             self.config.retry_count_done,
         );
         resp_type
@@ -155,7 +155,7 @@ impl DPSClient {
     fn _send_request(
         &mut self,
         req_type: MessageType,
-        timeout_msec: u32,
+        timeout_sec: f64,
         retry_count: u32,
     ) -> MessageType {
         // check socket.
@@ -179,40 +179,44 @@ impl DPSClient {
             timeBeginPeriod(1);
         }
         let mut ret_resp_type: MessageType = MessageType::Error;
-        sock.set_read_timeout(Some(Duration::from_millis(timeout_msec as u64)))
+        sock.set_read_timeout(Some(Duration::from_secs_f64(timeout_sec)))
             .expect("set_read_timeout call failed");
         let mut recv_buf = [0u8; MESSAGE_LEN_MAX];
         for count in 0..=retry_count {
             trace!(
-                "{}: sending {:?}@{} to server ({}/{}) with t/o {} msec",
+                "{}: >> send {:?}@{} ({}/{}) with t/o {} sec",
                 LOG_TAG,
                 req_type,
                 self.message_id,
                 count + 1,
                 1 + retry_count,
-                timeout_msec
+                timeout_sec
             );
             match sock.send_to(&request_str.as_bytes(), &self.server_addr) {
                 Ok(_) => {
                     let (response, need_retry) = DPSClient::_recv_response(sock, &mut recv_buf);
                     if need_retry {
+                        trace!("{}: -- {:?} timeout, retrying...", LOG_TAG, req_type);
                         continue; // timeout, retry.
                     }
                     if let Some(response) = response {
                         if response.mid != self.message_id {
                             warn!(
-                                "{}: invalid mid, expected {}, actual {}, continue",
-                                LOG_TAG, self.message_id, response.mid
+                                "{}: << !! {:?} mid mismatch, expected {}, actual {}, continue",
+                                LOG_TAG, req_type, self.message_id, response.mid
                             );
                             continue; // invalid mid, retry.
                         }
-                        trace!("{}: got {:?} for {:?}", LOG_TAG, response.mtype, req_type);
+                        trace!(
+                            "{}: << recv {:?} for {:?}",
+                            LOG_TAG, response.mtype, req_type
+                        );
                         ret_resp_type = response.mtype;
                     }
                     break;
                 }
                 Err(e) => {
-                    warn!("{}: Error sending packet {:?} = {}", LOG_TAG, request, e);
+                    warn!("{}: !! Error sending packet {:?} = {}", LOG_TAG, request, e);
                     break;
                 }
             }

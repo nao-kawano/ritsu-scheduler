@@ -9,37 +9,38 @@ use log::{debug, error, info, trace, warn};
 /* -------------------------------------------------------------------------- */
 
 pub struct DPSClientConfig {
-    pub retry_time_msec_join: u32,
+    pub retry_sec_join: f64,
     pub retry_count_join: u32,
 
-    pub retry_time_msec_ready_startup: u32,
+    pub retry_sec_ready_startup: f64,
     pub retry_count_ready_startup: u32,
 
-    pub retry_time_msec_ready: u32,
+    pub retry_sec_ready: f64,
     pub retry_count_ready: u32,
 
-    pub retry_time_msec_done: u32,
+    pub retry_sec_done: f64,
     pub retry_count_done: u32,
 
-    pub retry_time_msec_exit: u32,
+    pub retry_sec_exit: f64,
     pub retry_count_exit: u32,
 }
 
 impl DPSClientConfig {
-    pub const TIMEOUT_MS_READY_STARTUP_DEFAULT: u32 = 1000;
+    pub const TIMEOUT_SEC_READY_STARTUP_DEFAULT: f64 = 1.0;
 
-    pub fn new(run_cycle_time_ms: u32, startup_wait_ms: u32) -> Self {
+    pub fn new(run_cycle_sec: f64, startup_wait_sec: f64) -> Self {
         DPSClientConfig {
-            retry_time_msec_join: 20,
+            retry_sec_join: 0.020,
             retry_count_join: 3,
-            retry_time_msec_ready_startup: DPSClientConfig::TIMEOUT_MS_READY_STARTUP_DEFAULT,
-            retry_count_ready_startup: startup_wait_ms
-                / DPSClientConfig::TIMEOUT_MS_READY_STARTUP_DEFAULT,
-            retry_time_msec_ready: run_cycle_time_ms,
+            retry_sec_ready_startup: DPSClientConfig::TIMEOUT_SEC_READY_STARTUP_DEFAULT,
+            retry_count_ready_startup: (startup_wait_sec
+                / DPSClientConfig::TIMEOUT_SEC_READY_STARTUP_DEFAULT)
+                as u32,
+            retry_sec_ready: run_cycle_sec * 1.1,
             retry_count_ready: 3,
-            retry_time_msec_done: 50,
+            retry_sec_done: 0.020,
             retry_count_done: 3,
-            retry_time_msec_exit: 20,
+            retry_sec_exit: 0.020,
             retry_count_exit: 3,
         }
     }
