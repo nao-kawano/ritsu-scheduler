@@ -77,7 +77,7 @@ fn test_on_start_normal() {
     assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
-        assert_eq!(changes.get(0).unwrap().pid, 0);
+        assert_eq!(changes.get(0).unwrap().cid, 0);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Ready);
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Running);
     }
@@ -88,7 +88,7 @@ fn test_on_start_normal() {
     assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
-        assert_eq!(changes.get(0).unwrap().pid, 1);
+        assert_eq!(changes.get(0).unwrap().cid, 1);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Ready);
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Running);
     }
@@ -115,7 +115,7 @@ fn test_on_start_normal() {
     assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
-        assert_eq!(changes.get(0).unwrap().pid, 20);
+        assert_eq!(changes.get(0).unwrap().cid, 20);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Ready);
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Running);
     }
@@ -140,7 +140,7 @@ fn test_on_ready_normal() {
     assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
-        assert_eq!(changes.get(0).unwrap().pid, 0);
+        assert_eq!(changes.get(0).unwrap().cid, 0);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Idle);
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Ready);
     }
@@ -151,7 +151,7 @@ fn test_on_ready_normal() {
     assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
-        assert_eq!(changes.get(0).unwrap().pid, 1);
+        assert_eq!(changes.get(0).unwrap().cid, 1);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Ready);
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Ready);
     }
@@ -162,7 +162,7 @@ fn test_on_ready_normal() {
     assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
-        assert_eq!(changes.get(0).unwrap().pid, 10);
+        assert_eq!(changes.get(0).unwrap().cid, 10);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Idle);
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Ready);
     }
@@ -173,7 +173,7 @@ fn test_on_ready_normal() {
     assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
-        assert_eq!(changes.get(0).unwrap().pid, 20);
+        assert_eq!(changes.get(0).unwrap().cid, 20);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Idle);
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Ready);
     }
@@ -184,7 +184,7 @@ fn test_on_ready_normal() {
     assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 1);
-        assert_eq!(changes.get(0).unwrap().pid, 30);
+        assert_eq!(changes.get(0).unwrap().cid, 30);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Running);
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Running);
     }
@@ -214,10 +214,10 @@ fn test_on_done_normal() {
     assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 2);
-        assert_eq!(changes.get(0).unwrap().pid, 0);
+        assert_eq!(changes.get(0).unwrap().cid, 0);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Running);
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Idle);
-        assert_eq!(changes.get(1).unwrap().pid, 10);
+        assert_eq!(changes.get(1).unwrap().cid, 10);
         assert_eq!(changes.get(1).unwrap().before, ProcessState::Ready);
         assert_eq!(changes.get(1).unwrap().after, ProcessState::Running);
     }
@@ -229,7 +229,7 @@ fn test_on_done_normal() {
     if let Ok(changes) = &result {
         // for response OK to retransmission.
         assert_eq!(changes.len(), 1);
-        assert_eq!(changes.get(0).unwrap().pid, 0);
+        assert_eq!(changes.get(0).unwrap().cid, 0);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Idle);
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Idle);
     }
@@ -240,10 +240,10 @@ fn test_on_done_normal() {
     assert!(result.is_ok());
     if let Ok(changes) = &result {
         assert_eq!(changes.len(), 2);
-        assert_eq!(changes.get(0).unwrap().pid, 1);
+        assert_eq!(changes.get(0).unwrap().cid, 1);
         assert_eq!(changes.get(0).unwrap().before, ProcessState::Running);
         assert_eq!(changes.get(0).unwrap().after, ProcessState::Idle);
-        assert_eq!(changes.get(1).unwrap().pid, 11);
+        assert_eq!(changes.get(1).unwrap().cid, 11);
         assert_eq!(changes.get(1).unwrap().before, ProcessState::Ready);
         assert_eq!(changes.get(1).unwrap().after, ProcessState::Running);
     }

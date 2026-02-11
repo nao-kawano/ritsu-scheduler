@@ -82,7 +82,7 @@ impl EventManager {
             Event::ClientMsg(msg) => {
                 if !self.context.clients.contains_key(&msg.cid) {
                     Err(format!(
-                        "unknown client message type={:?}, id={:03}",
+                        "unknown client message type={:?}, CID:{:03}",
                         msg.mtype, msg.cid
                     ))
                 } else {
@@ -97,7 +97,7 @@ impl EventManager {
                         MessageType::Done => proc.on_client_done(&mut self.context, &msg),
                         MessageType::Exit => proc.on_client_exit(&mut self.context, &msg),
                         _ => Err(format!(
-                            "not a client message type={:?}, id={:03}",
+                            "not a client message type={:?}, CID:{:03}",
                             msg.mtype, msg.cid
                         )),
                     }

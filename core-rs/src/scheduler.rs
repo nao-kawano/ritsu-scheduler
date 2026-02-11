@@ -20,7 +20,7 @@ mod scheduler_test;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 pub struct ProcessStateChange {
-    pub pid: u16,
+    pub cid: u16,
     pub before: ProcessState,
     pub after: ProcessState,
 }
@@ -28,7 +28,7 @@ pub struct ProcessStateChange {
 impl ProcessStateChange {
     pub(crate) fn new(entry: &ProcessEntry) -> Self {
         ProcessStateChange {
-            pid: entry.pid,
+            cid: entry.cid,
             before: entry.state,
             after: entry.state,
         }
@@ -57,7 +57,7 @@ impl Scheduler {
         let mut ready_processes: Vec<u16> = Vec::new();
         for entry in self.entries.values() {
             if entry.state == ProcessState::Ready {
-                ready_processes.push(entry.pid);
+                ready_processes.push(entry.cid);
             }
         }
         return ready_processes;
@@ -70,44 +70,44 @@ impl Scheduler {
         }
     }
 
-    pub fn on_start(&mut self, pid: u16) -> Result<Vec<ProcessStateChange>, String> {
-        trace!("{}: update pid {:03} by start", LOG_TAG, pid);
-        if !self.graph_start.contains(&pid) {
-            return Err(format!("process {:03} does not exist", pid));
+    pub fn on_start(&mut self, cid: u16) -> Result<Vec<ProcessStateChange>, String> {
+        trace!("{}: update CID:{:03} by start", LOG_TAG, cid);
+        if !self.graph_start.contains(&cid) {
+            return Err(format!("process CID:{:03} does not exist", cid));
         }
 
         // check if dependency is met.
-        // if target pid has dependency, check at next root cycle.
-        if let Some(entry) = self.entries.get(&pid) {
+        // if target cid has dependency, check at next root cycle.
+        if let Some(entry) = self.entries.get(&cid) {
             if !entry.is_depends_ok() {
-                info!(
-                    "{}: pid {:03} has dependency unmet, skip start",
-                    LOG_TAG, pid
+                debug!(
+                    "{}: CID:{:03} has dependency unmet, skip start",
+                    LOG_TAG, cid
                 );
                 return Ok(vec![]);
             }
         }
 
         // check for not-ready processes.
-        let forwards = Scheduler::find_forward_all(pid, true, &self.entries, &self.graph_forward);
-        let mut overrun_pids: Vec<u16> = Vec::new();
-        let mut late_pids: Vec<u16> = Vec::new();
+        let forwards = Scheduler::find_forward_all(cid, true, &self.entries, &self.graph_forward);
+        let mut overrun_cids: Vec<u16> = Vec::new();
+        let mut late_cids: Vec<u16> = Vec::new();
         let mut is_not_ready = false;
-        for forward_pid in &forwards {
-            if let Some(entry) = self.entries.get(forward_pid) {
+        for forward_cid in &forwards {
+            if let Some(entry) = self.entries.get(forward_cid) {
                 match entry.state {
                     ProcessState::Ready => {
                         // OK.
                     }
                     ProcessState::Running => {
-                        overrun_pids.push(*forward_pid); // holds for state change.
+                        overrun_cids.push(*forward_cid); // holds for state change.
                         is_not_ready = true;
                     }
                     ProcessState::Overrun => {
                         is_not_ready = true;
                     }
                     ProcessState::Idle => {
-                        late_pids.push(*forward_pid); // holds for state change.
+                        late_cids.push(*forward_cid); // holds for state change.
                         is_not_ready = true;
                     }
                     ProcessState::Skip => {
@@ -124,56 +124,56 @@ impl Scheduler {
         if is_not_ready {
             let mut forwards_set: HashSet<u16> = forwards.iter().cloned().collect();
             // Mark Running processes as Overrun and their dependents as Skip
-            for running_pid in overrun_pids {
+            for running_cid in overrun_cids {
                 // Mark as Overrun
-                if let Some(entry) = self.entries.get_mut(&running_pid) {
+                if let Some(entry) = self.entries.get_mut(&running_cid) {
                     let mut change = ProcessStateChange::new(&entry);
                     if entry.set_state(ProcessState::Overrun) {
                         // Process itself becomes Overrun
                         change.after = ProcessState::Overrun;
                         changes.push(change);
                     }
-                    forwards_set.remove(&running_pid);
+                    forwards_set.remove(&running_cid);
                 }
                 // Dependents of overrun processes become Skip
                 let skip_forwards = Scheduler::find_forward_all(
-                    running_pid,
+                    running_cid,
                     false, // Do not include itself, as it's already Overrun
                     &self.entries,
                     &self.graph_forward,
                 );
-                for skip_pid in skip_forwards {
-                    if forwards_set.contains(&skip_pid) {
+                for skip_cid in skip_forwards {
+                    if forwards_set.contains(&skip_cid) {
                         // Only change if not already handled
-                        if let Some(entry) = self.entries.get_mut(&skip_pid) {
+                        if let Some(entry) = self.entries.get_mut(&skip_cid) {
                             let mut change = ProcessStateChange::new(&entry);
                             if entry.set_state(ProcessState::Skip) {
                                 entry.clear_depends(); // Clear dependencies as it's skipped
                                 change.after = ProcessState::Skip;
                                 changes.push(change);
                             }
-                            forwards_set.remove(&skip_pid);
+                            forwards_set.remove(&skip_cid);
                         }
                     }
                 }
             }
             // Mark Idle processes as Late
-            for late_pid in late_pids {
-                if forwards_set.contains(&late_pid) {
+            for late_cid in late_cids {
+                if forwards_set.contains(&late_cid) {
                     // Only change if not already handled
-                    if let Some(entry) = self.entries.get_mut(&late_pid) {
+                    if let Some(entry) = self.entries.get_mut(&late_cid) {
                         let mut change = ProcessStateChange::new(&entry);
                         if entry.set_state(ProcessState::Late) {
                             change.after = ProcessState::Late;
                             changes.push(change);
                         }
-                        forwards_set.remove(&late_pid);
+                        forwards_set.remove(&late_cid);
                     }
                 }
             }
             // Mark remaining Ready processes as Skip
-            for skip_pid in forwards_set {
-                if let Some(entry) = self.entries.get_mut(&skip_pid) {
+            for skip_cid in forwards_set {
+                if let Some(entry) = self.entries.get_mut(&skip_cid) {
                     if entry.state == ProcessState::Ready {
                         let mut change = ProcessStateChange::new(&entry);
                         if entry.set_state(ProcessState::Skip) {
@@ -185,7 +185,7 @@ impl Scheduler {
             }
         } else {
             // All dependent process is in ready, normal start
-            if let Some(entry) = self.entries.get_mut(&pid) {
+            if let Some(entry) = self.entries.get_mut(&cid) {
                 let mut change = ProcessStateChange::new(&entry);
                 if entry.set_state(ProcessState::Running) {
                     entry.clear_depends();
@@ -198,18 +198,18 @@ impl Scheduler {
         if changes.len() > 0 {
             Ok(changes)
         } else {
-            return Err(format!("process {:03} start caused no changes", pid));
+            return Err(format!("process CID:{:03} start caused no changes", cid));
         }
     }
 
-    pub fn on_ready(&mut self, pid: u16) -> Result<Vec<ProcessStateChange>, String> {
-        trace!("{}: update pid {:03} by ready", LOG_TAG, pid);
-        if !self.entries.contains_key(&pid) {
-            return Err(format!("process {:03} does not exist", pid));
+    pub fn on_ready(&mut self, cid: u16) -> Result<Vec<ProcessStateChange>, String> {
+        trace!("{}: update CID:{:03} by ready", LOG_TAG, cid);
+        if !self.entries.contains_key(&cid) {
+            return Err(format!("process CID:{:03} does not exist", cid));
         }
         // set target to ready.
         let mut changes: Vec<ProcessStateChange> = Vec::new();
-        if let Some(entry) = self.entries.get_mut(&pid) {
+        if let Some(entry) = self.entries.get_mut(&cid) {
             let mut change = ProcessStateChange::new(entry);
             match entry.state {
                 ProcessState::Idle | ProcessState::Skip => {
@@ -231,8 +231,8 @@ impl Scheduler {
                 ProcessState::Overrun => {
                     // cannot transition to Ready directly.
                     warn!(
-                        "{}: ignore ready for process {:03} in {:?}",
-                        LOG_TAG, entry.pid, entry.state
+                        "{}: ignore ready for process CID:{:03} in {:?}",
+                        LOG_TAG, entry.cid, entry.state
                     );
                 }
                 ProcessState::Late => {
@@ -246,20 +246,20 @@ impl Scheduler {
         if changes.len() > 0 {
             Ok(changes)
         } else {
-            return Err(format!("process {:03} cannot be ready", pid));
+            return Err(format!("process CID:{:03} cannot be ready", cid));
         }
     }
 
-    pub fn on_done(&mut self, pid: u16) -> Result<Vec<ProcessStateChange>, String> {
-        trace!("{}: update pid {:03} by done", LOG_TAG, pid);
-        if !self.entries.contains_key(&pid) {
-            return Err(format!("process {:03} does not exist", pid));
+    pub fn on_done(&mut self, cid: u16) -> Result<Vec<ProcessStateChange>, String> {
+        trace!("{}: update CID:{:03} by done", LOG_TAG, cid);
+        if !self.entries.contains_key(&cid) {
+            return Err(format!("process CID:{:03} does not exist", cid));
         }
         // set target to done.
         // if target is in overrun, set skipped flag to stop starting afters.
         let mut changes: Vec<ProcessStateChange> = Vec::new();
         let mut skipped = false;
-        if let Some(entry) = self.entries.get_mut(&pid) {
+        if let Some(entry) = self.entries.get_mut(&cid) {
             let mut change = ProcessStateChange::new(entry);
             match entry.state {
                 ProcessState::Idle => {
@@ -287,8 +287,8 @@ impl Scheduler {
                 }
                 ProcessState::Ready | ProcessState::Skip => {
                     warn!(
-                        "{}: ignore done for process {:03} in {:?}",
-                        LOG_TAG, entry.pid, entry.state
+                        "{}: ignore done for process CID:{:03} in {:?}",
+                        LOG_TAG, entry.cid, entry.state
                     );
                 }
             };
@@ -296,29 +296,29 @@ impl Scheduler {
         // start afters.
         // if not skipped, and there are changes (meaning the process state was valid for done)
         if !skipped && changes.len() > 0 {
-            if let Some(afters) = self.graph_forward.get(&pid).cloned() {
+            if let Some(afters) = self.graph_forward.get(&cid).cloned() {
                 // update depends first.
-                trace!("{}: update after processes for pid {:03}", LOG_TAG, pid);
-                for pid_after in &afters {
-                    if let Some(entry) = self.entries.get_mut(pid_after) {
-                        let _ = entry.update_depend(pid);
+                trace!("{}: update after processes for CID:{:03}", LOG_TAG, cid);
+                for cid_after in &afters {
+                    if let Some(entry) = self.entries.get_mut(cid_after) {
+                        let _ = entry.update_depend(cid);
                     }
                 }
                 // start.
-                trace!("{}: start after processes for pid {:03}", LOG_TAG, pid);
-                for pid_after in &afters {
-                    if let Some(entry) = self.entries.get_mut(pid_after) {
+                trace!("{}: start after processes for CID:{:03}", LOG_TAG, cid);
+                for cid_after in &afters {
+                    if let Some(entry) = self.entries.get_mut(cid_after) {
                         if !entry.is_depends_ok() {
                             // wait for the remaining dependent processes to complete.
                         } else {
                             if !entry.is_floating {
                                 trace!(
-                                    "{}: dependency met, waiting for next cycle {:03}",
-                                    LOG_TAG, pid_after
+                                    "{}: dependency met, waiting for next cycle CID:{:03}",
+                                    LOG_TAG, cid_after
                                 );
                             } else {
                                 // dependency met, start.
-                                trace!("{}: starting pid {:03}", LOG_TAG, *pid_after);
+                                trace!("{}: starting CID:{:03}", LOG_TAG, *cid_after);
                                 let mut change: ProcessStateChange =
                                     ProcessStateChange::new(&entry);
                                 if entry.set_state(ProcessState::Running) {
@@ -336,7 +336,7 @@ impl Scheduler {
         if changes.len() > 0 {
             Ok(changes)
         } else {
-            return Err(format!("process {:03} cannot be done", pid));
+            return Err(format!("process CID:{:03} cannot be done", cid));
         }
     }
 
@@ -353,7 +353,7 @@ impl Scheduler {
         // find start points.
         let mut start_points: HashSet<u16> = HashSet::new();
         for entry in entries.values().filter(|e| !e.is_floating) {
-            start_points.insert(entry.pid);
+            start_points.insert(entry.cid);
         }
         // - verify that at least one start point is exist.
         if start_points.len() < 1 {
@@ -371,7 +371,7 @@ impl Scheduler {
                 forward_dependencies
                     .entry(*depend)
                     .or_insert(HashSet::new())
-                    .insert(entry.pid);
+                    .insert(entry.cid);
             }
         }
         // ok.
@@ -379,7 +379,7 @@ impl Scheduler {
     }
 
     fn find_forward(
-        pid: u16,
+        cid: u16,
         include_self: bool,
         entries: &HashMap<u16, ProcessEntry>,
         forward_dependencies: &HashMap<u16, HashSet<u16>>,
@@ -389,9 +389,9 @@ impl Scheduler {
         let mut targets: Vec<u16> = Vec::new();
 
         // setup initial.
-        targets.push(pid);
+        targets.push(cid);
         if include_self {
-            forwards.insert(pid);
+            forwards.insert(cid);
         }
 
         // find forwards.
@@ -414,21 +414,21 @@ impl Scheduler {
     }
 
     fn find_forward_all(
-        pid: u16,
+        cid: u16,
         include_self: bool,
         entries: &HashMap<u16, ProcessEntry>,
         forward_dependencies: &HashMap<u16, HashSet<u16>>,
     ) -> Vec<u16> {
-        return Scheduler::find_forward(pid, include_self, entries, forward_dependencies, false);
+        return Scheduler::find_forward(cid, include_self, entries, forward_dependencies, false);
     }
 
     #[allow(dead_code)]
     fn find_forward_same_cycle(
-        pid: u16,
+        cid: u16,
         include_self: bool,
         entries: &HashMap<u16, ProcessEntry>,
         forward_dependencies: &HashMap<u16, HashSet<u16>>,
     ) -> Vec<u16> {
-        return Scheduler::find_forward(pid, include_self, entries, forward_dependencies, true);
+        return Scheduler::find_forward(cid, include_self, entries, forward_dependencies, true);
     }
 }

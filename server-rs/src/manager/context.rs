@@ -52,7 +52,7 @@ impl ClientInfo {
     /// Set the state of the client.
     pub fn set_client_state(&mut self, state: ClientState) -> bool {
         info!(
-            "{}: ClientState {:03} {:?} -> {:?}",
+            "{}: [STAT] CID:{:03} {:?} -> {:?}",
             LOG_TAG, self.config.client_id, self.state, state
         );
         self.state = state;
@@ -145,7 +145,10 @@ impl ManagerContext {
     }
 
     pub fn set_state(&mut self, state: ManagerState) -> bool {
-        info!("{}: ManagerState {:?} -> {:?}", LOG_TAG, self.state, state);
+        info!(
+            "{}: [STAT] Manager {:?} -> {:?}",
+            LOG_TAG, self.state, state
+        );
         if self.state != state {
             self.state = state;
             self.state_changed = true;

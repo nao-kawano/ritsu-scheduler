@@ -6,14 +6,14 @@ fn test_new() {
 
     // cycle trigger.
     let entry = ProcessEntry::new(1, &vec![], false);
-    assert_eq!(entry.pid, 1);
+    assert_eq!(entry.cid, 1);
     assert_eq!(entry.state, ProcessState::Idle);
     assert_eq!(entry.depends_on.len(), 0);
     assert_eq!(entry.is_floating, false);
 
     // depends trigger.
     let entry = ProcessEntry::new(2, &vec![1, 3], true);
-    assert_eq!(entry.pid, 2);
+    assert_eq!(entry.cid, 2);
     assert_eq!(entry.state, ProcessState::Idle);
     assert_eq!(entry.depends_on.len(), 2);
     assert_eq!(entry.depends_on.get(&0), None);

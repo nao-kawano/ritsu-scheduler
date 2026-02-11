@@ -33,15 +33,15 @@ impl ManagerProc for ManagerProcExiting {
 
     fn on_client_join(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
         trace!(
-            "{}: on_client_join@{} id={:03}",
+            "{}: on_client_join@{} CID:{:03}",
             LOG_TAG, message.mid, message.cid
         );
-        Err(format!("invalid Join from {:03}", message.cid))
+        Err(format!("invalid Join from CID:{:03}", message.cid))
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
         trace!(
-            "{}: on_client_ready@{} id={:03}",
+            "{}: on_client_ready@{} CID:{:03}",
             LOG_TAG, message.mid, message.cid
         );
         let mut responses: Vec<Message> = Vec::new();
@@ -49,7 +49,7 @@ impl ManagerProc for ManagerProcExiting {
         if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state != ClientState::None {
                 info!(
-                    "{}: send error to client {:03} for ready",
+                    "{}: send error to client CID:{:03} for ready",
                     LOG_TAG, message.cid
                 );
                 client.set_client_state(ClientState::Exiting);
@@ -58,7 +58,7 @@ impl ManagerProc for ManagerProcExiting {
                 );
             } else {
                 warn!(
-                    "{}: client {:03} is disconnected, dropped.",
+                    "{}: client CID:{:03} is disconnected, dropped.",
                     LOG_TAG, message.cid
                 );
             }
@@ -68,7 +68,7 @@ impl ManagerProc for ManagerProcExiting {
 
     fn on_client_done(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
         warn!(
-            "{}: on_client_done@{} id={:03} (nop)",
+            "{}: on_client_done@{} CID:{:03} (nop)",
             LOG_TAG, message.mid, message.cid
         );
         let mut responses: Vec<Message> = Vec::new();
@@ -76,7 +76,7 @@ impl ManagerProc for ManagerProcExiting {
         if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state != ClientState::None {
                 info!(
-                    "{}: send error to client {:03} for done",
+                    "{}: send error to client CID:{:03} for done",
                     LOG_TAG, message.cid
                 );
                 client.set_client_state(ClientState::Exiting);
@@ -85,7 +85,7 @@ impl ManagerProc for ManagerProcExiting {
                 );
             } else {
                 warn!(
-                    "{}: client {:03} is disconnected, dropped.",
+                    "{}: client CID:{:03} is disconnected, dropped.",
                     LOG_TAG, message.cid
                 );
             }
@@ -95,7 +95,7 @@ impl ManagerProc for ManagerProcExiting {
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
         trace!(
-            "{}: on_client_exit@{} id={:03}",
+            "{}: on_client_exit@{} CID:{:03}",
             LOG_TAG, message.mid, message.cid
         );
         let mut responses: Vec<Message> = Vec::new();
@@ -104,13 +104,13 @@ impl ManagerProc for ManagerProcExiting {
             match client.state {
                 ClientState::None => {
                     // maybe retransmission.
-                    warn!("{}: client {:03} retransmit exit", LOG_TAG, message.cid);
+                    warn!("{}: client CID:{:03} retransmit exit", LOG_TAG, message.cid);
                     responses.push(
                         Message::new(MessageType::Ok, client.last_mid, message.cid, None).unwrap(),
                     );
                 }
                 ClientState::Exiting => {
-                    info!("{}: client {:03} is exit", LOG_TAG, message.cid);
+                    info!("{}: client CID:{:03} is exit", LOG_TAG, message.cid);
                     client.set_client_state(ClientState::None);
                     context.num_active_clients -= 1;
                     responses.push(
@@ -119,7 +119,7 @@ impl ManagerProc for ManagerProcExiting {
                 }
                 _ => {
                     warn!(
-                        "{}: client {:03} is not in Exiting, dropped.",
+                        "{}: client CID:{:03} is not in Exiting, dropped.",
                         LOG_TAG, message.cid
                     );
                 }

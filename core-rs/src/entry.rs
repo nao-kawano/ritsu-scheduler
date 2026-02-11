@@ -29,17 +29,17 @@ pub enum ProcessState {
 /// Represents the process.
 #[derive(Debug, Clone)]
 pub struct ProcessEntry {
-    pub(crate) pid: u16,
+    pub(crate) cid: u16,
     pub(crate) state: ProcessState,
     pub(crate) depends_on: HashMap<u16, bool>,
     pub(crate) is_floating: bool,
 }
 
 impl ProcessEntry {
-    pub fn new(pid: u16, dependency: &Vec<u16>, is_floating: bool) -> Self {
+    pub fn new(cid: u16, dependency: &Vec<u16>, is_floating: bool) -> Self {
         let dependency: HashMap<u16, bool> = dependency.iter().map(|x| (*x, false)).collect();
         ProcessEntry {
-            pid,
+            cid,
             is_floating,
             state: ProcessState::Idle,
             depends_on: dependency,
@@ -54,8 +54,8 @@ impl ProcessEntry {
 
     /// Get the id of the process.
     #[allow(dead_code)]
-    pub fn get_pid(&self) -> u16 {
-        self.pid
+    pub fn get_cid(&self) -> u16 {
+        self.cid
     }
 
     /// Get the floating or not.
@@ -102,15 +102,15 @@ impl ProcessEntry {
             },
         };
         if ok_to_change {
-            info!(
-                "{}: pid {:03}, state {:?} -> {:?}",
-                LOG_TAG, self.pid, self.state, new_state
+            debug!(
+                "{}: [STAT] CID:{:03} {:?} -> {:?}",
+                LOG_TAG, self.cid, self.state, new_state
             );
             self.state = new_state;
         } else {
             warn!(
-                "{}: pid {:03}, state change failed {:?} -> {:?}",
-                LOG_TAG, self.pid, self.state, new_state
+                "{}: CID:{:03} state change failed {:?} -> {:?}",
+                LOG_TAG, self.cid, self.state, new_state
             );
         }
         return ok_to_change;
@@ -128,16 +128,19 @@ impl ProcessEntry {
     }
 
     /// Update the dependency status.
-    pub(crate) fn update_depend(&mut self, pid: u16) -> bool {
-        if let Some(depend_value) = self.depends_on.get_mut(&pid) {
+    pub(crate) fn update_depend(&mut self, cid: u16) -> bool {
+        if let Some(depend_value) = self.depends_on.get_mut(&cid) {
             if *depend_value {
                 warn!(
-                    "{}: pid {:03}, already updated {:03}",
-                    LOG_TAG, self.pid, pid
+                    "{}: CID:{:03} already updated depend CID:{:03}",
+                    LOG_TAG, self.cid, cid
                 );
                 return false;
             } else {
-                trace!("{}: pid {:03}, update depend {:03}", LOG_TAG, self.pid, pid);
+                trace!(
+                    "{}: CID:{:03} update depend CID:{:03}",
+                    LOG_TAG, self.cid, cid
+                );
                 *depend_value = true;
                 return true;
             }
@@ -148,7 +151,7 @@ impl ProcessEntry {
 
     /// Clear the dependency status.
     pub(crate) fn clear_depends(&mut self) {
-        trace!("{}: pid {:03}, clear depend", LOG_TAG, self.pid);
+        trace!("{}: CID:{:03} clear depend", LOG_TAG, self.cid);
         for depend_value in self.depends_on.values_mut() {
             *depend_value = false;
         }
