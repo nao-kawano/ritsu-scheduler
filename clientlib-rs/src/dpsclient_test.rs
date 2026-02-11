@@ -187,12 +187,12 @@ fn test_join_retry_ng() {
     let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
+    let retry_count: u32 = client.config.retry_count_join;
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay_sec: client.config.retry_sec_join * (client.config.retry_count_join as f64 + 1.0)
-                + 0.005,
+            delay_sec: client.config.retry_sec_join * (retry_count as f64 + 1.0) + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -207,12 +207,10 @@ fn test_join_retry_ng() {
     assert_eq!(client.startup, true);
     {
         let requests = requests.lock().unwrap();
-        assert_eq!(
-            requests.len(),
-            (1 + client.config.retry_count_join) as usize
-        );
+        assert_eq!(requests.len(), (1 + retry_count) as usize);
         assert_eq!(requests[0].mtype, MessageType::Join);
         assert_eq!(requests[1].mtype, MessageType::Join);
+        assert_eq!(requests.last().unwrap().mtype, MessageType::Join);
     }
 }
 
@@ -326,7 +324,7 @@ fn test_ready_startup_retry_ok() {
     assert_eq!(client.startup, false);
     {
         let requests = requests.lock().unwrap();
-        assert!(requests.len() > 1);
+        assert!(requests.len() > 2);
         assert_eq!(requests[0].mtype, MessageType::Join);
         assert_eq!(requests[1].mtype, MessageType::Ready);
         assert_eq!(requests[2].mtype, MessageType::Ready);
@@ -345,6 +343,7 @@ fn test_ready_startup_retry_ng() {
     client.config.retry_count_ready_startup = 2;
 
     // setup condition.
+    let retry_count: u32 = client.config.retry_count_ready_startup;
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
@@ -354,9 +353,7 @@ fn test_ready_startup_retry_ng() {
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay_sec: client.config.retry_sec_ready_startup
-                * (client.config.retry_count_ready_startup as f64 + 1.0)
-                + 0.005,
+            delay_sec: client.config.retry_sec_ready_startup * (retry_count as f64 + 1.0) + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -372,13 +369,10 @@ fn test_ready_startup_retry_ng() {
     assert_eq!(client.startup, false);
     {
         let requests = requests.lock().unwrap();
-        assert_eq!(
-            requests.len(),
-            (2 + client.config.retry_count_ready_startup) as usize
-        );
+        assert_eq!(requests.len(), (2 + retry_count) as usize);
         assert_eq!(requests[0].mtype, MessageType::Join);
         assert_eq!(requests[1].mtype, MessageType::Ready);
-        assert_eq!(requests[2].mtype, MessageType::Ready);
+        assert_eq!(requests.last().unwrap().mtype, MessageType::Ready);
     }
 }
 
@@ -514,6 +508,7 @@ fn test_ready_retry_ok() {
         assert_eq!(requests[1].mtype, MessageType::Ready);
         assert_eq!(requests[2].mtype, MessageType::Done);
         assert_eq!(requests[3].mtype, MessageType::Ready);
+        assert_eq!(requests[4].mtype, MessageType::Ready);
     }
 }
 
@@ -529,6 +524,7 @@ fn test_ready_retry_ng() {
     client.config.retry_count_ready_startup = 2;
 
     // setup condition.
+    let retry_count: u32 = client.config.retry_count_ready;
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
@@ -548,9 +544,7 @@ fn test_ready_retry_ng() {
         // Ready.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay_sec: client.config.retry_sec_ready
-                * (client.config.retry_count_ready as f64 + 1.0)
-                + 0.005,
+            delay_sec: client.config.retry_sec_ready * (retry_count as f64 + 1.0) + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -568,14 +562,13 @@ fn test_ready_retry_ng() {
     assert_eq!(client.startup, false);
     {
         let requests = requests.lock().unwrap();
-        assert_eq!(
-            requests.len(),
-            (4 + client.config.retry_count_ready) as usize
-        );
+        assert_eq!(requests.len(), (4 + retry_count) as usize);
         assert_eq!(requests[0].mtype, MessageType::Join);
         assert_eq!(requests[1].mtype, MessageType::Ready);
         assert_eq!(requests[2].mtype, MessageType::Done);
         assert_eq!(requests[3].mtype, MessageType::Ready);
+        assert_eq!(requests[4].mtype, MessageType::Ready);
+        assert_eq!(requests.last().unwrap().mtype, MessageType::Ready);
     }
 }
 
@@ -589,6 +582,7 @@ fn test_done_retry_ng() {
     let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
+    let retry_count: u32 = client.config.retry_count_done;
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
@@ -603,8 +597,7 @@ fn test_done_retry_ng() {
         // Done.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay_sec: client.config.retry_sec_done * (client.config.retry_count_done as f64 + 1.0)
-                + 0.005,
+            delay_sec: client.config.retry_sec_done * (retry_count as f64 + 1.0) + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -621,14 +614,12 @@ fn test_done_retry_ng() {
     assert_eq!(client.startup, false);
     {
         let requests = requests.lock().unwrap();
-        assert_eq!(
-            requests.len(),
-            (3 + client.config.retry_count_done) as usize
-        );
+        assert_eq!(requests.len(), (3 + retry_count) as usize);
         assert_eq!(requests[0].mtype, MessageType::Join);
         assert_eq!(requests[1].mtype, MessageType::Ready);
         assert_eq!(requests[2].mtype, MessageType::Done);
         assert_eq!(requests[3].mtype, MessageType::Done);
+        assert_eq!(requests.last().unwrap().mtype, MessageType::Done);
     }
 }
 
@@ -744,6 +735,7 @@ fn test_exit_retry_ng() {
     let mut client: DPSClient = DPSClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
 
     // setup condition.
+    let retry_count: u32 = client.config.retry_count_exit;
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse {
@@ -753,8 +745,7 @@ fn test_exit_retry_ng() {
         // Exit.
         MockResponse {
             response: Message::new(MessageType::Ok, 0, 0, None).unwrap(),
-            delay_sec: client.config.retry_sec_exit * (client.config.retry_count_exit as f64 + 1.0)
-                + 0.005,
+            delay_sec: client.config.retry_sec_exit * (retry_count as f64 + 1.0) + 0.005,
         },
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -770,13 +761,11 @@ fn test_exit_retry_ng() {
     assert_eq!(client.sock.is_none(), true);
     {
         let requests = requests.lock().unwrap();
-        assert_eq!(
-            requests.len(),
-            (2 + client.config.retry_count_exit) as usize
-        );
+        assert_eq!(requests.len(), (2 + retry_count) as usize);
         assert_eq!(requests[0].mtype, MessageType::Join);
         assert_eq!(requests[1].mtype, MessageType::Exit);
         assert_eq!(requests[2].mtype, MessageType::Exit);
+        assert_eq!(requests.last().unwrap().mtype, MessageType::Exit);
     }
 }
 
