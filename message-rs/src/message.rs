@@ -48,16 +48,16 @@ pub enum MessageType {
 
 impl MessageType {
     /// Convert message type to string.
-    pub fn to_str(&self) -> String {
+    pub fn as_str(&self) -> &'static str {
         match self {
-            MessageType::Join => "JOIN".to_string(),
-            MessageType::Ready => "READY".to_string(),
-            MessageType::Done => "DONE".to_string(),
-            MessageType::Exit => "EXIT".to_string(),
-            MessageType::Ok => "OK".to_string(),
-            MessageType::Skip => "SKIP".to_string(),
-            MessageType::Late => "LATE".to_string(),
-            MessageType::Error => "ERROR".to_string(),
+            MessageType::Join => "JOIN",
+            MessageType::Ready => "READY",
+            MessageType::Done => "DONE",
+            MessageType::Exit => "EXIT",
+            MessageType::Ok => "OK",
+            MessageType::Skip => "SKIP",
+            MessageType::Late => "LATE",
+            MessageType::Error => "ERROR",
         }
     }
 
@@ -74,6 +74,12 @@ impl MessageType {
             "ERROR" => Ok(MessageType::Error),
             _ => Err(ParseError::TypeNotFound),
         }
+    }
+}
+
+impl std::fmt::Display for MessageType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -139,27 +145,22 @@ impl Message {
             .ok_or(ParseError::InvalidMessageId)?;
 
         // -- payload
-        let msg_payload_str_vec: Vec<&str> = msg_payload_str.split(",").collect();
+        let mut msg_payload_parts = msg_payload_str.split(",");
 
         // check client id.
-        if msg_payload_str_vec[0].len() != CLIENT_ID_LEN {
+        let client_id_str = msg_payload_parts
+            .next()
+            .ok_or(ParseError::InvalidClientId)?;
+        if client_id_str.len() != CLIENT_ID_LEN {
             return Err(ParseError::InvalidClientId);
         }
-        let client_id: u16 = msg_payload_str_vec[0]
+        let client_id: u16 = client_id_str
             .parse::<u16>()
             .ok() // Result to Option
             .ok_or(ParseError::InvalidClientId)?;
 
         // check extras.
-        let extras: Vec<String>;
-        if msg_payload_str_vec.len() == 1 {
-            extras = vec![];
-        } else {
-            extras = msg_payload_str_vec[1..]
-                .iter()
-                .map(|s| s.to_string())
-                .collect();
-        }
+        let extras: Vec<String> = msg_payload_parts.map(|s| s.to_string()).collect();
 
         Ok(Message {
             mtype: message_type,
@@ -178,17 +179,20 @@ impl Message {
             return Err(ParseError::InvalidClientId);
         }
 
-        let msg: String;
-        if self.extras.len() < 1 {
-            msg = format!("{}@{:1}:{:>03}", self.mtype.to_str(), self.mid, self.cid);
-        } else {
-            msg = format!(
-                "{}@{:1}:{:>03},{}",
-                self.mtype.to_str(),
-                self.mid,
-                self.cid,
-                self.extras.join(",")
-            );
+        let mut msg = String::with_capacity(MESSAGE_LEN_MAX);
+        use std::fmt::Write;
+        write!(
+            msg,
+            "{}@{:1}:{:>03}",
+            self.mtype.as_str(),
+            self.mid,
+            self.cid
+        )
+        .unwrap();
+
+        for extra in &self.extras {
+            msg.push(',');
+            msg.push_str(extra);
         }
 
         if msg.len() > MESSAGE_LEN_MAX {

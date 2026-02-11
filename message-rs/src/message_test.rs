@@ -3,14 +3,14 @@ use super::*;
 
 #[test]
 fn test_message_type_to_str() {
-    assert_eq!(MessageType::Join.to_str(), "JOIN".to_string());
-    assert_eq!(MessageType::Ready.to_str(), "READY".to_string());
-    assert_eq!(MessageType::Done.to_str(), "DONE".to_string());
-    assert_eq!(MessageType::Exit.to_str(), "EXIT".to_string());
-    assert_eq!(MessageType::Ok.to_str(), "OK".to_string());
-    assert_eq!(MessageType::Skip.to_str(), "SKIP".to_string());
-    assert_eq!(MessageType::Late.to_str(), "LATE".to_string());
-    assert_eq!(MessageType::Error.to_str(), "ERROR".to_string());
+    assert_eq!(MessageType::Join.as_str(), "JOIN");
+    assert_eq!(MessageType::Ready.as_str(), "READY");
+    assert_eq!(MessageType::Done.as_str(), "DONE");
+    assert_eq!(MessageType::Exit.as_str(), "EXIT");
+    assert_eq!(MessageType::Ok.as_str(), "OK");
+    assert_eq!(MessageType::Skip.as_str(), "SKIP");
+    assert_eq!(MessageType::Late.as_str(), "LATE");
+    assert_eq!(MessageType::Error.as_str(), "ERROR");
 }
 
 #[test]
