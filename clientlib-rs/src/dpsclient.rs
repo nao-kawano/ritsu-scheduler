@@ -23,17 +23,35 @@ mod dpsclient_test;
 
 /* -------------------------------------------------------------------------- */
 
+/// Client for interacting with the DPS server.
 pub struct DPSClient {
+    /// Configuration for retries and timeouts.
     pub config: DPSClientConfig,
+    /// Address of the DPS server in "host:port" format.
     server_addr: String,
+    /// Unique identifier for this client.
     client_id: u16,
+    /// UDP socket for communication.
     sock: Option<UdpSocket>,
+    /// Whether the client is currently connected to the server.
     connected: bool,
+    /// Whether the client is in the startup phase.
     startup: bool,
+    /// Current message ID for tracking requests and responses. 0 ~ 9.
     message_id: u8,
 }
 
 impl DPSClient {
+    /// Creates a new DPSClient with default configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `host` - The server hostname or IP address.
+    /// * `port` - The server port number.
+    /// * `client_id` - The unique identifier for this client. 0 ~ 999.
+    /// * `run_cycle_sec` - The expected execution cycle of the client in seconds.
+    ///   For example, if the server's Cycle Time is 100ms and the client's Cycle is 2, set this to 0.2 (200ms).
+    /// * `startup_wait_sec` - The total time to wait during the startup phase in seconds.
     pub fn new(
         host: String,
         port: u16,
@@ -52,6 +70,14 @@ impl DPSClient {
         }
     }
 
+    /// Creates a new DPSClient with a specific configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `host` - The server hostname or IP address.
+    /// * `port` - The server port number.
+    /// * `client_id` - The unique identifier for this client. 0 ~ 999.
+    /// * `config` - A pre-configured `DPSClientConfig` instance.
     pub fn new_with_config(
         host: String,
         port: u16,
@@ -69,6 +95,9 @@ impl DPSClient {
         }
     }
 
+    /// Connects to the DPS server by sending a Join request.
+    ///
+    /// Returns `true` if the join was successful, `false` otherwise.
     pub fn join(&mut self) -> bool {
         if self.connected {
             warn!("{}: already joined, skip", LOG_TAG);
@@ -98,6 +127,7 @@ impl DPSClient {
         }
     }
 
+    /// Disconnects from the DPS server by sending an Exit request.
     pub fn exit(&mut self) {
         if !self.connected {
             warn!("{}: not connected, skip", LOG_TAG);
@@ -116,6 +146,10 @@ impl DPSClient {
         }
     }
 
+    /// Waits for the next execution cycle by sending a Ready request to the server.
+    ///
+    /// This method blocks until the server responds or all retries are exhausted.
+    /// It automatically handles different timeouts and retry counts for the startup phase.
     pub fn wait_next(&mut self) -> MessageType {
         if !self.connected {
             panic!("wait_next called before connected");
@@ -138,6 +172,9 @@ impl DPSClient {
         resp_type
     }
 
+    /// Notifies the server that the current execution cycle is complete.
+    ///
+    /// Returns the message type received from the server.
     pub fn notify_done(&mut self) -> MessageType {
         if !self.connected {
             panic!("notify_done called before connected");
@@ -152,6 +189,13 @@ impl DPSClient {
 
     // -----
 
+    /// Internal helper to send a request and wait for a response with retries.
+    ///
+    /// # Arguments
+    ///
+    /// * `req_type` - The type of message to send.
+    /// * `timeout_sec` - Timeout for each attempt in seconds.
+    /// * `retry_count` - Number of times to retry on timeout.
     fn _send_request(
         &mut self,
         req_type: MessageType,
@@ -230,6 +274,9 @@ impl DPSClient {
         return ret_resp_type;
     }
 
+    /// Internal helper to receive a single response from the socket.
+    ///
+    /// Returns a tuple containing the parsed message (if successful) and a boolean indicating if a timeout occurred.
     fn _recv_response(
         sock: &UdpSocket,
         recv_buf: &mut [u8; MESSAGE_LEN_MAX],
@@ -261,6 +308,7 @@ impl DPSClient {
         }
     }
 
+    /// Clears the receive buffer of the socket by reading all pending messages.
     fn _clear_recv_buffer(sock: &UdpSocket) {
         match sock.set_nonblocking(true) {
             Ok(_) => {
