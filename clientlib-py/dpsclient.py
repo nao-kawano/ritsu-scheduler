@@ -60,9 +60,9 @@ class Config:
     PACKET_SIZE: int = 512  # Size of the packets used for communication.
 
     # Retry time for JOIN request in seconds.
-    RETRY_SEC_JOIN: float = 0.020
+    RETRY_SEC_JOIN: float = 0.003
     # Retry count for JOIN request.
-    RETRY_COUNT_JOIN: int = 3
+    RETRY_COUNT_JOIN: int = 5
 
     # Retry time for READY request during startup in seconds.
     RETRY_SEC_READY_STARTUP: float = 1.000
@@ -75,25 +75,35 @@ class Config:
     RETRY_COUNT_READY: int = 3
 
     # Retry time for DONE request in seconds.
-    RETRY_SEC_DONE: float = 0.020
+    RETRY_SEC_DONE: float = 0.003
     # Retry count for DONE request.
-    RETRY_COUNT_DONE: int = 3
+    RETRY_COUNT_DONE: int = 5
 
     # Retry time for EXIT request in seconds.
-    RETRY_SEC_EXIT: float = 0.020
+    RETRY_SEC_EXIT: float = 0.003
     # Retry count for EXIT request.
-    RETRY_COUNT_EXIT: int = 3
+    RETRY_COUNT_EXIT: int = 5
 
-    def __init__(self, run_cycle_sec: float, startup_wait_sec: float) -> None:
+    def __init__(self, run_cycle_sec: float, startup_wait_sec: float, retry_sec: float | None = None, retry_count: int | None = None) -> None:
         """
         Initialize the Config object.
         Args:
             run_cycle_sec (float): The run cycle time in seconds.
             startup_wait_sec (float): The startup wait time in seconds.
+            retry_sec (float, optional): The retransmission interval in seconds.
+            retry_count (int, optional): The number of retries.
         """
         self.RETRY_COUNT_READY_STARTUP = int(
             startup_wait_sec / self.RETRY_SEC_READY_STARTUP)
         self.RETRY_SEC_READY = run_cycle_sec * 1.1  # with mergin
+        if retry_sec is not None:
+            self.RETRY_SEC_JOIN = retry_sec
+            self.RETRY_SEC_DONE = retry_sec
+            self.RETRY_SEC_EXIT = retry_sec
+        if retry_count is not None:
+            self.RETRY_COUNT_JOIN = retry_count
+            self.RETRY_COUNT_DONE = retry_count
+            self.RETRY_COUNT_EXIT = retry_count
 
 
 class DPSClient:
@@ -101,7 +111,7 @@ class DPSClient:
     A client for the DPS.
     """
 
-    def __init__(self, host: str, port: int, client_id: int, run_cycle_sec: float, startup_wait_sec: float) -> None:
+    def __init__(self, host: str, port: int, client_id: int, run_cycle_sec: float, startup_wait_sec: float, retry_sec: float | None = None, retry_count: int | None = None) -> None:
         """
         Initialize the DPSClient object.
         Args:
@@ -110,11 +120,13 @@ class DPSClient:
             client_id (int): The ID of the client.
             run_cycle_sec (float): The run cycle time in seconds.
             startup_wait_sec (float): The startup wait time in seconds.
+            retry_sec (float, optional): The retransmission interval in seconds.
+            retry_count (int, optional): The number of retries.
         """
         self.host: str = host
         self.port: int = port
         self.client_id: int = client_id
-        self.config: Config = Config(run_cycle_sec, startup_wait_sec)
+        self.config: Config = Config(run_cycle_sec, startup_wait_sec, retry_sec, retry_count)
         self.sock: socket.socket | None = None
         self.connected: bool = False
         self.startup: bool = True

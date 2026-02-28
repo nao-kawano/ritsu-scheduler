@@ -16,7 +16,7 @@ based on the state management and message format definitions.
 #### Guidelines
 
 - `JOIN`
-  - Retransmission interval: approximately 20ms
+  - Retransmission interval: approximately 3ms
   - Number of retries: Until connected (or timeout after a few seconds)
   - On expiration: Error/Terminate
 - `READY` (before cyclic operation)
@@ -28,12 +28,12 @@ based on the state management and message format definitions.
   - Number of retries: 3
   - On expiration: sends `EXIT`
 - `DONE`
-  - Retransmission interval: approximately 20ms
-  - Number of retries: 3
+  - Retransmission interval: approximately 3ms
+  - Number of retries: 5
   - On expiration: sends `EXIT`
 - `EXIT`
-  - Retransmission interval: approximately 20ms
-  - Number of retries: 3
+  - Retransmission interval: approximately 3ms
+  - Number of retries: 5
   - On expiration: terminate
 
 ### Duplicate Discard

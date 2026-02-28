@@ -30,18 +30,18 @@ impl DPSClientConfig {
 
     pub fn new(run_cycle_sec: f64, startup_wait_sec: f64) -> Self {
         DPSClientConfig {
-            retry_sec_join: 0.020,
-            retry_count_join: 3,
+            retry_sec_join: 0.003,
+            retry_count_join: 5,
             retry_sec_ready_startup: DPSClientConfig::TIMEOUT_SEC_READY_STARTUP_DEFAULT,
             retry_count_ready_startup: (startup_wait_sec
                 / DPSClientConfig::TIMEOUT_SEC_READY_STARTUP_DEFAULT)
                 as u32,
             retry_sec_ready: run_cycle_sec * 1.1,
             retry_count_ready: 3,
-            retry_sec_done: 0.020,
-            retry_count_done: 3,
-            retry_sec_exit: 0.020,
-            retry_count_exit: 3,
+            retry_sec_done: 0.003,
+            retry_count_done: 5,
+            retry_sec_exit: 0.003,
+            retry_count_exit: 5,
         }
     }
 }
