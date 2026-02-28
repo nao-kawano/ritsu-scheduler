@@ -6,5 +6,5 @@ mod rtclient;
 mod rtclientconfig;
 
 // export.
-pub use rtclient::DPSClient;
-pub use rtclientconfig::DPSClientConfig;
+pub use rtclient::RtClient;
+pub use rtclientconfig::RtClientConfig;

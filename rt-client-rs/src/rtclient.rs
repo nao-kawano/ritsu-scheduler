@@ -1,15 +1,15 @@
 //!
-//! Client for DPS.
+//! Client for Ritsu.
 //!
 
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "DPSClient";
+const LOG_TAG: &str = "RtClient";
 
 use rt_message::{MESSAGE_LEN_MAX, Message, MessageType};
 
-use crate::rtclientconfig::DPSClientConfig;
+use crate::rtclientconfig::RtClientConfig;
 
 use std::net::UdpSocket;
 use std::time::Duration;
@@ -23,11 +23,11 @@ mod rtclient_test;
 
 /* -------------------------------------------------------------------------- */
 
-/// Client for interacting with the DPS server.
-pub struct DPSClient {
+/// Client for interacting with the Ritsu server.
+pub struct RtClient {
     /// Configuration for retries and timeouts.
-    pub config: DPSClientConfig,
-    /// Address of the DPS server in "host:port" format.
+    pub config: RtClientConfig,
+    /// Address of the Ritsu server in "host:port" format.
     server_addr: String,
     /// Unique identifier for this client.
     client_id: u16,
@@ -41,8 +41,8 @@ pub struct DPSClient {
     message_id: u8,
 }
 
-impl DPSClient {
-    /// Creates a new DPSClient with default configuration.
+impl RtClient {
+    /// Creates a new RtClient with default configuration.
     ///
     /// # Arguments
     ///
@@ -59,10 +59,10 @@ impl DPSClient {
         run_cycle_sec: f64,
         startup_wait_sec: f64,
     ) -> Self {
-        DPSClient {
+        RtClient {
             server_addr: format!("{}:{}", host, port),
             client_id,
-            config: DPSClientConfig::new(run_cycle_sec, startup_wait_sec),
+            config: RtClientConfig::new(run_cycle_sec, startup_wait_sec),
             sock: None,
             connected: false,
             startup: true,
@@ -70,21 +70,21 @@ impl DPSClient {
         }
     }
 
-    /// Creates a new DPSClient with a specific configuration.
+    /// Creates a new RtClient with a specific configuration.
     ///
     /// # Arguments
     ///
     /// * `host` - The server hostname or IP address.
     /// * `port` - The server port number.
     /// * `client_id` - The unique identifier for this client. 0 ~ 999.
-    /// * `config` - A pre-configured `DPSClientConfig` instance.
+    /// * `config` - A pre-configured `RtClientConfig` instance.
     pub fn new_with_config(
         host: String,
         port: u16,
         client_id: u16,
-        config: DPSClientConfig,
+        config: RtClientConfig,
     ) -> Self {
-        DPSClient {
+        RtClient {
             server_addr: format!("{}:{}", host, port),
             client_id,
             config,
@@ -95,7 +95,7 @@ impl DPSClient {
         }
     }
 
-    /// Connects to the DPS server by sending a Join request.
+    /// Connects to the Ritsu server by sending a Join request.
     ///
     /// Returns `true` if the join was successful, `false` otherwise.
     pub fn join(&mut self) -> bool {
@@ -127,7 +127,7 @@ impl DPSClient {
         }
     }
 
-    /// Disconnects from the DPS server by sending an Exit request.
+    /// Disconnects from the Ritsu server by sending an Exit request.
     pub fn exit(&mut self) {
         if !self.connected {
             warn!("{}: not connected, skip", LOG_TAG);
@@ -207,7 +207,7 @@ impl DPSClient {
             warn!("{}: invalid socket", LOG_TAG);
             return MessageType::Error;
         };
-        DPSClient::_clear_recv_buffer(sock);
+        RtClient::_clear_recv_buffer(sock);
         // create request.
         self.message_id = (self.message_id + 1) % 10;
         let request: Message =
@@ -238,7 +238,7 @@ impl DPSClient {
             );
             match sock.send_to(&request_str.as_bytes(), &self.server_addr) {
                 Ok(_) => {
-                    let (response, need_retry) = DPSClient::_recv_response(sock, &mut recv_buf);
+                    let (response, need_retry) = RtClient::_recv_response(sock, &mut recv_buf);
                     if need_retry {
                         trace!("{}: -- {:?} timeout, retrying...", LOG_TAG, req_type);
                         continue; // timeout, retry.

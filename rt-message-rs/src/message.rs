@@ -1,5 +1,5 @@
 //!
-//! Message for DPS.
+//! Message for Ritsu.
 //!
 
 #[cfg(test)]
@@ -85,7 +85,7 @@ impl std::fmt::Display for MessageType {
 
 /* -------------------------------------------------------------------------- */
 
-/// Message for DPS.
+/// Message for Ritsu.
 #[derive(Debug, Clone)]
 pub struct Message {
     /// Message Type.

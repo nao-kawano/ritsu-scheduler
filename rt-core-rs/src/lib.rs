@@ -1,5 +1,5 @@
 //!
-//! Core scheduler for DPS.
+//! Core scheduler for Ritsu.
 //!
 
 mod entry;

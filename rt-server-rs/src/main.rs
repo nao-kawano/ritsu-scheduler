@@ -85,7 +85,7 @@ fn main() {
             )
         })
         .init();
-    info!("Starting dps scheduler {}", env!("CARGO_PKG_VERSION"));
+    info!("Starting Ritsu server {}", env!("CARGO_PKG_VERSION"));
 
     // load configuration from file.
     let config = load_config("./config.toml");

@@ -55,7 +55,7 @@ class ResponseType(Enum):
 
 class Config:
     """
-    Configuration class for the DPSClient.
+    Configuration class for the RtClient.
     """
     PACKET_SIZE: int = 512  # Size of the packets used for communication.
 
@@ -106,14 +106,14 @@ class Config:
             self.RETRY_COUNT_EXIT = retry_count
 
 
-class DPSClient:
+class RtClient:
     """
-    A client for the DPS.
+    A client for the Ritsu.
     """
 
     def __init__(self, host: str, port: int, client_id: int, run_cycle_sec: float, startup_wait_sec: float, retry_sec: float | None = None, retry_count: int | None = None) -> None:
         """
-        Initialize the DPSClient object.
+        Initialize the RtClient object.
         Args:
             host (str): The host address of the server.
             port (int): The port number of the server.
@@ -134,7 +134,7 @@ class DPSClient:
 
     def join(self) -> bool:
         """
-        Join to the DPS server.
+        Join to the Ritsu server.
         Returns:
             bool: True if the join was successful, False otherwise.
         """
@@ -156,7 +156,7 @@ class DPSClient:
 
     def exit(self) -> None:
         """
-        Exit from the DPS server.
+        Exit from the Ritsu server.
         """
         if not self.connected:
             log("not connected, skip")
@@ -302,7 +302,7 @@ if __name__ == '__main__':
     import time
     import argparse
 
-    parser = argparse.ArgumentParser(description="DPSClient with argparse")
+    parser = argparse.ArgumentParser(description="Ritsu client with argparse")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address")
     parser.add_argument("--port", type=int, default=7878, help="Port number")
     parser.add_argument("--client_id", type=int, default=1, help="Client ID: 0~999")
@@ -319,7 +319,7 @@ if __name__ == '__main__':
     PROC_COUNT_MAX: int = args.proc_count
     proc_count: int = 0
 
-    client: DPSClient = DPSClient(
+    client: RtClient = RtClient(
         args.host,
         args.port,
         args.client_id,
