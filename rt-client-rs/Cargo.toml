@@ -1,0 +1,13 @@
+[package]
+name = "rt-client"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rt-message.workspace = true
+chrono.workspace = true
+log.workspace = true
+env_logger.workspace = true
+
+[target.'cfg(windows)'.dependencies]
+windows = { version="0.61", features=["Win32_Media"] }

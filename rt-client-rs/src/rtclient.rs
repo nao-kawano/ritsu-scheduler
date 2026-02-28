@@ -1,0 +1,339 @@
+//!
+//! Client for Ritsu.
+//!
+
+extern crate log;
+#[allow(unused_imports)]
+use log::{debug, error, info, trace, warn};
+const LOG_TAG: &str = "RtClient";
+
+use rt_message::{MESSAGE_LEN_MAX, Message, MessageType};
+
+use crate::rtclientconfig::RtClientConfig;
+
+use std::net::UdpSocket;
+use std::time::Duration;
+
+#[cfg(target_os = "windows")]
+use windows::Win32::Media::{timeBeginPeriod, timeEndPeriod};
+
+#[cfg(test)]
+#[path = "rtclient_test.rs"]
+mod rtclient_test;
+
+/* -------------------------------------------------------------------------- */
+
+/// Client for interacting with the Ritsu server.
+pub struct RtClient {
+    /// Configuration for retries and timeouts.
+    pub config: RtClientConfig,
+    /// Address of the Ritsu server in "host:port" format.
+    server_addr: String,
+    /// Unique identifier for this client.
+    client_id: u16,
+    /// UDP socket for communication.
+    sock: Option<UdpSocket>,
+    /// Whether the client is currently connected to the server.
+    connected: bool,
+    /// Whether the client is in the startup phase.
+    startup: bool,
+    /// Current message ID for tracking requests and responses. 0 ~ 9.
+    message_id: u8,
+}
+
+impl RtClient {
+    /// Creates a new RtClient with default configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `host` - The server hostname or IP address.
+    /// * `port` - The server port number.
+    /// * `client_id` - The unique identifier for this client. 0 ~ 999.
+    /// * `run_cycle_sec` - The expected execution cycle of the client in seconds.
+    ///   For example, if the server's Cycle Time is 100ms and the client's Cycle is 2, set this to 0.2 (200ms).
+    /// * `startup_wait_sec` - The total time to wait during the startup phase in seconds.
+    pub fn new(
+        host: String,
+        port: u16,
+        client_id: u16,
+        run_cycle_sec: f64,
+        startup_wait_sec: f64,
+    ) -> Self {
+        RtClient {
+            server_addr: format!("{}:{}", host, port),
+            client_id,
+            config: RtClientConfig::new(run_cycle_sec, startup_wait_sec),
+            sock: None,
+            connected: false,
+            startup: true,
+            message_id: 0,
+        }
+    }
+
+    /// Creates a new RtClient with a specific configuration.
+    ///
+    /// # Arguments
+    ///
+    /// * `host` - The server hostname or IP address.
+    /// * `port` - The server port number.
+    /// * `client_id` - The unique identifier for this client. 0 ~ 999.
+    /// * `config` - A pre-configured `RtClientConfig` instance.
+    pub fn new_with_config(
+        host: String,
+        port: u16,
+        client_id: u16,
+        config: RtClientConfig,
+    ) -> Self {
+        RtClient {
+            server_addr: format!("{}:{}", host, port),
+            client_id,
+            config,
+            sock: None,
+            connected: false,
+            startup: true,
+            message_id: 0,
+        }
+    }
+
+    /// Connects to the Ritsu server by sending a Join request.
+    ///
+    /// Returns `true` if the join was successful, `false` otherwise.
+    pub fn join(&mut self) -> bool {
+        if self.connected {
+            warn!("{}: already joined, skip", LOG_TAG);
+            return true;
+        } else {
+            match UdpSocket::bind("0.0.0.0:0") {
+                Ok(sock) => {
+                    self.sock = Some(sock);
+                    let resp_type = self._send_request(
+                        MessageType::Join,
+                        self.config.retry_sec_join,
+                        self.config.retry_count_join,
+                    );
+                    if resp_type == MessageType::Ok {
+                        self.connected = true;
+                        self.startup = true;
+                        return true;
+                    } else {
+                        return false;
+                    }
+                }
+                Err(e) => {
+                    error!("Error creating socket: {}", e);
+                    return false;
+                }
+            }
+        }
+    }
+
+    /// Disconnects from the Ritsu server by sending an Exit request.
+    pub fn exit(&mut self) {
+        if !self.connected {
+            warn!("{}: not connected, skip", LOG_TAG);
+        } else {
+            let _ = self._send_request(
+                MessageType::Exit,
+                self.config.retry_sec_exit,
+                self.config.retry_count_exit,
+            );
+            if let Some(sock) = &self.sock {
+                // Drop the socket to close it
+                let _ = sock;
+                self.sock = None;
+                self.connected = false;
+            }
+        }
+    }
+
+    /// Waits for the next execution cycle by sending a Ready request to the server.
+    ///
+    /// This method blocks until the server responds or all retries are exhausted.
+    /// It automatically handles different timeouts and retry counts for the startup phase.
+    pub fn wait_next(&mut self) -> MessageType {
+        if !self.connected {
+            panic!("wait_next called before connected");
+        }
+
+        let timeout_sec = if self.startup {
+            self.config.retry_sec_ready_startup
+        } else {
+            self.config.retry_sec_ready
+        };
+        let retry_count = if self.startup {
+            self.config.retry_count_ready_startup
+        } else {
+            self.config.retry_count_ready
+        };
+
+        let resp_type = self._send_request(MessageType::Ready, timeout_sec, retry_count);
+        self.startup = false;
+
+        resp_type
+    }
+
+    /// Notifies the server that the current execution cycle is complete.
+    ///
+    /// Returns the message type received from the server.
+    pub fn notify_done(&mut self) -> MessageType {
+        if !self.connected {
+            panic!("notify_done called before connected");
+        }
+        let resp_type = self._send_request(
+            MessageType::Done,
+            self.config.retry_sec_done,
+            self.config.retry_count_done,
+        );
+        resp_type
+    }
+
+    // -----
+
+    /// Internal helper to send a request and wait for a response with retries.
+    ///
+    /// # Arguments
+    ///
+    /// * `req_type` - The type of message to send.
+    /// * `timeout_sec` - Timeout for each attempt in seconds.
+    /// * `retry_count` - Number of times to retry on timeout.
+    fn _send_request(
+        &mut self,
+        req_type: MessageType,
+        timeout_sec: f64,
+        retry_count: u32,
+    ) -> MessageType {
+        // check socket.
+        let Some(sock) = &self.sock else {
+            warn!("{}: invalid socket", LOG_TAG);
+            return MessageType::Error;
+        };
+        RtClient::_clear_recv_buffer(sock);
+        // create request.
+        self.message_id = (self.message_id + 1) % 10;
+        let request: Message =
+            Message::new(req_type, self.message_id, self.client_id, None).unwrap();
+        let Ok(request_str) = request.to_str() else {
+            warn!("{}: failed to create request for {:?}", LOG_TAG, request);
+            return MessageType::Error;
+        };
+        // send request and wait response.
+        #[cfg(target_os = "windows")]
+        unsafe {
+            // for high precision timeout.
+            timeBeginPeriod(1);
+        }
+        let mut ret_resp_type: MessageType = MessageType::Error;
+        sock.set_read_timeout(Some(Duration::from_secs_f64(timeout_sec)))
+            .expect("set_read_timeout call failed");
+        let mut recv_buf = [0u8; MESSAGE_LEN_MAX];
+        for count in 0..=retry_count {
+            trace!(
+                "{}: >> send {:?}@{} ({}/{}) with t/o {} sec",
+                LOG_TAG,
+                req_type,
+                self.message_id,
+                count + 1,
+                1 + retry_count,
+                timeout_sec
+            );
+            match sock.send_to(&request_str.as_bytes(), &self.server_addr) {
+                Ok(_) => {
+                    let (response, need_retry) = RtClient::_recv_response(sock, &mut recv_buf);
+                    if need_retry {
+                        trace!("{}: -- {:?} timeout, retrying...", LOG_TAG, req_type);
+                        continue; // timeout, retry.
+                    }
+                    if let Some(response) = response {
+                        if response.mid != self.message_id {
+                            warn!(
+                                "{}: << !! {:?} mid mismatch, expected {}, actual {}, continue",
+                                LOG_TAG, req_type, self.message_id, response.mid
+                            );
+                            continue; // invalid mid, retry.
+                        }
+                        trace!(
+                            "{}: << recv {:?} for {:?}",
+                            LOG_TAG, response.mtype, req_type
+                        );
+                        ret_resp_type = response.mtype;
+                    }
+                    break;
+                }
+                Err(e) => {
+                    warn!("{}: !! Error sending packet {:?} = {}", LOG_TAG, request, e);
+                    break;
+                }
+            }
+        }
+        #[cfg(target_os = "windows")]
+        unsafe {
+            // revert to the default precision.
+            timeEndPeriod(1);
+        }
+        //
+        return ret_resp_type;
+    }
+
+    /// Internal helper to receive a single response from the socket.
+    ///
+    /// Returns a tuple containing the parsed message (if successful) and a boolean indicating if a timeout occurred.
+    fn _recv_response(
+        sock: &UdpSocket,
+        recv_buf: &mut [u8; MESSAGE_LEN_MAX],
+    ) -> (Option<Message>, bool) {
+        match sock.recv_from(recv_buf) {
+            Ok((buf_size, _)) => match str::from_utf8(&recv_buf[..buf_size]) {
+                Ok(recv_msg) => match Message::from_str(recv_msg) {
+                    Ok(response) => {
+                        return (Some(response), false);
+                    }
+                    Err(e) => {
+                        warn!("{}: failed to convert response {:?}", LOG_TAG, e);
+                        return (None, false);
+                    }
+                },
+                Err(e) => {
+                    warn!("{}: invalid UTF-8 {:?}", LOG_TAG, e);
+                    return (None, false);
+                }
+            },
+            Err(e) => {
+                if e.kind() == std::io::ErrorKind::TimedOut {
+                    return (None, true);
+                } else {
+                    warn!("{}: failed to receive: {:?}", LOG_TAG, e);
+                    return (None, false);
+                }
+            }
+        }
+    }
+
+    /// Clears the receive buffer of the socket by reading all pending messages.
+    fn _clear_recv_buffer(sock: &UdpSocket) {
+        match sock.set_nonblocking(true) {
+            Ok(_) => {
+                let mut buffer = [0u8; MESSAGE_LEN_MAX];
+                loop {
+                    match sock.recv_from(&mut buffer) {
+                        Ok((_size, _src)) => {
+                            trace!("{}: drop old recv msg", LOG_TAG);
+                            continue; // keep reading until the buffer is empty.
+                        }
+                        Err(e) => {
+                            if e.kind() == std::io::ErrorKind::WouldBlock {
+                                break; // buffer is empty.
+                            } else {
+                                warn!("{}: recv_from error: {:?}", LOG_TAG, e);
+                                break;
+                            }
+                        }
+                    }
+                }
+                let _ = sock.set_nonblocking(false);
+            }
+            Err(e) => {
+                warn!("{}: failed to set non-blocking mode: {:?}", LOG_TAG, e);
+            }
+        }
+    }
+}
