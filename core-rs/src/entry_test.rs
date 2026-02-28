@@ -8,17 +8,17 @@ fn test_new() {
     let entry = ProcessEntry::new(1, &vec![], false);
     assert_eq!(entry.cid, 1);
     assert_eq!(entry.state, ProcessState::Idle);
-    assert_eq!(entry.depends_on.len(), 0);
+    assert_eq!(entry.dependency_statuses.len(), 0);
     assert_eq!(entry.is_floating, false);
 
     // depends trigger.
     let entry = ProcessEntry::new(2, &vec![1, 3], true);
     assert_eq!(entry.cid, 2);
     assert_eq!(entry.state, ProcessState::Idle);
-    assert_eq!(entry.depends_on.len(), 2);
-    assert_eq!(entry.depends_on.get(&0), None);
-    assert_eq!(entry.depends_on.get(&1), Some(&false));
-    assert_eq!(entry.depends_on.get(&3), Some(&false));
+    assert_eq!(entry.dependency_statuses.len(), 2);
+    assert_eq!(entry.dependency_statuses.get(&0), None);
+    assert_eq!(entry.dependency_statuses.get(&1), Some(&false));
+    assert_eq!(entry.dependency_statuses.get(&3), Some(&false));
     assert_eq!(entry.is_floating, true);
 }
 
@@ -65,76 +65,76 @@ fn test_set_state() {
 }
 
 #[test]
-fn test_has_depends() {
+fn test_is_dependent() {
     let _ = env_logger::builder().is_test(true).try_init();
 
     // cycle trigger.
     let entry = ProcessEntry::new(1, &vec![], false);
-    assert_eq!(entry.has_depends(), false);
+    assert_eq!(entry.is_dependent(), false);
 
     // depends trigger.
     let entry = ProcessEntry::new(2, &vec![1, 3], true);
-    assert_eq!(entry.has_depends(), true);
+    assert_eq!(entry.is_dependent(), true);
 }
 
 #[test]
-fn test_is_depends_ok() {
+fn test_is_dependency_met() {
     let _ = env_logger::builder().is_test(true).try_init();
 
     // cycle trigger.
     let entry = ProcessEntry::new(1, &vec![], false);
-    assert_eq!(entry.is_depends_ok(), true);
+    assert_eq!(entry.is_dependency_met(), true);
 
     // depends trigger.
     let mut entry = ProcessEntry::new(2, &vec![1, 3], true);
-    assert_eq!(entry.is_depends_ok(), false);
+    assert_eq!(entry.is_dependency_met(), false);
 
-    entry.depends_on.insert(1, true);
-    assert_eq!(entry.is_depends_ok(), false);
+    entry.dependency_statuses.insert(1, true);
+    assert_eq!(entry.is_dependency_met(), false);
 
-    entry.depends_on.insert(3, true);
-    assert_eq!(entry.is_depends_ok(), true);
+    entry.dependency_statuses.insert(3, true);
+    assert_eq!(entry.is_dependency_met(), true);
 }
 
 #[test]
-fn test_update_depend() {
+fn test_mark_dependency_complete() {
     let _ = env_logger::builder().is_test(true).try_init();
 
     // cycle trigger.
     let mut entry = ProcessEntry::new(1, &vec![], false);
-    entry.update_depend(3); // no effect.
-    assert_eq!(entry.is_depends_ok(), true);
+    entry.mark_dependency_complete(3); // no effect.
+    assert_eq!(entry.is_dependency_met(), true);
 
     // depends trigger.
     let mut entry = ProcessEntry::new(2, &vec![1, 3], true);
-    assert_eq!(entry.is_depends_ok(), false);
+    assert_eq!(entry.is_dependency_met(), false);
 
-    entry.update_depend(1);
-    assert_eq!(entry.is_depends_ok(), false);
+    entry.mark_dependency_complete(1);
+    assert_eq!(entry.is_dependency_met(), false);
 
-    entry.update_depend(2);
-    assert_eq!(entry.is_depends_ok(), false);
+    entry.mark_dependency_complete(2);
+    assert_eq!(entry.is_dependency_met(), false);
 
-    entry.update_depend(3);
-    assert_eq!(entry.is_depends_ok(), true);
+    entry.mark_dependency_complete(3);
+    assert_eq!(entry.is_dependency_met(), true);
 }
 
 #[test]
-fn test_clear_depends() {
+fn test_reset_dependency_statuses() {
     let _ = env_logger::builder().is_test(true).try_init();
 
     // cycle trigger.
     let mut entry = ProcessEntry::new(1, &vec![], false);
-    entry.clear_depends(); // no effect.
-    assert_eq!(entry.is_depends_ok(), true);
+    entry.reset_dependency_statuses(); // no effect.
+    assert_eq!(entry.is_dependency_met(), true);
 
     // depends trigger.
     let mut entry = ProcessEntry::new(2, &vec![1, 3], true);
-    entry.depends_on.insert(1, true);
-    entry.depends_on.insert(3, true);
-    assert_eq!(entry.is_depends_ok(), true);
+    entry.dependency_statuses.insert(1, true);
+    entry.dependency_statuses.insert(3, true);
+    assert_eq!(entry.is_dependency_met(), true);
 
-    entry.clear_depends();
-    assert_eq!(entry.is_depends_ok(), false);
-    assert_eq!(entry.depends_on.len(), 2);
+    entry.reset_dependency_statuses();
+    assert_eq!(entry.is_dependency_met(), false);
+    assert_eq!(entry.dependency_statuses.len(), 2);
 }

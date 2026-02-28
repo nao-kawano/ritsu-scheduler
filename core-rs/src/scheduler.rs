@@ -79,7 +79,7 @@ impl Scheduler {
         // check if dependency is met.
         // if target cid has dependency, check at next root cycle.
         if let Some(entry) = self.entries.get(&cid) {
-            if !entry.is_depends_ok() {
+            if !entry.is_dependency_met() {
                 debug!(
                     "{}: CID:{:03} has dependency unmet, skip start",
                     LOG_TAG, cid
@@ -148,7 +148,7 @@ impl Scheduler {
                         if let Some(entry) = self.entries.get_mut(&skip_cid) {
                             let mut change = ProcessStateChange::new(&entry);
                             if entry.set_state(ProcessState::Skip) {
-                                entry.clear_depends(); // Clear dependencies as it's skipped
+                                entry.reset_dependency_statuses(); // Clear dependencies as it's skipped
                                 change.after = ProcessState::Skip;
                                 changes.push(change);
                             }
@@ -188,7 +188,7 @@ impl Scheduler {
             if let Some(entry) = self.entries.get_mut(&cid) {
                 let mut change = ProcessStateChange::new(&entry);
                 if entry.set_state(ProcessState::Running) {
-                    entry.clear_depends();
+                    entry.reset_dependency_statuses();
                     change.after = ProcessState::Running;
                     changes.push(change);
                 }
@@ -301,14 +301,14 @@ impl Scheduler {
                 trace!("{}: update after processes for CID:{:03}", LOG_TAG, cid);
                 for cid_after in &afters {
                     if let Some(entry) = self.entries.get_mut(cid_after) {
-                        let _ = entry.update_depend(cid);
+                        let _ = entry.mark_dependency_complete(cid);
                     }
                 }
                 // start.
                 trace!("{}: start after processes for CID:{:03}", LOG_TAG, cid);
                 for cid_after in &afters {
                     if let Some(entry) = self.entries.get_mut(cid_after) {
-                        if !entry.is_depends_ok() {
+                        if !entry.is_dependency_met() {
                             // wait for the remaining dependent processes to complete.
                         } else {
                             if !entry.is_floating {
@@ -322,7 +322,7 @@ impl Scheduler {
                                 let mut change: ProcessStateChange =
                                     ProcessStateChange::new(&entry);
                                 if entry.set_state(ProcessState::Running) {
-                                    entry.clear_depends();
+                                    entry.reset_dependency_statuses();
                                     change.after = ProcessState::Running;
                                     changes.push(change);
                                 }
@@ -362,7 +362,7 @@ impl Scheduler {
         // create forward dependency by reverse.
         let mut forward_dependencies: HashMap<u16, HashSet<u16>> = HashMap::new();
         for entry in entries.values() {
-            for depend in entry.depends_on.keys() {
+            for depend in entry.dependency_statuses.keys() {
                 // - verify that dependent process exists.
                 if !entries.contains_key(depend) {
                     panic!("dependent process {} does not exist", depend);

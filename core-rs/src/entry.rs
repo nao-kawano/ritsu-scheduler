@@ -31,25 +31,25 @@ pub enum ProcessState {
 pub struct ProcessEntry {
     pub(crate) cid: u16,
     pub(crate) state: ProcessState,
-    pub(crate) depends_on: HashMap<u16, bool>,
+    pub(crate) dependency_statuses: HashMap<u16, bool>,
     pub(crate) is_floating: bool,
 }
 
 impl ProcessEntry {
-    pub fn new(cid: u16, dependency: &Vec<u16>, is_floating: bool) -> Self {
-        let dependency: HashMap<u16, bool> = dependency.iter().map(|x| (*x, false)).collect();
+    pub fn new(cid: u16, depends_on: &Vec<u16>, is_floating: bool) -> Self {
+        let statuses: HashMap<u16, bool> = depends_on.iter().map(|x| (*x, false)).collect();
         ProcessEntry {
             cid,
             is_floating,
             state: ProcessState::Idle,
-            depends_on: dependency,
+            dependency_statuses: statuses,
         }
     }
 
-    /// Reset state and dependency.
+    /// Reset state and dependency statuses.
     pub(crate) fn reset(&mut self) {
         self.state = ProcessState::Idle;
-        self.clear_depends();
+        self.reset_dependency_statuses();
     }
 
     /// Get the id of the process.
@@ -118,27 +118,27 @@ impl ProcessEntry {
 
     /// Check if process has dependency.
     #[allow(dead_code)]
-    pub fn has_depends(&self) -> bool {
-        self.depends_on.len() > 0
+    pub fn is_dependent(&self) -> bool {
+        self.dependency_statuses.len() > 0
     }
 
     /// Check if the process can start.
-    pub fn is_depends_ok(&self) -> bool {
-        self.depends_on.iter().all(|x| *(x.1))
+    pub fn is_dependency_met(&self) -> bool {
+        self.dependency_statuses.iter().all(|x| *(x.1))
     }
 
     /// Update the dependency status.
-    pub(crate) fn update_depend(&mut self, cid: u16) -> bool {
-        if let Some(depend_value) = self.depends_on.get_mut(&cid) {
+    pub(crate) fn mark_dependency_complete(&mut self, cid: u16) -> bool {
+        if let Some(depend_value) = self.dependency_statuses.get_mut(&cid) {
             if *depend_value {
                 warn!(
-                    "{}: CID:{:03} already updated depend CID:{:03}",
+                    "{}: CID:{:03} deps already completed CID:{:03}",
                     LOG_TAG, self.cid, cid
                 );
                 return false;
             } else {
                 trace!(
-                    "{}: CID:{:03} update depend CID:{:03}",
+                    "{}: CID:{:03} deps complete CID:{:03}",
                     LOG_TAG, self.cid, cid
                 );
                 *depend_value = true;
@@ -150,9 +150,9 @@ impl ProcessEntry {
     }
 
     /// Clear the dependency status.
-    pub(crate) fn clear_depends(&mut self) {
-        trace!("{}: CID:{:03} clear depend", LOG_TAG, self.cid);
-        for depend_value in self.depends_on.values_mut() {
+    pub(crate) fn reset_dependency_statuses(&mut self) {
+        trace!("{}: CID:{:03} deps reset", LOG_TAG, self.cid);
+        for depend_value in self.dependency_statuses.values_mut() {
             *depend_value = false;
         }
     }
