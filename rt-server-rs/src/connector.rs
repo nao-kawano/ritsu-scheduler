@@ -15,7 +15,7 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 use std::time;
 
-use dps_message::{MESSAGE_LEN_MAX, Message, MessageType};
+use rt_message::{MESSAGE_LEN_MAX, Message, MessageType};
 
 use crate::Event;
 

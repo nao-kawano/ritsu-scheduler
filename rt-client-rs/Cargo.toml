@@ -1,10 +1,10 @@
 [package]
-name = "dps-clientlib"
+name = "rt-client"
 version = "0.1.0"
 edition = "2024"
 
 [dependencies]
-dps-message.workspace = true
+rt-message.workspace = true
 chrono.workspace = true
 log.workspace = true
 env_logger.workspace = true

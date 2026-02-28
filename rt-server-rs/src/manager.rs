@@ -17,7 +17,7 @@ mod process_starting;
 use std::collections::HashMap;
 use std::hash::Hash;
 
-use dps_message::{Message, MessageType};
+use rt_message::{Message, MessageType};
 
 use crate::Event;
 use crate::config::ClientConfig;

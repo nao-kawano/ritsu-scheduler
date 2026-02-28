@@ -6,14 +6,14 @@ extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use dps_message::{Message, MessageType};
+use rt_message::{Message, MessageType};
 
 use super::EventResult;
 use super::context::ManagerContext;
 use super::process::ManagerProc;
 use crate::config::ClientConfig;
-use dps_core::ProcessState;
-use dps_core::ProcessStateChange;
+use rt_core::ProcessState;
+use rt_core::ProcessStateChange;
 
 #[cfg(test)]
 #[path = "process_running_test.rs"]

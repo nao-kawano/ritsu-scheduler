@@ -152,43 +152,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dps-clientlib"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "dps-message",
- "env_logger",
- "log",
- "windows",
-]
-
-[[package]]
-name = "dps-core"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "log",
-]
-
-[[package]]
-name = "dps-message"
-version = "0.1.0"
-
-[[package]]
-name = "dps-server"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "ctrlc",
- "dps-core",
- "dps-message",
- "env_logger",
- "log",
- "serde",
- "toml",
-]
-
-[[package]]
 name = "env_filter"
 version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -409,6 +372,43 @@ name = "regex-syntax"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
+
+[[package]]
+name = "rt-client"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "env_logger",
+ "log",
+ "rt-message",
+ "windows",
+]
+
+[[package]]
+name = "rt-core"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "log",
+]
+
+[[package]]
+name = "rt-message"
+version = "0.1.0"
+
+[[package]]
+name = "rt-server"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "ctrlc",
+ "env_logger",
+ "log",
+ "rt-core",
+ "rt-message",
+ "serde",
+ "toml",
+]
 
 [[package]]
 name = "rustversion"

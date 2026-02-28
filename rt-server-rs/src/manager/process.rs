@@ -7,7 +7,7 @@ extern crate log;
 use log::{debug, error, info, trace, warn};
 const LOG_TAG: &str = "StateCommon";
 
-use dps_message::{Message, MessageType};
+use rt_message::{Message, MessageType};
 
 use super::EventResult;
 use super::ManagerState;

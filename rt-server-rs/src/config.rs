@@ -2,7 +2,7 @@
 //! Configuration for scheduler.
 //!
 
-use dps_message::CLIENT_ID_MAX;
+use rt_message::CLIENT_ID_MAX;
 
 use serde::{Deserialize, Serialize};
 

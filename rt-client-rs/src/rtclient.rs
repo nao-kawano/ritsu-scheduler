@@ -7,9 +7,9 @@ extern crate log;
 use log::{debug, error, info, trace, warn};
 const LOG_TAG: &str = "DPSClient";
 
-use dps_message::{MESSAGE_LEN_MAX, Message, MessageType};
+use rt_message::{MESSAGE_LEN_MAX, Message, MessageType};
 
-use crate::dpsclientconfig::DPSClientConfig;
+use crate::rtclientconfig::DPSClientConfig;
 
 use std::net::UdpSocket;
 use std::time::Duration;
@@ -18,8 +18,8 @@ use std::time::Duration;
 use windows::Win32::Media::{timeBeginPeriod, timeEndPeriod};
 
 #[cfg(test)]
-#[path = "dpsclient_test.rs"]
-mod dpsclient_test;
+#[path = "rtclient_test.rs"]
+mod rtclient_test;
 
 /* -------------------------------------------------------------------------- */
 

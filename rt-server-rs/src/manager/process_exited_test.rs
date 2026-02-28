@@ -4,7 +4,7 @@ use crate::config::*;
 use crate::manager::ManagerState;
 use crate::manager::context::{ClientState, ManagerContext};
 
-use dps_message::{Message, MessageType};
+use rt_message::{Message, MessageType};
 
 fn create_context() -> ManagerContext {
     let mut ctx = ManagerContext::new(vec![

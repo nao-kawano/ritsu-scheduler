@@ -18,7 +18,7 @@ use std::io::Write;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
-use dps_message::Message;
+use rt_message::Message;
 
 use config::{ClientConfig, SchedulerConfig, ServerConfig};
 use connector::ClientConnector;
