@@ -1,10 +1,10 @@
 # State Management
 
-This document describes state management of DPS, which manages multiple clients and
+This document describes state management of Ritsu, which manages multiple clients and
 controls the execution of each client.
 
 Understanding both client-side and server-side state management is
-essential for developing and maintaining DPS effectively.
+essential for developing and maintaining Ritsu effectively.
 
 ## Client Side
 
