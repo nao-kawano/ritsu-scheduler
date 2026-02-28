@@ -47,28 +47,28 @@ control of client processes.
 ```mermaid
 stateDiagram-v2
     [*] --> None
-    None --> Sync : Recv JOIN
+    None --> Sync : Recv JOIN / Send OK
     Sync --> Ready : Recv READY
 
-    Sync --> None : Recv EXIT
+    Sync --> None : Recv EXIT / Send OK
     Sync --> Exiting : going to shutdown
     Active --> Exiting : going to shutdown
-    Exiting --> None : Recv EXIT
-    Active --> None : Recv EXIT
+    Exiting --> None : Recv EXIT / Send OK
+    Active --> None : Recv EXIT / Send OK
 
     State Active {
-        Ready --> Running : cycle and dependency met
-        Running --> Idle : Recv DONE
+        note right of Ready : hold response until cycle and dependency met
+        Ready --> Running : cycle and dependency met / Send OK
+        Running --> Idle : Recv DONE / Send OK
         Idle --> Ready : Recv READY
 
-        Ready --> Skip : cycle skipped
+        Ready --> Skip : cycle skipped / Send SKIP
         Skip --> Ready : Recv READY
 
         Running --> Overrun : detected overrun
-        Overrun --> Late : Recv DONE
-
+        Overrun --> Late : Recv DONE / Send OK
         Idle --> Late : missed READY for next cycle
-        Late --> Idle : Recv READY
+        Late --> Idle : Recv READY / Send LATE
     }
 ```
 
