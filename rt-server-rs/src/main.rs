@@ -11,6 +11,7 @@ use log::{debug, error, info, trace, warn};
 mod config;
 mod connector;
 mod cycle;
+mod event;
 mod manager;
 
 use std::fs;
@@ -18,21 +19,11 @@ use std::io::Write;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
-use rt_message::Message;
-
 use config::{ClientConfig, SchedulerConfig, ServerConfig};
 use connector::ClientConnector;
 use cycle::CycleGenerator;
+use event::Event;
 use manager::{EventManager, ManagerState};
-
-/* -------------------------------------------------------------------------- */
-
-#[derive(Debug, Clone)]
-pub enum Event {
-    Abort,
-    CycleStart(u64),
-    ClientMsg(Message),
-}
 
 /* -------------------------------------------------------------------------- */
 

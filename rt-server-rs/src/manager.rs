@@ -19,8 +19,8 @@ use std::hash::Hash;
 
 use rt_message::{Message, MessageType};
 
-use crate::Event;
 use crate::config::ClientConfig;
+use crate::event::Event;
 use context::ManagerContext;
 use process::ManagerProc;
 use process_exited::ManagerProcExited;

@@ -17,7 +17,7 @@ use std::time;
 
 use rt_message::{MESSAGE_LEN_MAX, Message, MessageType};
 
-use crate::Event;
+use crate::event::Event;
 
 /* -------------------------------------------------------------------------- */
 

@@ -12,7 +12,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::Sender;
 use std::{thread, time};
 
-use crate::Event;
+use crate::event::Event;
 
 /* -------------------------------------------------------------------------- */
 
