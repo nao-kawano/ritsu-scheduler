@@ -94,8 +94,13 @@ fn main() {
 
     // setup cycle generator.
     let tx_cycle = tx.clone();
-    let mut cycle = CycleGenerator::new(config.server_config.cycle_time);
-    cycle.start(tx_cycle);
+    let trigger = Box::new(cycle::interval::IntervalTrigger::new(
+        config.server_config.cycle_time,
+    ));
+    let mut cycle = CycleGenerator::new(trigger);
+    cycle
+        .start(tx_cycle)
+        .expect("Failed to start cycle generator");
 
     // install Ctrl+C handler for shutdown.
     let tx_abort = tx.clone();
