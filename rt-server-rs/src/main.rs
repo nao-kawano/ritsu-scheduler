@@ -114,9 +114,7 @@ fn main() {
     .expect("Error setting Ctrl-C handler");
 
     // receive event from thread.
-    loop {
-        // receive event.
-        let event = rx.recv().unwrap();
+    while let Ok(event) = rx.recv() {
         // process event in manager.
         let result = event_manager.process(event);
         // send response if needed.
