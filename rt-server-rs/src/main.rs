@@ -8,8 +8,8 @@ extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+mod clients;
 mod config;
-mod connector;
 mod cycle;
 mod event;
 mod manager;
@@ -19,8 +19,8 @@ use std::io::Write;
 use std::sync::mpsc;
 use std::sync::mpsc::{Receiver, Sender};
 
+use clients::{ClientConnector, udp::UdpTransport};
 use config::{ClientConfig, SchedulerConfig, ServerConfig};
-use connector::ClientConnector;
 use cycle::CycleGenerator;
 use event::Event;
 use manager::{EventManager, ManagerState};
@@ -89,8 +89,11 @@ fn main() {
 
     // setup client connector.
     let tx_client = tx.clone();
-    let mut client_connector = ClientConnector::new(config.server_config.port);
-    client_connector.start(tx_client);
+    let transport = Box::new(UdpTransport::new(config.server_config.port));
+    let mut client_connector = ClientConnector::new(transport);
+    client_connector
+        .start(tx_client)
+        .expect("Failed to start client connector");
 
     // setup cycle generator.
     let tx_cycle = tx.clone();
@@ -118,7 +121,11 @@ fn main() {
         let result = event_manager.process(event);
         // send response if needed.
         match result {
-            Ok(responses) => client_connector.send_responses(responses),
+            Ok(responses) => {
+                if responses.len() > 0 {
+                    client_connector.send_responses(responses)
+                }
+            }
             Err(e) => warn!("Error while processing, continue: {}", e),
         }
         // check if exit.
