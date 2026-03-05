@@ -16,6 +16,9 @@ These triggers can be time-based cycles or the completion of other processes.
 - Specify cycles using a time-based interval (e.g., 50ms).
   - The scheduler checks which processes should be run at each cycle.
 
+- **NOTE:** This is currently implemented using an interval-based trigger.
+  - The underlying architecture is designed to support various cycle triggers for future extensibility.
+
 ## Client (Process) Configuration
 
 Per client configuration below:

@@ -8,6 +8,7 @@ Schedules user processes considering periodic cycles and process dependencies.
 - **Dependency management**: Flexible scheduling based on process dependencies (single, sequential, parallel).
   - Example: Image processing pipelines using camera frames.
 - **Multi-language support**: Simple messaging protocol for various implementation languages.
+  - Modular transport support (UDP-based by default).
   - This repository includes sample clients for **Rust** and **Python**.
 - **Simulation and Visualization**: Advanced tools for system planning (currently under planning).
 
