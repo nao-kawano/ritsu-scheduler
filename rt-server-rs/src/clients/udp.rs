@@ -120,20 +120,18 @@ impl ClientTransport for UdpTransport {
 
         for msg in msgs {
             let Some(to_addr) = sessions.get(&msg.cid) else {
-                warn!("client is not connected id={}", msg.cid);
+                warn!("client CID:{:03} is not connected, dropped.", msg.cid);
                 continue;
             };
             match msg.to_str() {
                 Ok(udpmsg) => {
                     if let Err(e) = socket.send_to(udpmsg.as_bytes(), to_addr) {
-                        error!("Failed to send to {}: {:?}", to_addr, e);
-                    } else {
-                        trace!("sent response {:?}", msg);
+                        error!("failed to send to {}: {:?}", to_addr, e);
                     }
                 }
                 Err(e) => {
                     error!(
-                        "Failed to serialize message for client {}: {:?}",
+                        "failed to serialize message for CID:{:03}: {:?}",
                         msg.cid, e
                     );
                 }

@@ -57,7 +57,7 @@ impl ClientConnector {
         let stop_flag = Arc::clone(&self.stop_flag);
 
         self.thread_handle = Some(thread::spawn(move || {
-            debug!("receive thread started.");
+            debug!("receive thread started");
             // Initialize transport.
             if let Err(e) = transport.on_start() {
                 error!("failed to start transport: {}", e);
@@ -67,6 +67,10 @@ impl ClientConnector {
             loop {
                 match transport.receive(&stop_flag) {
                     Ok(Some(msg)) => {
+                        trace!(
+                            "<RECV> CID:{:03} MID:{} ({:?})",
+                            msg.cid, msg.mid, msg.mtype
+                        );
                         if let Err(e) = tx_channel.send(Event::ClientMsg(msg)) {
                             error!("failed to send event to manager: {:?}", e);
                             break;
@@ -82,7 +86,7 @@ impl ClientConnector {
             }
             // Cleanup.
             transport.on_shutdown();
-            debug!("receive thread stopped.");
+            debug!("receive thread stopped");
         }));
 
         Ok(())
@@ -103,6 +107,12 @@ impl ClientConnector {
 
     /// Sends responses to clients.
     pub fn send_responses(&self, msgs: Vec<Message>) {
+        for msg in &msgs {
+            trace!(
+                "<SEND> CID:{:03} MID:{} ({:?})",
+                msg.cid, msg.mid, msg.mtype
+            );
+        }
         if let Err(e) = self.transport.send_all(msgs) {
             error!("failed to send responses: {}", e);
         }

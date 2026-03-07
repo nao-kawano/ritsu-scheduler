@@ -79,7 +79,8 @@ fn main() {
             )
         })
         .init();
-    info!("Starting Ritsu server {}", env!("CARGO_PKG_VERSION"));
+    info!("# Starting Ritsu server v{}", env!("CARGO_PKG_VERSION"));
+    info!("----------------------------------------");
 
     // load configuration from file.
     let config = load_config("./config.toml");
@@ -111,7 +112,7 @@ fn main() {
     // install Ctrl+C handler for shutdown.
     let tx_abort = tx.clone();
     ctrlc::set_handler(move || {
-        warn!("Got Ctrl+C");
+        warn!("abort requested");
         tx_abort.send(Event::Abort).unwrap();
     })
     .expect("Error setting Ctrl-C handler");
@@ -127,7 +128,7 @@ fn main() {
                     client_connector.send_responses(responses)
                 }
             }
-            Err(e) => warn!("Error while processing, continue: {}", e),
+            Err(e) => warn!("processing error: {}", e),
         }
         // check if exit.
         if event_manager.get_state() == ManagerState::Exited {
@@ -138,4 +139,7 @@ fn main() {
     // stop thread.
     cycle.stop();
     client_connector.stop();
+
+    info!("----------------------------------------");
+    info!("# Ritsu server stopped, bye!");
 }

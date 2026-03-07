@@ -55,7 +55,7 @@ impl CycleGenerator {
 
         self.thread_handle = Some(thread::spawn(move || {
             let mut cycle_count: u64 = 0;
-            debug!("cycle thread started.");
+            debug!("cycle thread started");
             // Initialize trigger.
             if let Err(e) = trigger.on_start() {
                 error!("failed to start trigger: {}", e);
@@ -70,7 +70,7 @@ impl CycleGenerator {
 
                 // Send event.
                 if let Err(e) = tx_channel.send(Event::CycleStart(cycle_count)) {
-                    error!("failed to send event: {:?}", e);
+                    error!("failed to send event to manager: {:?}", e);
                     break;
                 }
                 cycle_count += 1;
@@ -82,7 +82,7 @@ impl CycleGenerator {
             }
             // Cleanup.
             trigger.on_shutdown();
-            debug!("cycle thread stopped.");
+            debug!("cycle thread stopped");
         }));
 
         Ok(())
