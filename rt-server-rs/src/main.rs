@@ -67,11 +67,14 @@ fn main() {
     unsafe { std::env::set_var("RUST_LOG", "trace") }; // for debugging.
     env_logger::Builder::from_default_env()
         .format(|buf, record| {
+            let target = record.target();
+            let module = target.split("::").last().unwrap_or(target);
             writeln!(
                 buf,
-                "{} [{:5}] {}",
+                "{} [{:5}] {} - {}",
                 chrono::Local::now().format("%Y/%m/%d %H:%M:%S%.6f"),
                 record.level(),
+                module,
                 record.args()
             )
         })
