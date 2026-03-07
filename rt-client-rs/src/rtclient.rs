@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "RtClient";
 
 use rt_message::{MESSAGE_LEN_MAX, Message, MessageType};
 
@@ -100,7 +99,7 @@ impl RtClient {
     /// Returns `true` if the join was successful, `false` otherwise.
     pub fn join(&mut self) -> bool {
         if self.connected {
-            warn!("{}: already joined, skip", LOG_TAG);
+            warn!("already joined, skip");
             return true;
         } else {
             match UdpSocket::bind("0.0.0.0:0") {
@@ -130,7 +129,7 @@ impl RtClient {
     /// Disconnects from the Ritsu server by sending an Exit request.
     pub fn exit(&mut self) {
         if !self.connected {
-            warn!("{}: not connected, skip", LOG_TAG);
+            warn!("not connected, skip");
         } else {
             let _ = self._send_request(
                 MessageType::Exit,
@@ -204,7 +203,7 @@ impl RtClient {
     ) -> MessageType {
         // check socket.
         let Some(sock) = &self.sock else {
-            warn!("{}: invalid socket", LOG_TAG);
+            warn!("invalid socket");
             return MessageType::Error;
         };
         RtClient::_clear_recv_buffer(sock);
@@ -213,7 +212,7 @@ impl RtClient {
         let request: Message =
             Message::new(req_type, self.message_id, self.client_id, None).unwrap();
         let Ok(request_str) = request.to_str() else {
-            warn!("{}: failed to create request for {:?}", LOG_TAG, request);
+            warn!("failed to create request for {:?}", request);
             return MessageType::Error;
         };
         // send request and wait response.
@@ -228,9 +227,9 @@ impl RtClient {
         let mut recv_buf = [0u8; MESSAGE_LEN_MAX];
         for count in 0..=retry_count {
             trace!(
-                "{}: >> send {:?}@{} ({}/{}) with t/o {} sec",
-                LOG_TAG,
+                ">> send {:?} CID:{:03} MID:{} ({}/{}) t/o={}s",
                 req_type,
+                self.client_id,
                 self.message_id,
                 count + 1,
                 1 + retry_count,
@@ -240,27 +239,27 @@ impl RtClient {
                 Ok(_) => {
                     let (response, need_retry) = RtClient::_recv_response(sock, &mut recv_buf);
                     if need_retry {
-                        trace!("{}: -- {:?} timeout, retrying...", LOG_TAG, req_type);
+                        warn!("timeout, retrying... {:?}", req_type);
                         continue; // timeout, retry.
                     }
                     if let Some(response) = response {
                         if response.mid != self.message_id {
                             warn!(
-                                "{}: << !! {:?} mid mismatch, expected {}, actual {}, continue",
-                                LOG_TAG, req_type, self.message_id, response.mid
+                                "<< mid mismatch, expected MID:{}, actual MID:{}, continue",
+                                self.message_id, response.mid
                             );
                             continue; // invalid mid, retry.
                         }
                         trace!(
-                            "{}: << recv {:?} for {:?}",
-                            LOG_TAG, response.mtype, req_type
+                            "<< recv {:?} for {:?} CID:{:03} MID:{}",
+                            response.mtype, req_type, self.client_id, self.message_id
                         );
                         ret_resp_type = response.mtype;
                     }
                     break;
                 }
                 Err(e) => {
-                    warn!("{}: !! Error sending packet {:?} = {}", LOG_TAG, request, e);
+                    warn!("failed to send packet: {}", e);
                     break;
                 }
             }
@@ -282,18 +281,18 @@ impl RtClient {
         recv_buf: &mut [u8; MESSAGE_LEN_MAX],
     ) -> (Option<Message>, bool) {
         match sock.recv_from(recv_buf) {
-            Ok((buf_size, _)) => match str::from_utf8(&recv_buf[..buf_size]) {
+            Ok((buf_size, _)) => match std::str::from_utf8(&recv_buf[..buf_size]) {
                 Ok(recv_msg) => match Message::from_str(recv_msg) {
                     Ok(response) => {
                         return (Some(response), false);
                     }
                     Err(e) => {
-                        warn!("{}: failed to convert response {:?}", LOG_TAG, e);
+                        warn!("failed to convert response {:?}", e);
                         return (None, false);
                     }
                 },
                 Err(e) => {
-                    warn!("{}: invalid UTF-8 {:?}", LOG_TAG, e);
+                    warn!("invalid UTF-8 {:?}", e);
                     return (None, false);
                 }
             },
@@ -301,7 +300,7 @@ impl RtClient {
                 if e.kind() == std::io::ErrorKind::TimedOut {
                     return (None, true);
                 } else {
-                    warn!("{}: failed to receive: {:?}", LOG_TAG, e);
+                    warn!("failed to receive: {:?}", e);
                     return (None, false);
                 }
             }
@@ -316,14 +315,14 @@ impl RtClient {
                 loop {
                     match sock.recv_from(&mut buffer) {
                         Ok((_size, _src)) => {
-                            trace!("{}: drop old recv msg", LOG_TAG);
+                            trace!("drop old recv msg");
                             continue; // keep reading until the buffer is empty.
                         }
                         Err(e) => {
                             if e.kind() == std::io::ErrorKind::WouldBlock {
                                 break; // buffer is empty.
                             } else {
-                                warn!("{}: recv_from error: {:?}", LOG_TAG, e);
+                                warn!("recv_from error: {:?}", e);
                                 break;
                             }
                         }
@@ -332,7 +331,7 @@ impl RtClient {
                 let _ = sock.set_nonblocking(false);
             }
             Err(e) => {
-                warn!("{}: failed to set non-blocking mode: {:?}", LOG_TAG, e);
+                warn!("failed to set non-blocking mode: {:?}", e);
             }
         }
     }

@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "StateExiting";
 
 use rt_message::{Message, MessageType};
 
@@ -23,43 +22,37 @@ mod process_exiting_test;
 pub struct ManagerProcExiting;
 impl ManagerProc for ManagerProcExiting {
     fn enter_state(&self, _context: &mut ManagerContext) {
-        trace!("{}: enter_state", LOG_TAG);
+        trace!("enter_state");
     }
 
     fn on_cycle_start(&self, _context: &mut ManagerContext, _cycle: u64) -> EventResult {
-        trace!("{}: on_cycle_start (nop)", LOG_TAG);
+        trace!("on_cycle_start (nop)");
         Ok(vec![])
     }
 
     fn on_client_join(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!(
-            "{}: on_client_join@{} CID:{:03}",
-            LOG_TAG, message.mid, message.cid
-        );
+        trace!("on_client_join CID:{:03} MID:{}", message.cid, message.mid);
         Err(format!("invalid Join from CID:{:03}", message.cid))
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!(
-            "{}: on_client_ready@{} CID:{:03}",
-            LOG_TAG, message.mid, message.cid
-        );
+        trace!("on_client_ready CID:{:03} MID:{}", message.cid, message.mid);
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state != ClientState::None {
-                info!(
-                    "{}: send error to client CID:{:03} for ready",
-                    LOG_TAG, message.cid
+                debug!(
+                    "CYC:{:05} CID:{:03} MID:{} send error for READY (Exiting)",
+                    context.cycle_current, message.cid, message.mid
                 );
-                client.set_client_state(ClientState::Exiting);
+                client.set_client_state(ClientState::Exiting, context.cycle_current);
                 responses.push(
                     Message::new(MessageType::Error, client.last_mid, message.cid, None).unwrap(),
                 );
             } else {
                 warn!(
-                    "{}: client CID:{:03} is disconnected, dropped.",
-                    LOG_TAG, message.cid
+                    "CYC:{:05} CID:{:03} MID:{} is disconnected, dropped READY.",
+                    context.cycle_current, message.cid, message.mid
                 );
             }
         }
@@ -67,26 +60,26 @@ impl ManagerProc for ManagerProcExiting {
     }
 
     fn on_client_done(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        warn!(
-            "{}: on_client_done@{} CID:{:03} (nop)",
-            LOG_TAG, message.mid, message.cid
+        trace!(
+            "on_client_done CID:{:03} MID:{} (no-op)",
+            message.cid, message.mid
         );
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state != ClientState::None {
-                info!(
-                    "{}: send error to client CID:{:03} for done",
-                    LOG_TAG, message.cid
+                debug!(
+                    "CYC:{:05} CID:{:03} MID:{} send error for DONE (Exiting)",
+                    context.cycle_current, message.cid, message.mid
                 );
-                client.set_client_state(ClientState::Exiting);
+                client.set_client_state(ClientState::Exiting, context.cycle_current);
                 responses.push(
                     Message::new(MessageType::Error, client.last_mid, message.cid, None).unwrap(),
                 );
             } else {
                 warn!(
-                    "{}: client CID:{:03} is disconnected, dropped.",
-                    LOG_TAG, message.cid
+                    "CYC:{:05} CID:{:03} MID:{} is disconnected, dropped DONE.",
+                    context.cycle_current, message.cid, message.mid
                 );
             }
         }
@@ -94,24 +87,35 @@ impl ManagerProc for ManagerProcExiting {
     }
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!(
-            "{}: on_client_exit@{} CID:{:03}",
-            LOG_TAG, message.mid, message.cid
-        );
+        trace!("on_client_exit CID:{:03} MID:{}", message.cid, message.mid);
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
             match client.state {
                 ClientState::None => {
                     // maybe retransmission.
-                    warn!("{}: client CID:{:03} retransmit exit", LOG_TAG, message.cid);
+                    warn!(
+                        "<STAT> CYC:{:05} CID:{:03} MID:{} {:?} -> {:?} (Retransmit)",
+                        context.cycle_current,
+                        message.cid,
+                        message.mid,
+                        client.state,
+                        ClientState::None
+                    );
                     responses.push(
                         Message::new(MessageType::Ok, client.last_mid, message.cid, None).unwrap(),
                     );
                 }
                 ClientState::Exiting => {
-                    info!("{}: client CID:{:03} is exit", LOG_TAG, message.cid);
-                    client.set_client_state(ClientState::None);
+                    info!(
+                        "<STAT> CYC:{:05} CID:{:03} MID:{} {:?} -> {:?}",
+                        context.cycle_current,
+                        message.cid,
+                        message.mid,
+                        client.state,
+                        ClientState::None
+                    );
+                    client.set_client_state(ClientState::None, context.cycle_current);
                     context.num_active_clients -= 1;
                     responses.push(
                         Message::new(MessageType::Ok, client.last_mid, message.cid, None).unwrap(),
@@ -119,22 +123,22 @@ impl ManagerProc for ManagerProcExiting {
                 }
                 _ => {
                     warn!(
-                        "{}: client CID:{:03} is not in Exiting, dropped.",
-                        LOG_TAG, message.cid
+                        "CYC:{:05} CID:{:03} MID:{} is not in Exiting, dropped EXIT.",
+                        context.cycle_current, message.cid, message.mid
                     );
                 }
             }
         }
         // check if all clients are ready.
         if context.num_active_clients == 0 {
-            info!("{}: all client is exit, go to exited", LOG_TAG);
+            info!("all client is exit, go to exited");
             context.set_state(ManagerState::Exited);
         }
         Ok(responses)
     }
 
     fn on_shutdown(&self, _context: &mut ManagerContext) -> EventResult {
-        trace!("{}: on_shutdown", LOG_TAG);
+        trace!("on_shutdown");
         // keep going.
         Ok(vec![])
     }

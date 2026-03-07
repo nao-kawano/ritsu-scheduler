@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "ManagerContext";
 
 use std::collections::HashMap;
 
@@ -50,10 +49,10 @@ impl ClientInfo {
     }
 
     /// Set the state of the client.
-    pub fn set_client_state(&mut self, state: ClientState) -> bool {
+    pub fn set_client_state(&mut self, state: ClientState, cycle: u32) -> bool {
         info!(
-            "{}: [STAT] CID:{:03} {:?} -> {:?}",
-            LOG_TAG, self.config.client_id, self.state, state
+            "<STAT> CYC:{:05} CID:{:03} [Conn] {:?} -> {:?}",
+            cycle, self.config.client_id, self.state, state
         );
         self.state = state;
         return true; /* always ok */
@@ -99,15 +98,15 @@ impl ManagerContext {
                     // All specified processes must have the same Cycle.
                     if depend_client.config.cycle != client.config.cycle {
                         panic!(
-                            "{}: ClientConfig {:03} dependent process {:03} has different cycle",
-                            LOG_TAG, client.config.client_id, depend
+                            "ClientConfig {:03} dependent process {:03} has different cycle",
+                            client.config.client_id, depend
                         );
                     }
                     // All specified processes must have same or smaller CycleOffset.
                     if depend_client.config.cycle_offset > client.config.cycle_offset {
                         panic!(
-                            "{}: ClientConfig {:03} dependent process {:03} has larger cycle_offset",
-                            LOG_TAG, client.config.client_id, depend
+                            "ClientConfig {:03} dependent process {:03} has larger cycle_offset",
+                            client.config.client_id, depend
                         );
                     }
                     // If the dependent process has the same cycle and cycle offset,
@@ -117,8 +116,8 @@ impl ManagerContext {
                     }
                 } else {
                     panic!(
-                        "{}: ClientConfig {:03} dependent process {:03} does not exist",
-                        LOG_TAG, client.config.client_id, depend
+                        "ClientConfig {:03} dependent process {:03} does not exist",
+                        client.config.client_id, depend
                     );
                 }
             }
@@ -146,8 +145,8 @@ impl ManagerContext {
 
     pub fn set_state(&mut self, state: ManagerState) -> bool {
         info!(
-            "{}: [STAT] Manager {:?} -> {:?}",
-            LOG_TAG, self.state, state
+            "<STAT> CYC:{:05} [Manager] {:?} -> {:?}",
+            self.cycle_current, self.state, state
         );
         if self.state != state {
             self.state = state;

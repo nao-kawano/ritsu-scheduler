@@ -217,21 +217,21 @@ class RtClient:
         packet: bytes = self._create_packet(req_type)
         self.sock.settimeout(timeout_sec)
         for count in range(1 + retry_count):
-            log(f">> send {req_type.value}@{self.message_id} ({count+1}/{1+retry_count}) with t/o {timeout_sec} sec")
+            log(f">> send {req_type.value} CID:{self.client_id:03d} MID:{self.message_id} ({count+1}/{1+retry_count}) t/o={timeout_sec}s")
             self.sock.sendto(packet, (self.host, self.port))
             try:
                 data, _ = self.sock.recvfrom(self.config.PACKET_SIZE)
                 resp_type, resp_id = self._parse_packet(data)
                 if resp_id != self.message_id:
-                    log(f"<< !! {req_type.value} mid mismatch, expected {self.message_id}, actual {resp_id}, continue")
+                    log(f"<< mid mismatch, expected MID:{self.message_id}, actual MID:{resp_id}, continue")
                     continue
-                log(f"<< recv {resp_type.value} for {req_type.value}")
+                log(f"<< recv {resp_type.value} for {req_type.value} CID:{self.client_id:03d} MID:{self.message_id}")
                 ret_resp_type = resp_type
                 break
             except socket.timeout:
-                log(f"-- {req_type.value} timeout, retrying...")
+                log(f"timeout, retrying... {req_type.value}")
             except Exception as e:
-                log(f"!! Error in receive for {req_type.value}: {e}")
+                log(f"failed to receive for {req_type.value}: {e}")
                 break
         return ret_resp_type
 
@@ -329,14 +329,14 @@ if __name__ == '__main__':
 
     joined: bool = client.join()
     if not joined:
-        log(f"## failed to joine, exit")
+        log(f"failed to join, exit")
         sys.exit(-1)
 
-    log(f"## client joined")
+    log(f"client joined")
     while True:
         try:
             resp_type: ResponseType = client.wait_next()
-            log(f"## start count={proc_count}")
+            log(f"start count={proc_count}")
             if resp_type == ResponseType.OK:
                 log(f"got OK, do some process with {args.proc_time_sec} sec ...")
                 # some process here.
@@ -356,10 +356,10 @@ if __name__ == '__main__':
             # logic for a sample program.
             proc_count += 1
             if proc_count >= PROC_COUNT_MAX:
-                log("## completed, goint to exit")
+                log("completed, going to exit")
                 break
         except KeyboardInterrupt:
-            log("## abort, goint to exit")
+            log("abort, going to exit")
             break
     client.exit()
 

@@ -67,16 +67,20 @@ fn main() {
     unsafe { std::env::set_var("RUST_LOG", "trace") }; // for debugging.
     env_logger::Builder::from_default_env()
         .format(|buf, record| {
+            let target = record.target();
+            let module = target.split("::").last().unwrap_or(target);
             writeln!(
                 buf,
-                "{} [{:5}] {}",
+                "{} [{:5}] {} - {}",
                 chrono::Local::now().format("%Y/%m/%d %H:%M:%S%.6f"),
                 record.level(),
+                module,
                 record.args()
             )
         })
         .init();
-    info!("Starting Ritsu server {}", env!("CARGO_PKG_VERSION"));
+    info!("# Starting Ritsu server v{}", env!("CARGO_PKG_VERSION"));
+    info!("----------------------------------------");
 
     // load configuration from file.
     let config = load_config("./config.toml");
@@ -108,7 +112,7 @@ fn main() {
     // install Ctrl+C handler for shutdown.
     let tx_abort = tx.clone();
     ctrlc::set_handler(move || {
-        warn!("Got Ctrl+C");
+        warn!("abort requested");
         tx_abort.send(Event::Abort).unwrap();
     })
     .expect("Error setting Ctrl-C handler");
@@ -124,7 +128,7 @@ fn main() {
                     client_connector.send_responses(responses)
                 }
             }
-            Err(e) => warn!("Error while processing, continue: {}", e),
+            Err(e) => warn!("processing error: {}", e),
         }
         // check if exit.
         if event_manager.get_state() == ManagerState::Exited {
@@ -135,4 +139,7 @@ fn main() {
     // stop thread.
     cycle.stop();
     client_connector.stop();
+
+    info!("----------------------------------------");
+    info!("# Ritsu server stopped, bye!");
 }

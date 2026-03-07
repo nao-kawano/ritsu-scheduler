@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "ProcessEntry";
 
 use std::collections::HashMap;
 
@@ -102,15 +101,12 @@ impl ProcessEntry {
             },
         };
         if ok_to_change {
-            debug!(
-                "{}: [STAT] CID:{:03} {:?} -> {:?}",
-                LOG_TAG, self.cid, self.state, new_state
-            );
+            trace!("CID:{:03} {:?} -> {:?}", self.cid, self.state, new_state);
             self.state = new_state;
         } else {
             warn!(
-                "{}: CID:{:03} state change failed {:?} -> {:?}",
-                LOG_TAG, self.cid, self.state, new_state
+                "CID:{:03} state change failed {:?} -> {:?}",
+                self.cid, self.state, new_state
             );
         }
         return ok_to_change;
@@ -131,16 +127,10 @@ impl ProcessEntry {
     pub(crate) fn mark_dependency_complete(&mut self, cid: u16) -> bool {
         if let Some(depend_value) = self.dependency_statuses.get_mut(&cid) {
             if *depend_value {
-                warn!(
-                    "{}: CID:{:03} deps already completed CID:{:03}",
-                    LOG_TAG, self.cid, cid
-                );
+                warn!("CID:{:03} deps already completed CID:{:03}", self.cid, cid);
                 return false;
             } else {
-                trace!(
-                    "{}: CID:{:03} deps complete CID:{:03}",
-                    LOG_TAG, self.cid, cid
-                );
+                trace!("CID:{:03} deps complete CID:{:03}", self.cid, cid);
                 *depend_value = true;
                 return true;
             }
@@ -151,7 +141,7 @@ impl ProcessEntry {
 
     /// Clear the dependency status.
     pub(crate) fn reset_dependency_statuses(&mut self) {
-        trace!("{}: CID:{:03} deps reset", LOG_TAG, self.cid);
+        trace!("CID:{:03} deps reset", self.cid);
         for depend_value in self.dependency_statuses.values_mut() {
             *depend_value = false;
         }

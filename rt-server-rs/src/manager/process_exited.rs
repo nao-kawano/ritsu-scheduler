@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "StateExited";
 
 use rt_message::{Message, MessageType};
 
@@ -22,7 +21,7 @@ mod process_exited_test;
 pub struct ManagerProcExited;
 impl ManagerProc for ManagerProcExited {
     fn enter_state(&self, _context: &mut ManagerContext) {
-        trace!("{}: enter_state", LOG_TAG);
+        trace!("enter_state");
     }
 
     fn on_cycle_start(&self, _context: &mut ManagerContext, _cycle: u64) -> EventResult {
@@ -41,8 +40,11 @@ impl ManagerProc for ManagerProcExited {
         return Err(format!("already exited, drop {:?}", message));
     }
 
-    fn on_client_exit(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        warn!("{}: client {:03} retransmit exit", LOG_TAG, message.cid);
+    fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
+        warn!(
+            "<STAT> CYC:{:05} CID:{:03} MID:{} None -> None (Retransmit)",
+            context.cycle_current, message.cid, message.mid
+        );
         return Ok(vec![
             Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap(),
         ]);

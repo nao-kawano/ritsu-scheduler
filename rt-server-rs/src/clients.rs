@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "ClientConnector";
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -52,30 +51,34 @@ impl ClientConnector {
 
     /// Starts the receiver thread.
     pub fn start(&mut self, tx_channel: Sender<Event>) -> Result<(), String> {
-        info!("{}: starting", LOG_TAG);
+        info!("starting");
 
         let transport = Arc::clone(&self.transport);
         let stop_flag = Arc::clone(&self.stop_flag);
 
         self.thread_handle = Some(thread::spawn(move || {
-            debug!("{}: receive thread started.", LOG_TAG);
+            debug!("receive thread started");
             // Initialize transport.
             if let Err(e) = transport.on_start() {
-                error!("{}: failed to start transport: {}", LOG_TAG, e);
+                error!("failed to start transport: {}", e);
                 return;
             }
             // Receive loop.
             loop {
                 match transport.receive(&stop_flag) {
                     Ok(Some(msg)) => {
+                        trace!(
+                            "<RECV> CID:{:03} MID:{} ({:?})",
+                            msg.cid, msg.mid, msg.mtype
+                        );
                         if let Err(e) = tx_channel.send(Event::ClientMsg(msg)) {
-                            error!("{}: failed to send event to manager: {:?}", LOG_TAG, e);
+                            error!("failed to send event to manager: {:?}", e);
                             break;
                         }
                     }
                     Ok(None) => break, // Stop request detected.
                     Err(e) => {
-                        error!("{}: receive error: {}", LOG_TAG, e);
+                        error!("receive error: {}", e);
                         // TODO: handle error/reconnect.
                         break;
                     }
@@ -83,7 +86,7 @@ impl ClientConnector {
             }
             // Cleanup.
             transport.on_shutdown();
-            debug!("{}: receive thread stopped.", LOG_TAG);
+            debug!("receive thread stopped");
         }));
 
         Ok(())
@@ -92,20 +95,26 @@ impl ClientConnector {
     /// Stops the receiver thread.
     pub fn stop(&mut self) {
         if let Some(handle) = self.thread_handle.take() {
-            info!("{}: stop requested", LOG_TAG);
+            info!("stop requested");
             self.stop_flag.store(true, Ordering::Relaxed);
             handle.join().unwrap();
-            info!("{}: stopped", LOG_TAG);
+            info!("stopped");
             self.stop_flag.store(false, Ordering::Relaxed);
         } else {
-            warn!("{}: not started", LOG_TAG);
+            warn!("not started");
         }
     }
 
     /// Sends responses to clients.
     pub fn send_responses(&self, msgs: Vec<Message>) {
+        for msg in &msgs {
+            trace!(
+                "<SEND> CID:{:03} MID:{} ({:?})",
+                msg.cid, msg.mid, msg.mtype
+            );
+        }
         if let Err(e) = self.transport.send_all(msgs) {
-            error!("{}: failed to send responses: {}", LOG_TAG, e);
+            error!("failed to send responses: {}", e);
         }
     }
 }

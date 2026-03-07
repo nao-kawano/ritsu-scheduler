@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "UdpTransport";
 
 use std::collections::HashMap;
 use std::net::{SocketAddr, UdpSocket};
@@ -49,7 +48,7 @@ impl UdpTransport {
 
 impl ClientTransport for UdpTransport {
     fn on_start(&self) -> Result<(), String> {
-        info!("{}: on_start port={}", LOG_TAG, self.port);
+        info!("on_start port={}", self.port);
         self.sessions.lock().unwrap().clear();
 
         // Create socket.
@@ -67,7 +66,7 @@ impl ClientTransport for UdpTransport {
     }
 
     fn on_shutdown(&self) {
-        info!("{}: on_shutdown", LOG_TAG);
+        info!("on_shutdown");
         // Clearing sockets will release OS resources.
         *(self.rx_socket.lock().unwrap()) = None;
         *(self.tx_socket.lock().unwrap()) = None;
@@ -98,7 +97,7 @@ impl ClientTransport for UdpTransport {
                             return Ok(Some(msg));
                         }
                         Err(e) => {
-                            warn!("{}: invalid UTF-8 from {}, {:?}", LOG_TAG, src_addr, e);
+                            warn!("invalid UTF-8 from {}, {:?}", src_addr, e);
                             continue;
                         }
                     }
@@ -121,21 +120,19 @@ impl ClientTransport for UdpTransport {
 
         for msg in msgs {
             let Some(to_addr) = sessions.get(&msg.cid) else {
-                warn!("{}: client is not connected id={}", LOG_TAG, msg.cid);
+                warn!("client CID:{:03} is not connected, dropped.", msg.cid);
                 continue;
             };
             match msg.to_str() {
                 Ok(udpmsg) => {
                     if let Err(e) = socket.send_to(udpmsg.as_bytes(), to_addr) {
-                        error!("{}: Failed to send to {}: {:?}", LOG_TAG, to_addr, e);
-                    } else {
-                        trace!("{}: sent response {:?}", LOG_TAG, msg);
+                        error!("failed to send to {}: {:?}", to_addr, e);
                     }
                 }
                 Err(e) => {
                     error!(
-                        "{}: Failed to serialize message for client {}: {:?}",
-                        LOG_TAG, msg.cid, e
+                        "failed to serialize message for CID:{:03}: {:?}",
+                        msg.cid, e
                     );
                 }
             }
