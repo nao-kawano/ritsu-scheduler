@@ -227,8 +227,9 @@ impl RtClient {
         let mut recv_buf = [0u8; MESSAGE_LEN_MAX];
         for count in 0..=retry_count {
             trace!(
-                ">> send {:?}@{} ({}/{}) with t/o {} sec",
+                ">> send {:?} CID:{:03} MID:{} ({}/{}) t/o={}s",
                 req_type,
+                self.client_id,
                 self.message_id,
                 count + 1,
                 1 + retry_count,
@@ -238,24 +239,27 @@ impl RtClient {
                 Ok(_) => {
                     let (response, need_retry) = RtClient::_recv_response(sock, &mut recv_buf);
                     if need_retry {
-                        trace!("-- {:?} timeout, retrying...", req_type);
+                        warn!("timeout, retrying... {:?}", req_type);
                         continue; // timeout, retry.
                     }
                     if let Some(response) = response {
                         if response.mid != self.message_id {
                             warn!(
-                                "<< !! {:?} mid mismatch, expected {}, actual {}, continue",
-                                req_type, self.message_id, response.mid
+                                "<< mid mismatch, expected MID:{}, actual MID:{}, continue",
+                                self.message_id, response.mid
                             );
                             continue; // invalid mid, retry.
                         }
-                        trace!("<< recv {:?} for {:?}", response.mtype, req_type);
+                        trace!(
+                            "<< recv {:?} for {:?} CID:{:03} MID:{}",
+                            response.mtype, req_type, self.client_id, self.message_id
+                        );
                         ret_resp_type = response.mtype;
                     }
                     break;
                 }
                 Err(e) => {
-                    warn!("!! Error sending packet {:?} = {}", request, e);
+                    warn!("failed to send packet: {}", e);
                     break;
                 }
             }
