@@ -40,8 +40,11 @@ impl ManagerProc for ManagerProcExited {
         return Err(format!("already exited, drop {:?}", message));
     }
 
-    fn on_client_exit(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        warn!("client {:03} retransmit exit", message.cid);
+    fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
+        warn!(
+            "<STAT> CYC:{:05} CID:{:03} MID:{} None -> None (Retransmit)",
+            context.cycle_current, message.cid, message.mid
+        );
         return Ok(vec![
             Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap(),
         ]);

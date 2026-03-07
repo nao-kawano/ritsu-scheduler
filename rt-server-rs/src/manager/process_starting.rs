@@ -32,14 +32,17 @@ impl ManagerProc for ManagerProcStarting {
     }
 
     fn on_client_join(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("on_client_join@{} CID:{:03}", message.mid, message.cid);
+        trace!("on_client_join CID:{:03} MID:{}", message.cid, message.mid);
         let mut responses: Vec<Message> = Vec::new();
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
             match client.state {
                 ClientState::None => {
-                    debug!("client CID:{:03} is joined", message.cid);
-                    client.set_client_state(ClientState::Sync);
+                    info!(
+                        "<STAT> CYC:{:05} CID:{:03} MID:{} JOIN",
+                        context.cycle_current, message.cid, message.mid
+                    );
+                    client.set_client_state(ClientState::Sync, context.cycle_current);
                     context.num_active_clients += 1;
                     responses.push(
                         Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap(),
@@ -47,13 +50,19 @@ impl ManagerProc for ManagerProcStarting {
                 }
                 ClientState::Sync => {
                     // maybe retransmission, send OK.
-                    warn!("client CID:{:03} retransmit join", message.cid);
+                    warn!(
+                        "<STAT> CYC:{:05} CID:{:03} MID:{} JOIN (Retransmit)",
+                        context.cycle_current, message.cid, message.mid
+                    );
                     responses.push(
                         Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap(),
                     );
                 }
                 _ => {
-                    warn!("client CID:{:03} is already joined, dropped.", message.cid);
+                    warn!(
+                        "CYC:{:05} CID:{:03} MID:{} is already joined, dropped.",
+                        context.cycle_current, message.cid, message.mid
+                    );
                 }
             }
         }
@@ -61,26 +70,43 @@ impl ManagerProc for ManagerProcStarting {
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("on_client_ready@{} CID:{:03}", message.mid, message.cid);
+        trace!("on_client_ready CID:{:03} MID:{}", message.cid, message.mid);
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
             match client.state {
                 ClientState::Sync => {
-                    debug!("client CID:{:03} is ready", message.cid);
-                    client.set_client_state(ClientState::Active);
+                    client.set_client_state(ClientState::Active, context.cycle_current);
                     // holding response for waiting others and trigger.
                     // update graph.
                     let r = context.sched.on_ready(message.cid);
-                    if let Err(e) = r {
-                        return Err(e);
+                    match r {
+                        Ok(changes) => {
+                            for change in changes {
+                                debug!(
+                                    "<STAT> CYC:{:05} CID:{:03} MID:{} {:?} -> {:?}",
+                                    context.cycle_current,
+                                    change.cid,
+                                    message.mid,
+                                    change.before,
+                                    change.after
+                                );
+                            }
+                        }
+                        Err(e) => return Err(e),
                     }
                 }
                 ClientState::Active => {
                     // maybe retransmission, keep waiting others.
-                    debug!("client CID:{:03} retransmit ready", message.cid);
+                    debug!(
+                        "<STAT> CYC:{:05} CID:{:03} MID:{} READY (Retransmit)",
+                        context.cycle_current, message.cid, message.mid
+                    );
                 }
                 _ => {
-                    warn!("client CID:{:03} is not in Idle, dropped.", message.cid);
+                    warn!(
+                        "CYC:{:05} CID:{:03} MID:{} is not in Sync, dropped.",
+                        context.cycle_current, message.cid, message.mid
+                    );
                 }
             }
         }
@@ -99,15 +125,15 @@ impl ManagerProc for ManagerProcStarting {
     }
 
     fn on_client_done(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
-        warn!(
-            "on_client_done@{} CID:{:03} (nop)",
-            message.mid, message.cid
+        trace!(
+            "on_client_done CID:{:03} MID:{} (no-op)",
+            message.cid, message.mid
         );
         Ok(vec![])
     }
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
-        trace!("on_client_exit@{} CID:{:03}", message.mid, message.cid);
+        trace!("on_client_exit CID:{:03} MID:{}", message.cid, message.mid);
         return self.handle_client_exit(context, message);
     }
 

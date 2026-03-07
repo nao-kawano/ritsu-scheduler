@@ -101,10 +101,7 @@ impl ProcessEntry {
             },
         };
         if ok_to_change {
-            debug!(
-                "[STAT] CID:{:03} {:?} -> {:?}",
-                self.cid, self.state, new_state
-            );
+            trace!("CID:{:03} {:?} -> {:?}", self.cid, self.state, new_state);
             self.state = new_state;
         } else {
             warn!(
