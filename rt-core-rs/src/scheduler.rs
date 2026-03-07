@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "Scheduler";
 
 use std::collections::{HashMap, HashSet};
 
@@ -64,14 +63,14 @@ impl Scheduler {
     }
 
     pub fn reset_state(&mut self) {
-        trace!("{}: reset process state", LOG_TAG);
+        trace!("reset process state");
         for entry in self.entries.values_mut() {
             entry.reset(); // all process set to Idle.
         }
     }
 
     pub fn on_start(&mut self, cid: u16) -> Result<Vec<ProcessStateChange>, String> {
-        trace!("{}: update CID:{:03} by start", LOG_TAG, cid);
+        trace!("update CID:{:03} by start", cid);
         if !self.graph_start.contains(&cid) {
             return Err(format!("process CID:{:03} does not exist", cid));
         }
@@ -80,10 +79,7 @@ impl Scheduler {
         // if target cid has dependency, check at next root cycle.
         if let Some(entry) = self.entries.get(&cid) {
             if !entry.is_dependency_met() {
-                debug!(
-                    "{}: CID:{:03} has dependency unmet, skip start",
-                    LOG_TAG, cid
-                );
+                debug!("CID:{:03} has dependency unmet, skip start", cid);
                 return Ok(vec![]);
             }
         }
@@ -203,7 +199,7 @@ impl Scheduler {
     }
 
     pub fn on_ready(&mut self, cid: u16) -> Result<Vec<ProcessStateChange>, String> {
-        trace!("{}: update CID:{:03} by ready", LOG_TAG, cid);
+        trace!("update CID:{:03} by ready", cid);
         if !self.entries.contains_key(&cid) {
             return Err(format!("process CID:{:03} does not exist", cid));
         }
@@ -231,8 +227,8 @@ impl Scheduler {
                 ProcessState::Overrun => {
                     // cannot transition to Ready directly.
                     warn!(
-                        "{}: ignore ready for process CID:{:03} in {:?}",
-                        LOG_TAG, entry.cid, entry.state
+                        "ignore ready for process CID:{:03} in {:?}",
+                        entry.cid, entry.state
                     );
                 }
                 ProcessState::Late => {
@@ -251,7 +247,7 @@ impl Scheduler {
     }
 
     pub fn on_done(&mut self, cid: u16) -> Result<Vec<ProcessStateChange>, String> {
-        trace!("{}: update CID:{:03} by done", LOG_TAG, cid);
+        trace!("update CID:{:03} by done", cid);
         if !self.entries.contains_key(&cid) {
             return Err(format!("process CID:{:03} does not exist", cid));
         }
@@ -287,8 +283,8 @@ impl Scheduler {
                 }
                 ProcessState::Ready | ProcessState::Skip => {
                     warn!(
-                        "{}: ignore done for process CID:{:03} in {:?}",
-                        LOG_TAG, entry.cid, entry.state
+                        "ignore done for process CID:{:03} in {:?}",
+                        entry.cid, entry.state
                     );
                 }
             };
@@ -298,14 +294,14 @@ impl Scheduler {
         if !skipped && changes.len() > 0 {
             if let Some(afters) = self.graph_forward.get(&cid).cloned() {
                 // update depends first.
-                trace!("{}: update after processes for CID:{:03}", LOG_TAG, cid);
+                trace!("update after processes for CID:{:03}", cid);
                 for cid_after in &afters {
                     if let Some(entry) = self.entries.get_mut(cid_after) {
                         let _ = entry.mark_dependency_complete(cid);
                     }
                 }
                 // start.
-                trace!("{}: start after processes for CID:{:03}", LOG_TAG, cid);
+                trace!("start after processes for CID:{:03}", cid);
                 for cid_after in &afters {
                     if let Some(entry) = self.entries.get_mut(cid_after) {
                         if !entry.is_dependency_met() {
@@ -313,12 +309,12 @@ impl Scheduler {
                         } else {
                             if !entry.is_floating {
                                 trace!(
-                                    "{}: dependency met, waiting for next cycle CID:{:03}",
-                                    LOG_TAG, cid_after
+                                    "dependency met, waiting for next cycle CID:{:03}",
+                                    cid_after
                                 );
                             } else {
                                 // dependency met, start.
-                                trace!("{}: starting CID:{:03}", LOG_TAG, *cid_after);
+                                trace!("starting CID:{:03}", *cid_after);
                                 let mut change: ProcessStateChange =
                                     ProcessStateChange::new(&entry);
                                 if entry.set_state(ProcessState::Running) {

@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "StateCommon";
 
 use rt_message::{Message, MessageType};
 
@@ -40,8 +39,8 @@ pub trait ManagerProc {
         };
         if client.state == ClientState::None {
             warn!(
-                "{}: client {:03} is already disconnected, maybe retransmission.",
-                LOG_TAG, message.cid
+                "client {:03} is already disconnected, maybe retransmission.",
+                message.cid
             );
             return Ok(vec![
                 Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap(),
@@ -74,12 +73,12 @@ pub trait ManagerProc {
 
     fn going_to_exit(&self, context: &mut ManagerContext, responses: &mut Vec<Message>) {
         if context.num_active_clients == 0 {
-            info!("{}: no clients connected, go to exited", LOG_TAG);
+            info!("no clients connected, go to exited");
             context.set_state(ManagerState::Exited);
         } else {
             info!(
-                "{}: {} clients connected, go to exiting",
-                LOG_TAG, context.num_active_clients
+                "{} clients connected, go to exiting",
+                context.num_active_clients
             );
             let ready_clients: Vec<u16> = context.sched.get_ready_processes();
             for ready_client in ready_clients {

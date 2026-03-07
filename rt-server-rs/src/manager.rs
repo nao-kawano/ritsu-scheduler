@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "EventManager";
 
 mod context;
 mod process;
@@ -70,7 +69,7 @@ impl EventManager {
     }
 
     pub fn process(&mut self, event: Event) -> EventResult {
-        trace!("{}: process {:?}", LOG_TAG, event);
+        trace!("process {:?}", event);
         // get current processor.
         let Some(proc) = self.procs.get(&self.context.state) else {
             return Err(format!("state not found for {:?}", &self.context.state));

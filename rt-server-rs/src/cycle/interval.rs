@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "IntervalTrigger";
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -25,12 +24,12 @@ impl IntervalTrigger {
 
 impl CycleTrigger for IntervalTrigger {
     fn on_start(&self) -> Result<(), String> {
-        info!("{}: on_start cycle={}ms", LOG_TAG, self.cycle_ms);
+        info!("on_start cycle={}ms", self.cycle_ms);
         Ok(())
     }
 
     fn on_shutdown(&self) {
-        info!("{}: on_shutdown", LOG_TAG);
+        info!("on_shutdown");
     }
 
     fn wait_next_cycle(&self, stop_flag: &Arc<AtomicBool>) -> bool {

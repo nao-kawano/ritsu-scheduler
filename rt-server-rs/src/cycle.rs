@@ -5,7 +5,6 @@
 extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
-const LOG_TAG: &str = "CycleGen";
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -49,17 +48,17 @@ impl CycleGenerator {
 
     /// Starts the cycle generator thread.
     pub fn start(&mut self, tx_channel: Sender<Event>) -> Result<(), String> {
-        info!("{}: starting", LOG_TAG);
+        info!("starting");
 
         let trigger = Arc::clone(&self.trigger);
         let stop_flag = Arc::clone(&self.stop_flag);
 
         self.thread_handle = Some(thread::spawn(move || {
             let mut cycle_count: u64 = 0;
-            debug!("{}: cycle thread started.", LOG_TAG);
+            debug!("cycle thread started.");
             // Initialize trigger.
             if let Err(e) = trigger.on_start() {
-                error!("{}: failed to start trigger: {}", LOG_TAG, e);
+                error!("failed to start trigger: {}", e);
                 return;
             }
             //
@@ -71,7 +70,7 @@ impl CycleGenerator {
 
                 // Send event.
                 if let Err(e) = tx_channel.send(Event::CycleStart(cycle_count)) {
-                    error!("{}: failed to send event: {:?}", LOG_TAG, e);
+                    error!("failed to send event: {:?}", e);
                     break;
                 }
                 cycle_count += 1;
@@ -83,7 +82,7 @@ impl CycleGenerator {
             }
             // Cleanup.
             trigger.on_shutdown();
-            debug!("{}: cycle thread stopped.", LOG_TAG);
+            debug!("cycle thread stopped.");
         }));
 
         Ok(())
@@ -92,13 +91,13 @@ impl CycleGenerator {
     /// Stops the cycle generator thread.
     pub fn stop(&mut self) {
         if let Some(h) = self.thread_handle.take() {
-            info!("{}: stop requested", LOG_TAG);
+            info!("stop requested");
             self.stop_flag.store(true, Ordering::Relaxed);
             h.join().unwrap();
-            info!("{}: stopped", LOG_TAG);
+            info!("stopped");
             self.stop_flag.store(false, Ordering::Relaxed);
         } else {
-            warn!("{}: not started", LOG_TAG);
+            warn!("not started");
         }
     }
 }
