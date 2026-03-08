@@ -105,6 +105,11 @@ impl ClientTransport for UdpTransport {
                 Err(e) => {
                     if e.kind() == std::io::ErrorKind::TimedOut {
                         continue;
+                    } else if e.kind() == std::io::ErrorKind::ConnectionReset {
+                        // On Windows, recv_from may return ConnectionReset if a previous send_to
+                        // failed with Port Unreachable. We should ignore this and continue.
+                        warn!("receive error (ignored): {:?}", e);
+                        continue;
                     } else {
                         return Err(format!("failed to read: {:?}", e));
                     }
