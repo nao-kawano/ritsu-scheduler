@@ -8,6 +8,7 @@ struct MockResponse {
     response: Message,
     delay_sec: f64,
     auto_id: bool,
+    immediate_followup: bool,
 }
 
 impl MockResponse {
@@ -16,6 +17,7 @@ impl MockResponse {
             response: Message::new(mtype, 0, 0, None).unwrap(),
             delay_sec,
             auto_id: true,
+            immediate_followup: false,
         }
     }
 
@@ -24,6 +26,16 @@ impl MockResponse {
             response: Message::new(mtype, mid, cid, None).unwrap(),
             delay_sec,
             auto_id: false,
+            immediate_followup: false,
+        }
+    }
+
+    fn new_with_id_followup(mtype: MessageType, mid: u8, cid: u16, delay_sec: f64) -> Self {
+        MockResponse {
+            response: Message::new(mtype, mid, cid, None).unwrap(),
+            delay_sec,
+            auto_id: false,
+            immediate_followup: true,
         }
     }
 }
@@ -57,8 +69,9 @@ fn start_mock_server(
     let handle = thread::spawn(move || {
         println!("MockServer started with {} response", responses.len());
         let mut buf = [0u8; MESSAGE_LEN_MAX];
+        let mut seq = 0;
         // send response based on pre-defined params.
-        for seq in 0..responses.len() {
+        while seq < responses.len() {
             match sock.recv_from(&mut buf) {
                 Ok((size, addr)) => {
                     // parse request.
@@ -72,19 +85,29 @@ fn start_mock_server(
                         received_clone.push(message);
                     }
                     // response.
-                    if let Some(r) = responses.get_mut(seq) {
-                        // delay for response.
-                        if r.delay_sec > 0.0 {
-                            println!("MockServer delay {} sec", r.delay_sec);
-                            std::thread::sleep(Duration::from_secs_f64(r.delay_sec));
+                    loop {
+                        if let Some(r) = responses.get_mut(seq) {
+                            // delay for response.
+                            if r.delay_sec > 0.0 {
+                                println!("MockServer delay {} sec", r.delay_sec);
+                                std::thread::sleep(Duration::from_secs_f64(r.delay_sec));
+                            }
+                            // send.
+                            if r.auto_id {
+                                r.response.mid = req_mid;
+                                r.response.cid = req_cid;
+                            }
+                            let _ = sock.send_to(r.response.to_str().unwrap().as_bytes(), addr);
+                            println!("MockServer respond {:?}", r.response);
+
+                            let followup = r.immediate_followup;
+                            seq += 1;
+                            if followup && seq < responses.len() {
+                                println!("MockServer immediate followup");
+                                continue; // next response without recv.
+                            }
                         }
-                        // send.
-                        if r.auto_id {
-                            r.response.mid = req_mid;
-                            r.response.cid = req_cid;
-                        }
-                        let _ = sock.send_to(r.response.to_str().unwrap().as_bytes(), addr);
-                        println!("MockServer respond {:?}", r.response);
+                        break;
                     }
                 }
                 Err(e) => {
@@ -677,8 +700,8 @@ fn test_ready_mid_mismatch() {
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse::new(MessageType::Ok, 0.0),
-        // Ready -> Mismatch MID.
-        MockResponse::new_with_id(MessageType::Ok, 9, 0, 0.0), // mid 9 instead of 2
+        // Ready -> Mismatch MID, then immediate followup.
+        MockResponse::new_with_id_followup(MessageType::Ok, 9, 0, 0.0), // mid 9 instead of 2
         // Ready -> Correct MID.
         MockResponse::new_with_id(MessageType::Ok, 2, 0, 0.0), // mid 2
     ];
@@ -694,13 +717,11 @@ fn test_ready_mid_mismatch() {
     assert_eq!(ret, MessageType::Ok);
     {
         let requests = requests.lock().unwrap();
-        // Join + Ready(1st attempt) + Ready(2nd attempt after mismatch)
-        assert_eq!(requests.len(), 3);
+        // Join + Ready(only 1 attempt, even after mismatch because it should keep waiting)
+        assert_eq!(requests.len(), 2);
         assert_eq!(requests[0].mtype, MessageType::Join);
         assert_eq!(requests[1].mtype, MessageType::Ready);
         assert_eq!(requests[1].mid, 2);
-        assert_eq!(requests[2].mtype, MessageType::Ready);
-        assert_eq!(requests[2].mid, 2);
     }
 }
 

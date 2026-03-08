@@ -1,3 +1,4 @@
+import time
 import socket
 import datetime
 from enum import Enum
@@ -215,25 +216,47 @@ class RtClient:
         self._clear_recv_buffer()
         ret_resp_type: ResponseType = ResponseType.ERROR
         packet: bytes = self._create_packet(req_type)
-        self.sock.settimeout(timeout_sec)
         for count in range(1 + retry_count):
             log(f">> send {req_type.value} CID:{self.client_id:03d} MID:{self.message_id} ({count+1}/{1+retry_count}) t/o={timeout_sec}s")
             self.sock.sendto(packet, (self.host, self.port))
+            mtype = self._wait_for_matching_response(timeout_sec, req_type, self.message_id)
+            if mtype is not None:
+                ret_resp_type = mtype
+                break
+        return ret_resp_type
+
+    def _wait_for_matching_response(self, timeout_sec: float, req_type: RequestType, expected_mid: int) -> ResponseType | None:
+        """
+        Wait for a response that matches the expected MessageID.
+        Args:
+            timeout_sec (float): The timeout in seconds.
+            req_type (RequestType): The type of request waiting for response.
+            expected_mid (int): The expected MessageID.
+        Returns:
+            ResponseType | None: The matching ResponseType or None if timeout.
+        """
+        wait_start = time.time()
+        while True:
+            elapsed = time.time() - wait_start
+            if elapsed >= timeout_sec:
+                log(f"timeout, retrying... {req_type.value}")
+                return None
+            remaining = timeout_sec - elapsed
+            self.sock.settimeout(remaining)
             try:
                 data, _ = self.sock.recvfrom(self.config.PACKET_SIZE)
                 resp_type, resp_id = self._parse_packet(data)
-                if resp_id != self.message_id:
-                    log(f"<< mid mismatch, expected MID:{self.message_id}, actual MID:{resp_id}, continue")
-                    continue
-                log(f"<< recv {resp_type.value} for {req_type.value} CID:{self.client_id:03d} MID:{self.message_id}")
-                ret_resp_type = resp_type
-                break
+                if resp_id == expected_mid:
+                    log(f"<< recv {resp_type.value} for {req_type.value} CID:{self.client_id:03d} MID:{expected_mid}")
+                    return resp_type
+                log(
+                    f"<< mid mismatch, expected MID:{expected_mid}, actual MID:{resp_id}, discard and keep waiting")
             except socket.timeout:
                 log(f"timeout, retrying... {req_type.value}")
-            except Exception as e:
-                log(f"failed to receive for {req_type.value}: {e}")
-                break
-        return ret_resp_type
+                return None
+            except Exception:
+                # If parse error or other error, keep waiting
+                continue
 
     def _create_packet(self, request: RequestType) -> bytes:
         """

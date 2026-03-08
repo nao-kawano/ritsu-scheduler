@@ -11,7 +11,7 @@ use rt_message::{MESSAGE_LEN_MAX, Message, MessageType};
 use crate::rtclientconfig::RtClientConfig;
 
 use std::net::UdpSocket;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 #[cfg(target_os = "windows")]
 use windows::Win32::Media::{timeBeginPeriod, timeEndPeriod};
@@ -222,8 +222,6 @@ impl RtClient {
             timeBeginPeriod(1);
         }
         let mut ret_resp_type: MessageType = MessageType::Error;
-        sock.set_read_timeout(Some(Duration::from_secs_f64(timeout_sec)))
-            .expect("set_read_timeout call failed");
         let mut recv_buf = [0u8; MESSAGE_LEN_MAX];
         for count in 0..=retry_count {
             trace!(
@@ -237,26 +235,16 @@ impl RtClient {
             );
             match sock.send_to(&request_str.as_bytes(), &self.server_addr) {
                 Ok(_) => {
-                    let (response, need_retry) = RtClient::_recv_response(sock, &mut recv_buf);
-                    if need_retry {
-                        warn!("timeout, retrying... {:?}", req_type);
-                        continue; // timeout, retry.
+                    if let Some(mtype) = self._wait_for_matching_response(
+                        sock,
+                        timeout_sec,
+                        req_type,
+                        self.message_id,
+                        &mut recv_buf,
+                    ) {
+                        ret_resp_type = mtype;
+                        break;
                     }
-                    if let Some(response) = response {
-                        if response.mid != self.message_id {
-                            warn!(
-                                "<< mid mismatch, expected MID:{}, actual MID:{}, continue",
-                                self.message_id, response.mid
-                            );
-                            continue; // invalid mid, retry.
-                        }
-                        trace!(
-                            "<< recv {:?} for {:?} CID:{:03} MID:{}",
-                            response.mtype, req_type, self.client_id, self.message_id
-                        );
-                        ret_resp_type = response.mtype;
-                    }
-                    break;
                 }
                 Err(e) => {
                     warn!("failed to send packet: {}", e);
@@ -271,6 +259,52 @@ impl RtClient {
         }
         //
         return ret_resp_type;
+    }
+
+    /// Internal helper to wait for a response that matches the expected MessageID.
+    ///
+    /// Returns `Some(MessageType)` if a match is found before `timeout_sec` elapses, otherwise `None`.
+    fn _wait_for_matching_response(
+        &self,
+        sock: &UdpSocket,
+        timeout_sec: f64,
+        req_type: MessageType,
+        expected_mid: u8,
+        recv_buf: &mut [u8; MESSAGE_LEN_MAX],
+    ) -> Option<MessageType> {
+        let wait_start = Instant::now();
+        loop {
+            let now = Instant::now();
+            let elapsed = now.duration_since(wait_start);
+            if elapsed >= Duration::from_secs_f64(timeout_sec) {
+                warn!("timeout, retrying... {:?}", req_type);
+                return None;
+            }
+            let remaining = Duration::from_secs_f64(timeout_sec) - elapsed;
+            let _ = sock.set_read_timeout(Some(remaining));
+
+            let (response, is_timeout) = RtClient::_recv_response(sock, recv_buf);
+            if is_timeout {
+                warn!("timeout, retrying... {:?}", req_type);
+                return None;
+            }
+            if let Some(response) = response {
+                if response.mid == expected_mid {
+                    trace!(
+                        "<< recv {:?} for {:?} CID:{:03} MID:{}",
+                        response.mtype, req_type, self.client_id, expected_mid
+                    );
+                    return Some(response.mtype);
+                }
+                warn!(
+                    "<< mid mismatch, expected MID:{}, actual MID:{}, discard and keep waiting",
+                    expected_mid, response.mid
+                );
+                continue; // invalid mid, keep waiting for the next packet.
+            }
+            // Other error in _recv_response (like parse error), keep waiting until deadline.
+            continue;
+        }
     }
 
     /// Internal helper to receive a single response from the socket.
