@@ -107,10 +107,25 @@ impl ManagerProc for ManagerProcRunning {
             let c = context.clients.get(&change.cid).unwrap();
             match change.after {
                 ProcessState::Ready => {
-                    warn!(
-                        "<STAT> CYC:{:05} CID:{:03} MID:{} {:?} -> {:?} (Retransmit)",
-                        context.cycle_current, change.cid, c.last_mid, change.before, change.after
-                    );
+                    if change.before == ProcessState::Ready {
+                        warn!(
+                            "<STAT> CYC:{:05} CID:{:03} MID:{} {:?} -> {:?} (Retransmit)",
+                            context.cycle_current,
+                            change.cid,
+                            c.last_mid,
+                            change.before,
+                            change.after
+                        );
+                    } else {
+                        debug!(
+                            "<STAT> CYC:{:05} CID:{:03} MID:{} {:?} -> {:?}",
+                            context.cycle_current,
+                            change.cid,
+                            c.last_mid,
+                            change.before,
+                            change.after
+                        );
+                    }
                 }
                 ProcessState::Running => {
                     // maybe retransmission, send OK to start immediately.
