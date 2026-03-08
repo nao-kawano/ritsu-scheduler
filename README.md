@@ -4,18 +4,18 @@ Schedules user processes considering periodic cycles and process dependencies.
 
 ## Features
 
-- **Periodic execution**: Guaranteed execution within pre-defined timing and cycles.
-- **Dependency management**: Flexible scheduling based on process dependencies (single, sequential, parallel).
+- **Periodic execution**: Predictable execution based on pre-defined timing and cycles.
+- **Dependency management**: Flexible scheduling based on process dependencies (sequential and parallel).
   - Example: Image processing pipelines using camera frames.
-- **Multi-language support**: Simple messaging protocol for various implementation languages.
+- **Multi-language support**: Simple messaging protocol supporting multiple programming languages.
   - Modular transport support (UDP-based by default).
   - This repository includes sample clients for **Rust** and **Python**.
-- **Simulation and Visualization**: Advanced tools for system planning (currently under planning).
+- **Simulation and Visualization**: Advanced tools for system planning (planned for future release).
 
 ## Process Scheduling
 
 This section describes how Ritsu schedules your processes using a sequence diagram.
-For a complete understanding, please see the [detailed documentation](./docs/README.md).
+For more details, please refer to the [detailed documentation](./docs/README.md).
 
 ### Example Scenario: A -> (B, C)
 
