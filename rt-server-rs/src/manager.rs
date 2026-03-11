@@ -47,9 +47,9 @@ pub struct EventManager {
 }
 
 impl EventManager {
-    pub fn new(client_configs: Vec<ClientConfig>) -> Self {
+    pub fn new(client_configs: Vec<ClientConfig>, stats_interval_cycle: u32) -> Self {
         // create context.
-        let mut context: ManagerContext = ManagerContext::new(client_configs);
+        let mut context: ManagerContext = ManagerContext::new(client_configs, stats_interval_cycle);
         // create procs.
         let mut procs: HashMap<ManagerState, Box<dyn ManagerProc>> = HashMap::new();
         procs.insert(ManagerState::Starting, Box::new(ManagerProcStarting));

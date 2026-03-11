@@ -3,11 +3,14 @@ use super::*;
 use crate::config::*;
 
 fn create_context() -> ManagerContext {
-    let mut ctx = ManagerContext::new(vec![
-        ClientConfig::new(0, 1, 0, vec![]).unwrap(),
-        ClientConfig::new(1, 2, 1, vec![]).unwrap(),
-        ClientConfig::new(2, 1, 0, vec![0]).unwrap(),
-    ]);
+    let mut ctx = ManagerContext::new(
+        vec![
+            ClientConfig::new(0, 1, 0, vec![]).unwrap(),
+            ClientConfig::new(1, 2, 1, vec![]).unwrap(),
+            ClientConfig::new(2, 1, 0, vec![0]).unwrap(),
+        ],
+        0,
+    );
     ctx.state = ManagerState::Exiting;
     ctx.clients.get_mut(&0).unwrap().state = ClientState::Exiting;
     ctx.clients.get_mut(&1).unwrap().state = ClientState::Active;

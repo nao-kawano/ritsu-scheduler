@@ -7,6 +7,7 @@ extern crate log;
 use log::{debug, error, info, trace, warn};
 
 use std::collections::HashMap;
+use std::time::Instant;
 
 use super::ManagerState;
 use crate::config::ClientConfig;
@@ -32,10 +33,39 @@ pub enum ClientState {
     Exiting,
 }
 
+#[derive(Debug, Clone)]
+pub struct ClientStats {
+    pub trigger_count: u32,
+    pub success_count: u32,
+    pub skip_count: u32,
+    pub late_count: u32,
+    pub overrun_count: u32,
+    pub time_min: u32, // ms
+    pub time_max: u32, // ms
+    pub time_sum: u64, // ms
+}
+
+impl Default for ClientStats {
+    fn default() -> Self {
+        Self {
+            trigger_count: 0,
+            success_count: 0,
+            skip_count: 0,
+            late_count: 0,
+            overrun_count: 0,
+            time_min: u32::MAX, // max value for first min calculation
+            time_max: 0,
+            time_sum: 0,
+        }
+    }
+}
+
 pub struct ClientInfo {
     pub config: ClientConfig,
     pub state: ClientState,
     pub last_mid: u8,
+    pub stats: ClientStats,
+    pub running_start_at: Option<Instant>,
 }
 
 impl ClientInfo {
@@ -45,6 +75,8 @@ impl ClientInfo {
             config,
             state: ClientState::None,
             last_mid: 255,
+            stats: ClientStats::default(),
+            running_start_at: None,
         }
     }
 
@@ -72,12 +104,16 @@ pub struct ManagerContext {
     pub cycle_current: u32, // 0..CYCLE_MAX
     pub sched: Scheduler,
     pub graph_start: Vec<u16>, // shortcut for cycle start.
+    // for stats.
+    pub stats_interval_cycle: u32,
+    pub server_start_at: Option<Instant>,
+    pub server_start_cycle: u64,
 }
 
 impl ManagerContext {
     pub const CYCLE_MAX: u32 = 9999; // must be odd value for wrap-around.
 
-    pub fn new(configs: Vec<ClientConfig>) -> Self {
+    pub fn new(configs: Vec<ClientConfig>, stats_interval_cycle: u32) -> Self {
         // at least one client must be provided.
         if configs.len() < 1 {
             panic!("client config is empty");
@@ -140,6 +176,9 @@ impl ManagerContext {
             cycle_current: 0,
             sched: graph,
             graph_start,
+            stats_interval_cycle,
+            server_start_at: None,
+            server_start_cycle: 0,
         }
     }
 

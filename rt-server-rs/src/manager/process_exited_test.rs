@@ -7,11 +7,14 @@ use crate::manager::context::{ClientState, ManagerContext};
 use rt_message::{Message, MessageType};
 
 fn create_context() -> ManagerContext {
-    let mut ctx = ManagerContext::new(vec![
-        ClientConfig::new(0, 1, 0, vec![]).unwrap(),
-        ClientConfig::new(1, 2, 1, vec![]).unwrap(),
-        ClientConfig::new(2, 1, 0, vec![0]).unwrap(),
-    ]);
+    let mut ctx = ManagerContext::new(
+        vec![
+            ClientConfig::new(0, 1, 0, vec![]).unwrap(),
+            ClientConfig::new(1, 2, 1, vec![]).unwrap(),
+            ClientConfig::new(2, 1, 0, vec![0]).unwrap(),
+        ],
+        0,
+    );
     ctx.state = ManagerState::Exited;
     return ctx;
 }

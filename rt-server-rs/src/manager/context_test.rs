@@ -2,6 +2,19 @@
 use super::*;
 
 #[test]
+fn test_client_stats_default() {
+    let stats = ClientStats::default();
+    assert_eq!(stats.trigger_count, 0);
+    assert_eq!(stats.success_count, 0);
+    assert_eq!(stats.skip_count, 0);
+    assert_eq!(stats.late_count, 0);
+    assert_eq!(stats.overrun_count, 0);
+    assert_eq!(stats.time_min, u32::MAX);
+    assert_eq!(stats.time_max, 0);
+    assert_eq!(stats.time_sum, 0);
+}
+
+#[test]
 fn test_manager_context_new() {
     // Given
     let configs = vec![
@@ -10,7 +23,7 @@ fn test_manager_context_new() {
     ];
 
     // When
-    let context = ManagerContext::new(configs);
+    let context = ManagerContext::new(configs, 0);
 
     // Then
     assert_eq!(context.state, ManagerState::Starting);
@@ -26,7 +39,7 @@ fn test_manager_context_new() {
 fn test_manager_context_set_state() {
     // Given
     let configs = vec![ClientConfig::new(0, 1, 0, vec![]).unwrap()];
-    let mut context = ManagerContext::new(configs);
+    let mut context = ManagerContext::new(configs, 0);
 
     // When
     let result = context.set_state(ManagerState::Running);
@@ -51,7 +64,7 @@ fn test_manager_context_new_empty_configs() {
     let configs: Vec<ClientConfig> = vec![];
 
     // When
-    ManagerContext::new(configs);
+    ManagerContext::new(configs, 0);
 }
 
 #[test]
@@ -61,5 +74,5 @@ fn test_manager_context_new_no_cycle_trigger() {
     let configs = vec![ClientConfig::new(1, 2, 0, vec![0]).unwrap()];
 
     // When
-    ManagerContext::new(configs);
+    ManagerContext::new(configs, 0);
 }
