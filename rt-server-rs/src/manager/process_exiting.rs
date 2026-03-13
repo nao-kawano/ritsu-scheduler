@@ -25,7 +25,7 @@ impl ManagerProc for ManagerProcExiting {
         trace!("enter_state");
     }
 
-    fn on_cycle_start(&self, _context: &mut ManagerContext, _cycle: u64) -> EventResult {
+    fn on_cycle_start(&self, _context: &mut ManagerContext, _global_cycle: u64) -> EventResult {
         trace!("on_cycle_start (nop)");
         Ok(vec![])
     }

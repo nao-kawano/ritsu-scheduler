@@ -93,6 +93,13 @@ impl ClientInfo {
 
 /* -------------------------------------------------------------------------- */
 
+pub struct ServerStats {
+    pub interval_cycle: u32,
+    pub start_at: Option<Instant>,
+    pub start_cycle: u64,
+    pub last_cycle: u64,
+}
+
 pub struct ManagerContext {
     // manager.
     pub state: ManagerState,
@@ -105,9 +112,7 @@ pub struct ManagerContext {
     pub sched: Scheduler,
     pub graph_start: Vec<u16>, // shortcut for cycle start.
     // for stats.
-    pub stats_interval_cycle: u32,
-    pub server_start_at: Option<Instant>,
-    pub server_start_cycle: u64,
+    pub stats: ServerStats,
 }
 
 impl ManagerContext {
@@ -176,9 +181,12 @@ impl ManagerContext {
             cycle_current: 0,
             sched: graph,
             graph_start,
-            stats_interval_cycle,
-            server_start_at: None,
-            server_start_cycle: 0,
+            stats: ServerStats {
+                interval_cycle: stats_interval_cycle,
+                start_at: None,
+                start_cycle: 0,
+                last_cycle: 0,
+            },
         }
     }
 
@@ -192,6 +200,55 @@ impl ManagerContext {
             self.state_changed = true;
         }
         return true; /* always ok */
+    }
+
+    pub fn dump_stats(&self, current_global_cycle: u64) {
+        if let Some(start_at) = self.stats.start_at {
+            let elapsed = start_at.elapsed().as_millis();
+            let cycles = current_global_cycle.saturating_sub(self.stats.start_cycle);
+            info!(
+                "[STATS] Server: Elapsed Time: {} ms, Cycles: {}",
+                elapsed, cycles
+            );
+        } else {
+            info!("[STATS] Server: Elapsed Time: 0 ms, Cycles: 0");
+        }
+
+        let mut cids: Vec<&u16> = self.clients.keys().collect();
+        cids.sort();
+
+        for cid in cids {
+            let client = self.clients.get(cid).unwrap();
+            let stats = &client.stats;
+            let avg = if stats.success_count > 0 {
+                stats.time_sum / (stats.success_count as u64)
+            } else {
+                0
+            };
+            let min = if stats.success_count > 0 {
+                stats.time_min
+            } else {
+                0
+            };
+            let max = if stats.success_count > 0 {
+                stats.time_max
+            } else {
+                0
+            };
+
+            info!(
+                "[STATS] Client CID:{:03}, Trigger: {} (Success: {}, Skip: {}, Late: {}), Overrun: {}, Time: Avg {} ms (Min: {} ms, Max: {} ms)",
+                cid,
+                stats.trigger_count,
+                stats.success_count,
+                stats.skip_count,
+                stats.late_count,
+                stats.overrun_count,
+                avg,
+                min,
+                max
+            );
+        }
     }
 
     // -----

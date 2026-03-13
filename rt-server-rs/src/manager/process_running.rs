@@ -6,6 +6,8 @@ extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use std::time::Instant;
+
 use rt_message::{Message, MessageType};
 
 use super::EventResult;
@@ -28,7 +30,13 @@ impl ManagerProc for ManagerProcRunning {
         context.cycle_current = ManagerContext::CYCLE_MAX;
     }
 
-    fn on_cycle_start(&self, context: &mut ManagerContext, _cycle: u64) -> EventResult {
+    fn on_cycle_start(&self, context: &mut ManagerContext, global_cycle: u64) -> EventResult {
+        if context.stats.start_at.is_none() {
+            context.stats.start_at = Some(Instant::now());
+            context.stats.start_cycle = global_cycle;
+        }
+        context.stats.last_cycle = global_cycle;
+
         let cycle = self.update_cycle(context);
         debug!("<STAT> CYC:{:05} START", cycle);
         let mut responses: Vec<Message> = Vec::new();
@@ -45,6 +53,9 @@ impl ManagerProc for ManagerProcRunning {
                 }
             }
         }
+
+        self.update_stats(context, &changes);
+
         // convert changes to response.
         for change in changes {
             let c = context.clients.get(&change.cid).unwrap();
@@ -86,6 +97,15 @@ impl ManagerProc for ManagerProcRunning {
                 }
             }
         }
+
+        let running_cycles = global_cycle.saturating_sub(context.stats.start_cycle);
+        if context.stats.interval_cycle > 0
+            && running_cycles > 0
+            && running_cycles % (context.stats.interval_cycle as u64) == 0
+        {
+            context.dump_stats(global_cycle);
+        }
+
         Ok(responses)
     }
 
@@ -102,6 +122,9 @@ impl ManagerProc for ManagerProcRunning {
         let Ok(changes) = r else {
             return Err(r.unwrap_err());
         };
+
+        self.update_stats(context, &changes);
+
         // convert changes to response.
         for change in changes {
             let c = context.clients.get(&change.cid).unwrap();
@@ -176,6 +199,9 @@ impl ManagerProc for ManagerProcRunning {
         let Ok(changes) = r else {
             return Err(r.unwrap_err());
         };
+
+        self.update_stats(context, &changes);
+
         // convert changes to response.
         for change in changes {
             let c = context.clients.get(&change.cid).unwrap();
@@ -260,5 +286,51 @@ impl ManagerProcRunning {
         let target_cycle = config.cycle as u32;
         let target_cycle_offset = config.cycle_offset as u32;
         return cycle % target_cycle == target_cycle_offset;
+    }
+
+    fn update_stats(&self, context: &mut ManagerContext, changes: &[ProcessStateChange]) {
+        for change in changes {
+            if change.before == change.after {
+                continue;
+            }
+            let client = context.clients.get_mut(&change.cid).unwrap();
+            match change.after {
+                ProcessState::Running => {
+                    client.running_start_at = Some(Instant::now());
+                }
+                ProcessState::Idle => {
+                    if change.before == ProcessState::Running {
+                        self.record_success(client);
+                    }
+                }
+                ProcessState::Late => {
+                    if change.before == ProcessState::Overrun {
+                        self.record_success(client);
+                    } else {
+                        client.stats.late_count += 1;
+                        client.stats.trigger_count += 1;
+                    }
+                }
+                ProcessState::Skip => {
+                    client.stats.skip_count += 1;
+                    client.stats.trigger_count += 1;
+                }
+                ProcessState::Overrun => {
+                    client.stats.overrun_count += 1;
+                }
+                ProcessState::Ready => {}
+            }
+        }
+    }
+
+    fn record_success(&self, client: &mut crate::manager::context::ClientInfo) {
+        client.stats.success_count += 1;
+        client.stats.trigger_count += 1;
+        if let Some(start_at) = client.running_start_at.take() {
+            let elapsed = start_at.elapsed().as_millis() as u32;
+            client.stats.time_min = client.stats.time_min.min(elapsed);
+            client.stats.time_max = client.stats.time_max.max(elapsed);
+            client.stats.time_sum += elapsed as u64;
+        }
     }
 }
