@@ -12,6 +12,9 @@ fn test_client_stats_default() {
     assert_eq!(stats.time_min, u32::MAX);
     assert_eq!(stats.time_max, 0);
     assert_eq!(stats.time_sum, 0);
+    assert_eq!(stats.overrun_time_min, u32::MAX);
+    assert_eq!(stats.overrun_time_max, 0);
+    assert_eq!(stats.overrun_time_sum, 0);
 }
 
 #[test]

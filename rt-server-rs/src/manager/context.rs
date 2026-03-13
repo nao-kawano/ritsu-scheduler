@@ -40,9 +40,12 @@ pub struct ClientStats {
     pub skip_count: u32,
     pub late_count: u32,
     pub overrun_count: u32,
-    pub time_min: u32, // ms
-    pub time_max: u32, // ms
-    pub time_sum: u64, // ms
+    pub time_min: u32,         // ms
+    pub time_max: u32,         // ms
+    pub time_sum: u64,         // ms
+    pub overrun_time_min: u32, // ms
+    pub overrun_time_max: u32, // ms
+    pub overrun_time_sum: u64, // ms
 }
 
 impl Default for ClientStats {
@@ -53,9 +56,12 @@ impl Default for ClientStats {
             skip_count: 0,
             late_count: 0,
             overrun_count: 0,
-            time_min: u32::MAX, // max value for first min calculation
+            time_min: u32::MAX,
             time_max: 0,
             time_sum: 0,
+            overrun_time_min: u32::MAX,
+            overrun_time_max: 0,
+            overrun_time_sum: 0,
         }
     }
 }
@@ -203,6 +209,10 @@ impl ManagerContext {
     }
 
     pub fn dump_stats(&self, current_global_cycle: u64) {
+        if self.stats.interval_cycle == 0 {
+            return;
+        }
+
         if let Some(start_at) = self.stats.start_at {
             let elapsed = start_at.elapsed().as_millis();
             let cycles = current_global_cycle.saturating_sub(self.stats.start_cycle);
@@ -216,37 +226,41 @@ impl ManagerContext {
 
         let mut cids: Vec<&u16> = self.clients.keys().collect();
         cids.sort();
-
         for cid in cids {
             let client = self.clients.get(cid).unwrap();
             let stats = &client.stats;
-            let avg = if stats.success_count > 0 {
-                stats.time_sum / (stats.success_count as u64)
+            let (avg, min, max) = if stats.success_count > 0 {
+                (
+                    stats.time_sum / (stats.success_count as u64),
+                    stats.time_min,
+                    stats.time_max,
+                )
             } else {
-                0
+                (0, 0, 0)
             };
-            let min = if stats.success_count > 0 {
-                stats.time_min
+            let (ov_avg, ov_min, ov_max) = if stats.overrun_count > 0 {
+                (
+                    stats.overrun_time_sum / (stats.overrun_count as u64),
+                    stats.overrun_time_min,
+                    stats.overrun_time_max,
+                )
             } else {
-                0
+                (0, 0, 0)
             };
-            let max = if stats.success_count > 0 {
-                stats.time_max
-            } else {
-                0
-            };
-
             info!(
-                "[STATS] Client CID:{:03}, Trigger: {} (Success: {}, Skip: {}, Late: {}), Overrun: {}, Time: Avg {} ms (Min: {} ms, Max: {} ms)",
+                "[STATS] CID:{:03}, Trg: {} (Ok: {}, Ov: {}, Skip: {}, Late: {}), Time[ms]: Avg {} ({}-{}), OvTime[ms]: Avg {} ({}-{})",
                 cid,
                 stats.trigger_count,
                 stats.success_count,
+                stats.overrun_count,
                 stats.skip_count,
                 stats.late_count,
-                stats.overrun_count,
                 avg,
                 min,
-                max
+                max,
+                ov_avg,
+                ov_min,
+                ov_max
             );
         }
     }

@@ -289,6 +289,10 @@ impl ManagerProcRunning {
     }
 
     fn update_stats(&self, context: &mut ManagerContext, changes: &[ProcessStateChange]) {
+        if context.stats.interval_cycle == 0 {
+            return;
+        }
+
         for change in changes {
             if change.before == change.after {
                 continue;
@@ -305,7 +309,7 @@ impl ManagerProcRunning {
                 }
                 ProcessState::Late => {
                     if change.before == ProcessState::Overrun {
-                        self.record_success(client);
+                        self.record_overrun_success(client);
                     } else {
                         client.stats.late_count += 1;
                         client.stats.trigger_count += 1;
@@ -316,7 +320,7 @@ impl ManagerProcRunning {
                     client.stats.trigger_count += 1;
                 }
                 ProcessState::Overrun => {
-                    client.stats.overrun_count += 1;
+                    // overrun count is updated upon completion in record_overrun_success
                 }
                 ProcessState::Ready => {}
             }
@@ -331,6 +335,17 @@ impl ManagerProcRunning {
             client.stats.time_min = client.stats.time_min.min(elapsed);
             client.stats.time_max = client.stats.time_max.max(elapsed);
             client.stats.time_sum += elapsed as u64;
+        }
+    }
+
+    fn record_overrun_success(&self, client: &mut crate::manager::context::ClientInfo) {
+        client.stats.overrun_count += 1;
+        client.stats.trigger_count += 1;
+        if let Some(start_at) = client.running_start_at.take() {
+            let elapsed = start_at.elapsed().as_millis() as u32;
+            client.stats.overrun_time_min = client.stats.overrun_time_min.min(elapsed);
+            client.stats.overrun_time_max = client.stats.overrun_time_max.max(elapsed);
+            client.stats.overrun_time_sum += elapsed as u64;
         }
     }
 }
