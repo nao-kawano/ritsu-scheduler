@@ -20,11 +20,12 @@ mod process_exited_test;
 
 pub struct ManagerProcExited;
 impl ManagerProc for ManagerProcExited {
-    fn enter_state(&self, _context: &mut ManagerContext) {
+    fn enter_state(&self, context: &mut ManagerContext) {
         trace!("enter_state");
+        context.dump_stats(context.stats.last_cycle);
     }
 
-    fn on_cycle_start(&self, _context: &mut ManagerContext, _cycle: u64) -> EventResult {
+    fn on_cycle_start(&self, _context: &mut ManagerContext, _global_cycle: u64) -> EventResult {
         return Err("already exited, drop cycle_start".to_string());
     }
 

@@ -7,6 +7,7 @@ extern crate log;
 use log::{debug, error, info, trace, warn};
 
 use std::collections::HashMap;
+use std::time::Instant;
 
 use super::ManagerState;
 use crate::config::ClientConfig;
@@ -32,10 +33,45 @@ pub enum ClientState {
     Exiting,
 }
 
+#[derive(Debug, Clone)]
+pub struct ClientStats {
+    pub trigger_count: u32,
+    pub success_count: u32,
+    pub skip_count: u32,
+    pub late_count: u32,
+    pub overrun_count: u32,
+    pub time_min: u32,         // ms
+    pub time_max: u32,         // ms
+    pub time_sum: u64,         // ms
+    pub overrun_time_min: u32, // ms
+    pub overrun_time_max: u32, // ms
+    pub overrun_time_sum: u64, // ms
+}
+
+impl Default for ClientStats {
+    fn default() -> Self {
+        Self {
+            trigger_count: 0,
+            success_count: 0,
+            skip_count: 0,
+            late_count: 0,
+            overrun_count: 0,
+            time_min: u32::MAX,
+            time_max: 0,
+            time_sum: 0,
+            overrun_time_min: u32::MAX,
+            overrun_time_max: 0,
+            overrun_time_sum: 0,
+        }
+    }
+}
+
 pub struct ClientInfo {
     pub config: ClientConfig,
     pub state: ClientState,
     pub last_mid: u8,
+    pub stats: ClientStats,
+    pub running_start_at: Option<Instant>,
 }
 
 impl ClientInfo {
@@ -45,6 +81,8 @@ impl ClientInfo {
             config,
             state: ClientState::None,
             last_mid: 255,
+            stats: ClientStats::default(),
+            running_start_at: None,
         }
     }
 
@@ -61,6 +99,13 @@ impl ClientInfo {
 
 /* -------------------------------------------------------------------------- */
 
+pub struct ServerStats {
+    pub interval_cycle: u32,
+    pub start_at: Option<Instant>,
+    pub start_cycle: u64,
+    pub last_cycle: u64,
+}
+
 pub struct ManagerContext {
     // manager.
     pub state: ManagerState,
@@ -72,12 +117,14 @@ pub struct ManagerContext {
     pub cycle_current: u32, // 0..CYCLE_MAX
     pub sched: Scheduler,
     pub graph_start: Vec<u16>, // shortcut for cycle start.
+    // for stats.
+    pub stats: ServerStats,
 }
 
 impl ManagerContext {
     pub const CYCLE_MAX: u32 = 9999; // must be odd value for wrap-around.
 
-    pub fn new(configs: Vec<ClientConfig>) -> Self {
+    pub fn new(configs: Vec<ClientConfig>, stats_interval_cycle: u32) -> Self {
         // at least one client must be provided.
         if configs.len() < 1 {
             panic!("client config is empty");
@@ -140,6 +187,12 @@ impl ManagerContext {
             cycle_current: 0,
             sched: graph,
             graph_start,
+            stats: ServerStats {
+                interval_cycle: stats_interval_cycle,
+                start_at: None,
+                start_cycle: 0,
+                last_cycle: 0,
+            },
         }
     }
 
@@ -153,6 +206,63 @@ impl ManagerContext {
             self.state_changed = true;
         }
         return true; /* always ok */
+    }
+
+    pub fn dump_stats(&self, current_global_cycle: u64) {
+        if self.stats.interval_cycle == 0 {
+            return;
+        }
+
+        if let Some(start_at) = self.stats.start_at {
+            let elapsed = start_at.elapsed().as_millis();
+            let cycles = current_global_cycle.saturating_sub(self.stats.start_cycle);
+            info!(
+                "[STATS] Server: Elapsed Time: {} ms, Cycles: {}",
+                elapsed, cycles
+            );
+        } else {
+            info!("[STATS] Server: Elapsed Time: 0 ms, Cycles: 0");
+        }
+
+        let mut cids: Vec<&u16> = self.clients.keys().collect();
+        cids.sort();
+        for cid in cids {
+            let client = self.clients.get(cid).unwrap();
+            let stats = &client.stats;
+            let (avg, min, max) = if stats.success_count > 0 {
+                (
+                    stats.time_sum / (stats.success_count as u64),
+                    stats.time_min,
+                    stats.time_max,
+                )
+            } else {
+                (0, 0, 0)
+            };
+            let (ov_avg, ov_min, ov_max) = if stats.overrun_count > 0 {
+                (
+                    stats.overrun_time_sum / (stats.overrun_count as u64),
+                    stats.overrun_time_min,
+                    stats.overrun_time_max,
+                )
+            } else {
+                (0, 0, 0)
+            };
+            info!(
+                "[STATS] CID:{:03}, Trg: {} (Ok: {}, Ov: {}, Skip: {}, Late: {}), Time[ms]: Avg {} ({}-{}), OvTime[ms]: Avg {} ({}-{})",
+                cid,
+                stats.trigger_count,
+                stats.success_count,
+                stats.overrun_count,
+                stats.skip_count,
+                stats.late_count,
+                avg,
+                min,
+                max,
+                ov_avg,
+                ov_min,
+                ov_max
+            );
+        }
     }
 
     // -----

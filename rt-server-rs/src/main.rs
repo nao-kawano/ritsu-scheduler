@@ -32,6 +32,7 @@ fn load_sample_config() -> SchedulerConfig {
     let server_config = ServerConfig {
         port: 7878,
         cycle_time: 1000,
+        stats_interval_cycle: 0,
     };
     #[rustfmt::skip]
     let client_configs = vec![
@@ -89,7 +90,10 @@ fn main() {
     let (tx, rx): (Sender<Event>, Receiver<Event>) = mpsc::channel();
 
     // setup manager.
-    let mut event_manager = EventManager::new(config.client_configs);
+    let mut event_manager = EventManager::new(
+        config.client_configs,
+        config.server_config.stats_interval_cycle,
+    );
 
     // setup client connector.
     let tx_client = tx.clone();

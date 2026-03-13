@@ -7,13 +7,16 @@ use crate::manager::context::ClientState;
 use std::collections::HashMap;
 
 fn create_context_scenarios() -> ManagerContext {
-    let mut ctx = ManagerContext::new(vec![
-        // CID, Cycle, Offset, Depends
-        ClientConfig::new(0, 2, 0, vec![]).unwrap(),
-        ClientConfig::new(1, 2, 0, vec![0]).unwrap(), // Floating (depends on 0, same offset)
-        ClientConfig::new(2, 2, 1, vec![1]).unwrap(), // Non-Floating (depends on 1, different offset)
-        ClientConfig::new(3, 2, 1, vec![]).unwrap(),  // Root (offset 1)
-    ]);
+    let mut ctx = ManagerContext::new(
+        vec![
+            // CID, Cycle, Offset, Depends
+            ClientConfig::new(0, 2, 0, vec![]).unwrap(),
+            ClientConfig::new(1, 2, 0, vec![0]).unwrap(), // Floating (depends on 0, same offset)
+            ClientConfig::new(2, 2, 1, vec![1]).unwrap(), // Non-Floating (depends on 1, different offset)
+            ClientConfig::new(3, 2, 1, vec![]).unwrap(),  // Root (offset 1)
+        ],
+        0,
+    );
     ctx.state = ManagerState::Running;
     ctx.num_active_clients = ctx.clients.len();
     for client in ctx.clients.values_mut() {
