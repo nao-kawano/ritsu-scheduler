@@ -39,16 +39,23 @@ impl ProcessStateChange {
 pub struct Scheduler {
     entries: HashMap<u16, ProcessEntry>,
     graph_start: HashSet<u16>,
-    graph_forward: HashMap<u16, HashSet<u16>>,
+    graph_forward: HashMap<u16, Vec<u16>>,
+    graph_forward_all: HashMap<u16, Vec<u16>>,
 }
 
 impl Scheduler {
     pub fn new(entries: HashMap<u16, ProcessEntry>) -> Self {
         let (graph_start, graph_forward) = Scheduler::create_graph(&entries);
+        let mut graph_forward_all = HashMap::new();
+        for &cid in entries.keys() {
+            let forwards = Scheduler::find_forward_all(cid, true, &entries, &graph_forward);
+            graph_forward_all.insert(cid, forwards);
+        }
         Scheduler {
             entries,
             graph_start,
             graph_forward,
+            graph_forward_all,
         }
     }
 
@@ -85,32 +92,34 @@ impl Scheduler {
         }
 
         // check for not-ready processes.
-        let forwards = Scheduler::find_forward_all(cid, true, &self.entries, &self.graph_forward);
         let mut overrun_cids: Vec<u16> = Vec::new();
         let mut late_cids: Vec<u16> = Vec::new();
         let mut is_not_ready = false;
-        for forward_cid in &forwards {
-            if let Some(entry) = self.entries.get(forward_cid) {
-                match entry.state {
-                    ProcessState::Ready => {
-                        // OK.
-                    }
-                    ProcessState::Running => {
-                        overrun_cids.push(*forward_cid); // holds for state change.
-                        is_not_ready = true;
-                    }
-                    ProcessState::Overrun => {
-                        is_not_ready = true;
-                    }
-                    ProcessState::Idle => {
-                        late_cids.push(*forward_cid); // holds for state change.
-                        is_not_ready = true;
-                    }
-                    ProcessState::Skip => {
-                        is_not_ready = true;
-                    }
-                    ProcessState::Late => {
-                        is_not_ready = true;
+
+        if let Some(forwards) = self.graph_forward_all.get(&cid) {
+            for &forward_cid in forwards {
+                if let Some(entry) = self.entries.get(&forward_cid) {
+                    match entry.state {
+                        ProcessState::Ready => {
+                            // OK.
+                        }
+                        ProcessState::Running => {
+                            overrun_cids.push(forward_cid); // holds for state change.
+                            is_not_ready = true;
+                        }
+                        ProcessState::Overrun => {
+                            is_not_ready = true;
+                        }
+                        ProcessState::Idle => {
+                            late_cids.push(forward_cid); // holds for state change.
+                            is_not_ready = true;
+                        }
+                        ProcessState::Skip => {
+                            is_not_ready = true;
+                        }
+                        ProcessState::Late => {
+                            is_not_ready = true;
+                        }
                     }
                 }
             }
@@ -118,7 +127,6 @@ impl Scheduler {
 
         let mut changes = Vec::new();
         if is_not_ready {
-            let mut forwards_set: HashSet<u16> = forwards.iter().cloned().collect();
             // Mark Running processes as Overrun and their dependents as Skip
             for running_cid in overrun_cids {
                 // Mark as Overrun
@@ -129,52 +137,45 @@ impl Scheduler {
                         change.after = ProcessState::Overrun;
                         changes.push(change);
                     }
-                    forwards_set.remove(&running_cid);
                 }
                 // Dependents of overrun processes become Skip
-                let skip_forwards = Scheduler::find_forward_all(
-                    running_cid,
-                    false, // Do not include itself, as it's already Overrun
-                    &self.entries,
-                    &self.graph_forward,
-                );
-                for skip_cid in skip_forwards {
-                    if forwards_set.contains(&skip_cid) {
-                        // Only change if not already handled
+                if let Some(skip_forwards) = self.graph_forward_all.get(&running_cid) {
+                    for &skip_cid in &skip_forwards[1..] {
                         if let Some(entry) = self.entries.get_mut(&skip_cid) {
-                            let mut change = ProcessStateChange::new(&entry);
-                            if entry.set_state(ProcessState::Skip) {
-                                entry.reset_dependency_statuses(); // Clear dependencies as it's skipped
-                                change.after = ProcessState::Skip;
-                                changes.push(change);
+                            if entry.state == ProcessState::Ready {
+                                let mut change = ProcessStateChange::new(&entry);
+                                if entry.set_state(ProcessState::Skip) {
+                                    entry.reset_dependency_statuses(); // Clear dependencies as it's skipped
+                                    change.after = ProcessState::Skip;
+                                    changes.push(change);
+                                }
                             }
-                            forwards_set.remove(&skip_cid);
                         }
                     }
                 }
             }
             // Mark Idle processes as Late
             for late_cid in late_cids {
-                if forwards_set.contains(&late_cid) {
-                    // Only change if not already handled
-                    if let Some(entry) = self.entries.get_mut(&late_cid) {
+                if let Some(entry) = self.entries.get_mut(&late_cid) {
+                    if entry.state == ProcessState::Idle {
                         let mut change = ProcessStateChange::new(&entry);
                         if entry.set_state(ProcessState::Late) {
                             change.after = ProcessState::Late;
                             changes.push(change);
                         }
-                        forwards_set.remove(&late_cid);
                     }
                 }
             }
             // Mark remaining Ready processes as Skip
-            for skip_cid in forwards_set {
-                if let Some(entry) = self.entries.get_mut(&skip_cid) {
-                    if entry.state == ProcessState::Ready {
-                        let mut change = ProcessStateChange::new(&entry);
-                        if entry.set_state(ProcessState::Skip) {
-                            change.after = ProcessState::Skip;
-                            changes.push(change);
+            if let Some(forwards) = self.graph_forward_all.get(&cid) {
+                for &skip_cid in forwards {
+                    if let Some(entry) = self.entries.get_mut(&skip_cid) {
+                        if entry.state == ProcessState::Ready {
+                            let mut change = ProcessStateChange::new(&entry);
+                            if entry.set_state(ProcessState::Skip) {
+                                change.after = ProcessState::Skip;
+                                changes.push(change);
+                            }
                         }
                     }
                 }
@@ -286,18 +287,18 @@ impl Scheduler {
         // start afters.
         // if not skipped, and there are changes (meaning the process state was valid for done)
         if !skipped && changes.len() > 0 {
-            if let Some(afters) = self.graph_forward.get(&cid).cloned() {
+            if let Some(afters) = self.graph_forward.get(&cid) {
                 // update depends first.
                 trace!("update after CID:{:03}", cid);
-                for cid_after in &afters {
-                    if let Some(entry) = self.entries.get_mut(cid_after) {
+                for &cid_after in afters {
+                    if let Some(entry) = self.entries.get_mut(&cid_after) {
                         let _ = entry.mark_dependency_complete(cid);
                     }
                 }
                 // start.
                 trace!("start after CID:{:03}", cid);
-                for cid_after in &afters {
-                    if let Some(entry) = self.entries.get_mut(cid_after) {
+                for &cid_after in afters {
+                    if let Some(entry) = self.entries.get_mut(&cid_after) {
                         if !entry.is_dependency_met() {
                             // wait for the remaining dependent processes to complete.
                         } else {
@@ -305,7 +306,7 @@ impl Scheduler {
                                 trace!("CID:{:03} waiting next cycle", cid_after);
                             } else {
                                 // dependency met, start.
-                                trace!("starting CID:{:03}", *cid_after);
+                                trace!("starting CID:{:03}", cid_after);
                                 let mut change: ProcessStateChange =
                                     ProcessStateChange::new(&entry);
                                 if entry.set_state(ProcessState::Running) {
@@ -332,7 +333,7 @@ impl Scheduler {
 
     fn create_graph(
         entries: &HashMap<u16, ProcessEntry>,
-    ) -> (HashSet<u16>, HashMap<u16, HashSet<u16>>) {
+    ) -> (HashSet<u16>, HashMap<u16, Vec<u16>>) {
         // at least one client must be provided.
         if entries.len() < 1 {
             panic!("no process provided");
@@ -347,7 +348,7 @@ impl Scheduler {
             panic!("no start-point process found");
         }
         // create forward dependency by reverse.
-        let mut forward_dependencies: HashMap<u16, HashSet<u16>> = HashMap::new();
+        let mut forward_dependencies: HashMap<u16, Vec<u16>> = HashMap::new();
         for entry in entries.values() {
             for depend in entry.dependency_statuses.keys() {
                 // - verify that dependent process exists.
@@ -355,10 +356,10 @@ impl Scheduler {
                     panic!("dependent process {} does not exist", depend);
                 }
                 // add forward dependency.
-                forward_dependencies
-                    .entry(*depend)
-                    .or_insert(HashSet::new())
-                    .insert(entry.cid);
+                let vec = forward_dependencies.entry(*depend).or_insert_with(Vec::new);
+                if !vec.contains(&entry.cid) {
+                    vec.push(entry.cid);
+                }
             }
         }
         // ok.
@@ -369,16 +370,18 @@ impl Scheduler {
         cid: u16,
         include_self: bool,
         entries: &HashMap<u16, ProcessEntry>,
-        forward_dependencies: &HashMap<u16, HashSet<u16>>,
+        forward_dependencies: &HashMap<u16, Vec<u16>>,
         same_cycle_only: bool,
     ) -> Vec<u16> {
-        let mut forwards: HashSet<u16> = HashSet::with_capacity(entries.len());
+        let mut forwards_set: HashSet<u16> = HashSet::with_capacity(entries.len());
         let mut targets: Vec<u16> = Vec::new();
+        let mut forwards: Vec<u16> = Vec::new();
 
         // setup initial.
         targets.push(cid);
         if include_self {
-            forwards.insert(cid);
+            forwards_set.insert(cid);
+            forwards.push(cid); // Ensure self is at the beginning
         }
 
         // find forwards.
@@ -389,22 +392,23 @@ impl Scheduler {
                         // stop searching when found the non-floating processes.
                         continue;
                     }
-                    if !forwards.contains(&forward) {
-                        forwards.insert(forward);
+                    if !forwards_set.contains(&forward) {
+                        forwards_set.insert(forward);
                         targets.push(forward);
+                        forwards.push(forward);
                     }
                 }
             }
         }
 
-        return forwards.into_iter().collect();
+        return forwards;
     }
 
     fn find_forward_all(
         cid: u16,
         include_self: bool,
         entries: &HashMap<u16, ProcessEntry>,
-        forward_dependencies: &HashMap<u16, HashSet<u16>>,
+        forward_dependencies: &HashMap<u16, Vec<u16>>,
     ) -> Vec<u16> {
         return Scheduler::find_forward(cid, include_self, entries, forward_dependencies, false);
     }
@@ -414,7 +418,7 @@ impl Scheduler {
         cid: u16,
         include_self: bool,
         entries: &HashMap<u16, ProcessEntry>,
-        forward_dependencies: &HashMap<u16, HashSet<u16>>,
+        forward_dependencies: &HashMap<u16, Vec<u16>>,
     ) -> Vec<u16> {
         return Scheduler::find_forward(cid, include_self, entries, forward_dependencies, true);
     }
