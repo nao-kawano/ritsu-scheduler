@@ -47,7 +47,7 @@ pub trait ManagerProc {
             ]);
         }
         // send ok to trigger client.
-        info!(
+        debug!(
             "<STAT> CYC:{:05} CID:{:03} MID:{} EXIT",
             context.cycle_current, message.cid, message.mid
         );
@@ -77,13 +77,13 @@ pub trait ManagerProc {
 
     fn going_to_exit(&self, context: &mut ManagerContext, responses: &mut Vec<Message>) {
         if context.num_active_clients == 0 {
-            info!(
+            debug!(
                 "CYC:{:05} no clients connected, go to Exited",
                 context.cycle_current
             );
             context.set_state(ManagerState::Exited);
         } else {
-            info!(
+            debug!(
                 "CYC:{:05} {} clients connected, go to Exiting",
                 context.cycle_current, context.num_active_clients
             );

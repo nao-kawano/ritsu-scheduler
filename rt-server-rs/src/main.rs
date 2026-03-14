@@ -65,8 +65,8 @@ fn load_config(path: &str) -> SchedulerConfig {
 
 fn main() {
     // setup logger.
-    unsafe { std::env::set_var("RUST_LOG", "trace") }; // for debugging.
-    env_logger::Builder::from_default_env()
+    let env = env_logger::Env::default().default_filter_or("info");
+    env_logger::Builder::from_env(env)
         .format(|buf, record| {
             let target = record.target();
             let module = target.split("::").last().unwrap_or(target);

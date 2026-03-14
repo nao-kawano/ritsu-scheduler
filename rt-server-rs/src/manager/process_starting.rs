@@ -38,7 +38,7 @@ impl ManagerProc for ManagerProcStarting {
         if let Some(client) = context.clients.get_mut(&message.cid) {
             match client.state {
                 ClientState::None => {
-                    info!(
+                    debug!(
                         "<STAT> CYC:{:05} CID:{:03} MID:{} JOIN",
                         context.cycle_current, message.cid, message.mid
                     );
@@ -117,7 +117,7 @@ impl ManagerProc for ManagerProcStarting {
                 .values()
                 .fold(0, |sum, x| sum + ((x.state == ClientState::Active) as u16));
             if num_ready == context.clients.len() as u16 {
-                info!("all client is ready, go to running");
+                debug!("all client is ready, go to running");
                 context.set_state(ManagerState::Running);
             }
         }

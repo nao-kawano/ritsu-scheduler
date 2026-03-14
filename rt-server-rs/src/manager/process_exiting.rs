@@ -41,7 +41,7 @@ impl ManagerProc for ManagerProcExiting {
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state != ClientState::None {
-                info!(
+                debug!(
                     "<STAT> CYC:{:05} CID:{:03} MID:{} READY (Exiting)",
                     context.cycle_current, message.cid, message.mid
                 );
@@ -68,7 +68,7 @@ impl ManagerProc for ManagerProcExiting {
         // update client state.
         if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state != ClientState::None {
-                info!(
+                debug!(
                     "<STAT> CYC:{:05} CID:{:03} MID:{} DONE (Exiting)",
                     context.cycle_current, message.cid, message.mid
                 );
@@ -103,7 +103,7 @@ impl ManagerProc for ManagerProcExiting {
                     );
                 }
                 ClientState::Exiting => {
-                    info!(
+                    debug!(
                         "<STAT> CYC:{:05} CID:{:03} MID:{} EXIT",
                         context.cycle_current, message.cid, message.mid
                     );
@@ -128,7 +128,7 @@ impl ManagerProc for ManagerProcExiting {
         }
         // check if all clients are ready.
         if context.num_active_clients == 0 {
-            info!("all client is exit, go to exited");
+            debug!("all client is exit, go to exited");
             context.set_state(ManagerState::Exited);
         }
         Ok(responses)
