@@ -350,13 +350,15 @@ impl Scheduler {
         // create forward dependency by reverse.
         let mut forward_dependencies: HashMap<u16, Vec<u16>> = HashMap::new();
         for entry in entries.values() {
-            for depend in entry.dependency_statuses.keys() {
+            for depend in entry.dependency_statuses.iter() {
                 // - verify that dependent process exists.
-                if !entries.contains_key(depend) {
-                    panic!("dependent process {} does not exist", depend);
+                if !entries.contains_key(&depend.0) {
+                    panic!("dependent process {} does not exist", depend.0);
                 }
                 // add forward dependency.
-                let vec = forward_dependencies.entry(*depend).or_insert_with(Vec::new);
+                let vec = forward_dependencies
+                    .entry(depend.0)
+                    .or_insert_with(Vec::new);
                 if !vec.contains(&entry.cid) {
                     vec.push(entry.cid);
                 }

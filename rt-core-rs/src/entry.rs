@@ -6,8 +6,6 @@ extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use std::collections::HashMap;
-
 #[cfg(test)]
 #[path = "entry_test.rs"]
 mod entry_test;
@@ -30,18 +28,21 @@ pub enum ProcessState {
 pub struct ProcessEntry {
     pub(crate) cid: u16,
     pub(crate) state: ProcessState,
-    pub(crate) dependency_statuses: HashMap<u16, bool>,
+    pub(crate) dependency_statuses: Vec<(u16, bool)>,
+    pub(crate) unmet_dependencies: usize,
     pub(crate) is_floating: bool,
 }
 
 impl ProcessEntry {
     pub fn new(cid: u16, depends_on: &Vec<u16>, is_floating: bool) -> Self {
-        let statuses: HashMap<u16, bool> = depends_on.iter().map(|x| (*x, false)).collect();
+        let statuses: Vec<(u16, bool)> = depends_on.iter().map(|x| (*x, false)).collect();
+        let unmet_dependencies = statuses.len();
         ProcessEntry {
             cid,
             is_floating,
             state: ProcessState::Idle,
             dependency_statuses: statuses,
+            unmet_dependencies,
         }
     }
 
@@ -120,30 +121,35 @@ impl ProcessEntry {
 
     /// Check if the process can start.
     pub fn is_dependency_met(&self) -> bool {
-        self.dependency_statuses.iter().all(|x| *(x.1))
+        self.unmet_dependencies == 0
     }
 
     /// Update the dependency status.
     pub(crate) fn mark_dependency_complete(&mut self, cid: u16) -> bool {
-        if let Some(depend_value) = self.dependency_statuses.get_mut(&cid) {
-            if *depend_value {
-                warn!("CID:{:03} deps already completed CID:{:03}", self.cid, cid);
-                return false;
-            } else {
-                trace!("CID:{:03} deps complete CID:{:03}", self.cid, cid);
-                *depend_value = true;
-                return true;
+        for depend_value in self.dependency_statuses.iter_mut() {
+            if depend_value.0 == cid {
+                if depend_value.1 {
+                    warn!("CID:{:03} deps already completed CID:{:03}", self.cid, cid);
+                    return false;
+                } else {
+                    trace!("CID:{:03} deps complete CID:{:03}", self.cid, cid);
+                    depend_value.1 = true;
+                    if self.unmet_dependencies > 0 {
+                        self.unmet_dependencies -= 1;
+                    }
+                    return true;
+                }
             }
-        } else {
-            return false;
         }
+        return false;
     }
 
     /// Clear the dependency status.
     pub(crate) fn reset_dependency_statuses(&mut self) {
         trace!("CID:{:03} deps reset", self.cid);
-        for depend_value in self.dependency_statuses.values_mut() {
-            *depend_value = false;
+        self.unmet_dependencies = self.dependency_statuses.len();
+        for depend_value in self.dependency_statuses.iter_mut() {
+            depend_value.1 = false;
         }
     }
 }
