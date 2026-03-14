@@ -123,9 +123,20 @@ fn main() {
 
     // receive event from thread.
     while let Ok(event) = rx.recv() {
+        // capture start time for performance measurement.
+        let perf_info = if let Event::ClientMsg(ref msg, t) = event {
+            Some((t, msg.cid, msg.mtype))
+        } else {
+            None
+        };
+
         // process event in manager.
+        let start_proc = std::time::Instant::now();
         let result = event_manager.process(event);
+        let proc_elapsed = start_proc.elapsed();
+
         // send response if needed.
+        let start_send = std::time::Instant::now();
         match result {
             Ok(responses) => {
                 if responses.len() > 0 {
@@ -134,6 +145,23 @@ fn main() {
             }
             Err(e) => warn!("processing error: {}", e),
         }
+        let send_elapsed = start_send.elapsed();
+
+        // log performance.
+        if let Some((t, cid, mtype)) = perf_info {
+            let total_elapsed = t.elapsed();
+            let q_wait = start_proc.saturating_duration_since(t);
+            info!(
+                "Perf Detail: CID:{:03} {:<5} | Total: {:>5}us (QWait: {:>5}us, Proc: {:>5}us, Send: {:>5}us)",
+                cid,
+                format!("{:?}", mtype),
+                total_elapsed.as_micros(),
+                q_wait.as_micros(),
+                proc_elapsed.as_micros(),
+                send_elapsed.as_micros()
+            );
+        }
+
         // check if exit.
         if event_manager.get_state() == ManagerState::Exited {
             break;

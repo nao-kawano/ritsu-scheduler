@@ -78,7 +78,7 @@ impl EventManager {
         let result = match event {
             Event::Abort => proc.on_shutdown(&mut self.context),
             Event::CycleStart(cycle) => proc.on_cycle_start(&mut self.context, cycle),
-            Event::ClientMsg(msg) => {
+            Event::ClientMsg(msg, _) => {
                 if !self.context.clients.contains_key(&msg.cid) {
                     Err(format!(
                         "unknown client message type={:?}, CID:{:03}",
