@@ -78,7 +78,7 @@ impl EventManager {
         let result = match event {
             Event::Abort => proc.on_shutdown(&mut self.context),
             Event::CycleStart(cycle) => proc.on_cycle_start(&mut self.context, cycle),
-            Event::ClientMsg(msg, _) => {
+            Event::ClientMsg(msg, _timestamp) => {
                 if let Some(client) = self.context.clients.get_mut(&msg.cid) {
                     client.last_mid = msg.mid;
                     match msg.mtype {
