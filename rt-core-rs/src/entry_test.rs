@@ -16,9 +16,15 @@ fn test_new() {
     assert_eq!(entry.cid, 2);
     assert_eq!(entry.state, ProcessState::Idle);
     assert_eq!(entry.dependency_statuses.len(), 2);
-    assert_eq!(entry.dependency_statuses.get(&0), None);
-    assert_eq!(entry.dependency_statuses.get(&1), Some(&false));
-    assert_eq!(entry.dependency_statuses.get(&3), Some(&false));
+    assert_eq!(entry.dependency_statuses.iter().find(|x| x.0 == 0), None);
+    assert_eq!(
+        entry.dependency_statuses.iter().find(|x| x.0 == 1),
+        Some(&(1, false))
+    );
+    assert_eq!(
+        entry.dependency_statuses.iter().find(|x| x.0 == 3),
+        Some(&(3, false))
+    );
     assert_eq!(entry.is_floating, true);
 }
 
@@ -89,10 +95,10 @@ fn test_is_dependency_met() {
     let mut entry = ProcessEntry::new(2, &vec![1, 3], true);
     assert_eq!(entry.is_dependency_met(), false);
 
-    entry.dependency_statuses.insert(1, true);
+    entry.mark_dependency_complete(1);
     assert_eq!(entry.is_dependency_met(), false);
 
-    entry.dependency_statuses.insert(3, true);
+    entry.mark_dependency_complete(3);
     assert_eq!(entry.is_dependency_met(), true);
 }
 
@@ -130,8 +136,8 @@ fn test_reset_dependency_statuses() {
 
     // depends trigger.
     let mut entry = ProcessEntry::new(2, &vec![1, 3], true);
-    entry.dependency_statuses.insert(1, true);
-    entry.dependency_statuses.insert(3, true);
+    entry.mark_dependency_complete(1);
+    entry.mark_dependency_complete(3);
     assert_eq!(entry.is_dependency_met(), true);
 
     entry.reset_dependency_statuses();

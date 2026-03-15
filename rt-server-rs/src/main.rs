@@ -63,10 +63,102 @@ fn load_config(path: &str) -> SchedulerConfig {
     return config;
 }
 
+/* -------------------------------------------------------------------------- */
+
+/// Helper for performance measurement.
+/// This will be zero-cost when the "perf-log" feature is disabled.
+#[cfg(feature = "perf-log")]
+struct PerfMetrics {
+    mtype: rt_message::MessageType,
+    cid: u16,
+    // measurement points.
+    time_recv: Option<std::time::Instant>,
+    time_start_proc: Option<std::time::Instant>,
+    time_start_send: Option<std::time::Instant>,
+}
+
+#[cfg(feature = "perf-log")]
+impl PerfMetrics {
+    fn new(event: &Event) -> Self {
+        if let Event::ClientMsg(msg, timestamp) = event {
+            Self {
+                mtype: msg.mtype,
+                cid: msg.cid,
+                time_recv: Some(*timestamp),
+                time_start_proc: None,
+                time_start_send: None,
+            }
+        } else {
+            Self {
+                mtype: rt_message::MessageType::Ready, // dummy
+                cid: 0,                                // dummy
+                time_recv: None,
+                time_start_proc: None,
+                time_start_send: None,
+            }
+        }
+    }
+    fn mark_proc_start(&mut self) {
+        if self.time_recv.is_some() {
+            self.time_start_proc = Some(std::time::Instant::now());
+        }
+    }
+    fn mark_send_start(&mut self) {
+        if self.time_recv.is_some() {
+            self.time_start_send = Some(std::time::Instant::now());
+        }
+    }
+    fn finish(self) {
+        if let Some(time_recv) = self.time_recv {
+            let time_finish = std::time::Instant::now();
+            let time_start_proc = self.time_start_proc.unwrap_or(std::time::Instant::now());
+            let time_start_send = self.time_start_send.unwrap_or(std::time::Instant::now());
+            let elapsed_q_wait = time_start_proc.saturating_duration_since(time_recv);
+            let elapsed_proc = time_start_send.saturating_duration_since(time_start_proc);
+            let elapsed_send = time_finish.saturating_duration_since(time_start_send);
+            let elapsed_total = time_finish.saturating_duration_since(time_recv);
+            info!(
+                "Perf Detail: CID:{:03} {:<5} | Total: {:>5}us (QWait: {:>5}us, Proc: {:>5}us, Send: {:>5}us)",
+                self.cid,
+                format!("{:?}", self.mtype),
+                elapsed_total.as_micros(),
+                elapsed_q_wait.as_micros(),
+                elapsed_proc.as_micros(),
+                elapsed_send.as_micros()
+            );
+        }
+    }
+}
+
+#[cfg(not(feature = "perf-log"))]
+struct PerfMetrics;
+
+#[cfg(not(feature = "perf-log"))]
+impl PerfMetrics {
+    #[inline(always)]
+    fn new(_event: &Event) -> Self {
+        Self
+    }
+    #[inline(always)]
+    fn mark_proc_start(&mut self) {
+        // do nothing.
+    }
+    #[inline(always)]
+    fn mark_send_start(&mut self) {
+        // do nothing.
+    }
+    #[inline(always)]
+    fn finish(self) {
+        // do nothing.
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+
 fn main() {
     // setup logger.
-    unsafe { std::env::set_var("RUST_LOG", "trace") }; // for debugging.
-    env_logger::Builder::from_default_env()
+    let env = env_logger::Env::default().default_filter_or("info");
+    env_logger::Builder::from_env(env)
         .format(|buf, record| {
             let target = record.target();
             let module = target.split("::").last().unwrap_or(target);
@@ -123,9 +215,15 @@ fn main() {
 
     // receive event from thread.
     while let Ok(event) = rx.recv() {
+        // create metrics for performance measurement.
+        let mut perf = PerfMetrics::new(&event);
+
         // process event in manager.
+        perf.mark_proc_start();
         let result = event_manager.process(event);
+
         // send response if needed.
+        perf.mark_send_start();
         match result {
             Ok(responses) => {
                 if responses.len() > 0 {
@@ -134,6 +232,10 @@ fn main() {
             }
             Err(e) => warn!("processing error: {}", e),
         }
+
+        // log performance.
+        perf.finish();
+
         // check if exit.
         if event_manager.get_state() == ManagerState::Exited {
             break;

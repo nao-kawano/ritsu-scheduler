@@ -67,11 +67,12 @@ impl ClientConnector {
             loop {
                 match transport.receive(&stop_flag) {
                     Ok(Some(msg)) => {
+                        let now = std::time::Instant::now();
                         trace!(
                             "<RECV> CID:{:03} MID:{} ({:?})",
                             msg.cid, msg.mid, msg.mtype
                         );
-                        if let Err(e) = tx_channel.send(Event::ClientMsg(msg)) {
+                        if let Err(e) = tx_channel.send(Event::ClientMsg(msg, now)) {
                             error!("failed to send event to manager: {:?}", e);
                             break;
                         }

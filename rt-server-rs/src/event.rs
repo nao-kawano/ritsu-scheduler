@@ -8,5 +8,5 @@ use rt_message::Message;
 pub enum Event {
     Abort,
     CycleStart(u64),
-    ClientMsg(Message),
+    ClientMsg(Message, std::time::Instant),
 }

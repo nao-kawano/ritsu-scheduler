@@ -12,3 +12,6 @@ env_logger.workspace = true
 ctrlc = "3.4.6"
 serde = { version="1.0", features=["derive"] }
 toml = "0.9.4"
+
+[features]
+perf-log = []

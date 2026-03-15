@@ -78,18 +78,9 @@ impl EventManager {
         let result = match event {
             Event::Abort => proc.on_shutdown(&mut self.context),
             Event::CycleStart(cycle) => proc.on_cycle_start(&mut self.context, cycle),
-            Event::ClientMsg(msg) => {
-                if !self.context.clients.contains_key(&msg.cid) {
-                    Err(format!(
-                        "unknown client message type={:?}, CID:{:03}",
-                        msg.mtype, msg.cid
-                    ))
-                } else {
-                    self.context
-                        .clients
-                        .get_mut(&msg.cid)
-                        .expect("client must be exist")
-                        .last_mid = msg.mid;
+            Event::ClientMsg(msg, _timestamp) => {
+                if let Some(client) = self.context.clients.get_mut(&msg.cid) {
+                    client.last_mid = msg.mid;
                     match msg.mtype {
                         MessageType::Join => proc.on_client_join(&mut self.context, &msg),
                         MessageType::Ready => proc.on_client_ready(&mut self.context, &msg),
@@ -100,6 +91,11 @@ impl EventManager {
                             msg.mtype, msg.cid
                         )),
                     }
+                } else {
+                    Err(format!(
+                        "unknown client message type={:?}, CID:{:03}",
+                        msg.mtype, msg.cid
+                    ))
                 }
             }
         };
