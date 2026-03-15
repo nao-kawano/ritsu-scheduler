@@ -13,11 +13,11 @@ use std::{thread, time};
 use super::CycleTrigger;
 
 pub struct IntervalTrigger {
-    cycle_ms: u16,
+    cycle_ms: u32,
 }
 
 impl IntervalTrigger {
-    pub fn new(cycle_ms: u16) -> Self {
+    pub fn new(cycle_ms: u32) -> Self {
         IntervalTrigger { cycle_ms }
     }
 }

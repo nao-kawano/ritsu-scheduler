@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Deserialize, Serialize)]
 pub struct ServerConfig {
     pub port: u16,
-    pub cycle_time: u16,
+    pub cycle_time_ms: u32,
     #[serde(default)]
     pub stats_interval_cycle: u32,
 }

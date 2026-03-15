@@ -1,6 +1,6 @@
 [server_config]
 port = 7878
-cycle_time = 1000
+cycle_time_ms = 1000
 stats_interval_cycle = 0
 
 [[client_configs]]

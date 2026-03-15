@@ -31,7 +31,7 @@ use manager::{EventManager, ManagerState};
 fn load_sample_config() -> SchedulerConfig {
     let server_config = ServerConfig {
         port: 7878,
-        cycle_time: 1000,
+        cycle_time_ms: 1000,
         stats_interval_cycle: 0,
     };
     #[rustfmt::skip]
@@ -198,7 +198,7 @@ fn main() {
     // setup cycle generator.
     let tx_cycle = tx.clone();
     let trigger = Box::new(cycle::interval::IntervalTrigger::new(
-        config.server_config.cycle_time,
+        config.server_config.cycle_time_ms,
     ));
     let mut cycle = CycleGenerator::new(trigger);
     cycle
