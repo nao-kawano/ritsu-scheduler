@@ -38,7 +38,7 @@ pub struct RtClientConfig {
 
 impl RtClientConfig {
     /// Default timeout in seconds for Ready requests during startup.
-    pub const TIMEOUT_SEC_READY_STARTUP_DEFAULT: f64 = 1.0;
+    pub const TIMEOUT_SEC_READY_STARTUP_DEFAULT: f64 = 5.0;
 
     /// Creates a new RtClientConfig with default values based on the run cycle and startup wait time.
     ///

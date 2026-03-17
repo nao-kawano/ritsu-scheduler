@@ -66,7 +66,7 @@ class Config:
     RETRY_COUNT_JOIN: int = 5
 
     # Retry time for READY request during startup in seconds.
-    RETRY_SEC_READY_STARTUP: float = 1.000
+    RETRY_SEC_READY_STARTUP: float = 5.000
     # Retry count for READY request during startup. Set in __init__.
     RETRY_COUNT_READY_STARTUP: int = 0
 
