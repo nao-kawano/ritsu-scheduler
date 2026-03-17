@@ -217,7 +217,7 @@ class RtClient:
         ret_resp_type: ResponseType = ResponseType.ERROR
         packet: bytes = self._create_packet(req_type)
         for count in range(1 + retry_count):
-            log(f">> send {req_type.value} CID:{self.client_id:03d} MID:{self.message_id} ({count+1}/{1+retry_count}) t/o={timeout_sec}s")
+            log(f">> send {req_type.value} CID:{self.client_id:03d} MID:{self.message_id} ({count+1}/{1+retry_count}) t/o={timeout_sec:.3f}s")
             self.sock.sendto(packet, (self.host, self.port))
             mtype = self._wait_for_matching_response(timeout_sec, req_type, self.message_id)
             if mtype is not None:
@@ -361,7 +361,7 @@ if __name__ == '__main__':
             resp_type: ResponseType = client.wait_next()
             log(f"start count={proc_count}")
             if resp_type == ResponseType.OK:
-                log(f"got OK, do some process with {args.proc_time_sec} sec ...")
+                log(f"got OK, do some process with {args.proc_time_sec:.3f} sec ...")
                 # some process here.
                 time.sleep(args.proc_time_sec)
                 # client must send DONE and send READY (wait_next).

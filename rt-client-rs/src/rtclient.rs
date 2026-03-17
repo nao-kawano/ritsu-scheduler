@@ -225,7 +225,7 @@ impl RtClient {
         let mut recv_buf = [0u8; MESSAGE_LEN_MAX];
         for count in 0..=retry_count {
             trace!(
-                ">> send {:?} CID:{:03} MID:{} ({}/{}) t/o={}s",
+                ">> send {:?} CID:{:03} MID:{} ({}/{}) t/o:{:.3}s",
                 req_type,
                 self.client_id,
                 self.message_id,
