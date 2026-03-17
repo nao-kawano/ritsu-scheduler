@@ -31,7 +31,7 @@ use manager::{EventManager, ManagerState};
 fn load_sample_config() -> SchedulerConfig {
     let server_config = ServerConfig {
         port: 7878,
-        cycle_time_ms: 1000,
+        cycle_time_ms: 50,
         stats_interval_cycle: 0,
     };
     #[rustfmt::skip]

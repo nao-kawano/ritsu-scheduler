@@ -45,7 +45,7 @@ impl RtClientConfig {
     /// # Arguments
     ///
     /// * `run_cycle_sec` - The expected execution cycle of the client in seconds.
-    ///   For example, if the server's Cycle Time is 100ms and the client's Cycle is 2, set this to 0.2 (200ms).
+    ///   For example, if the server's Cycle Time is 50ms and the client's Cycle is 2, set this to 0.1 (100ms).
     /// * `startup_wait_sec` - The total time to wait during the startup phase in seconds.
     pub fn new(run_cycle_sec: f64, startup_wait_sec: f64) -> Self {
         RtClientConfig {
