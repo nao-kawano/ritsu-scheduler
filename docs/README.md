@@ -10,6 +10,7 @@ graph TD
     subgraph "rt-server-rs (Scheduler)"
         Main[Main]
         SC[SchedulerConfig]
+
         EM[EventManager]
 
         CG[CycleGenerator]
@@ -22,14 +23,19 @@ graph TD
 
         Main -.-> SC
         Main --> EM
-        Main --> CG
         Main --> CC
+        Main --> CG
 
-        EM -.-> SC
         CG --> CT
         CT -.-> IT
+
         CC --> CTr
         CTr -.-> UT
+    end
+
+    %% Core Project
+    subgraph "rt-core-rs (Core)"
+        SCH[Scheduler]
     end
 
     %% Client Projects
@@ -46,15 +52,17 @@ graph TD
     end
 
     %% Inter-project dependencies
+    EM --> SCH
     EM -.-> Msg
     CTr -.-> Msg
     RCL -.-> Msg
     %% for layout
     PCL ~~~ Msg
+    SCH ~~~ Msg
 
     %% Communication Flow
-    UT <-->|UDP| RCL
-    UT <-->|UDP| PCL
+    UT <-.->|UDP| RCL
+    UT <-.->|UDP| PCL
 
     %% Styling
     style CT fill:#f9f9f9,stroke:#666,stroke-dasharray: 5 5

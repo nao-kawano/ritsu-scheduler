@@ -50,8 +50,9 @@ sequenceDiagram
 
 ## Repository Structure
 
-- **[rt-message-rs](./rt-message-rs)**: Common message types and serialization for Rust.
-- **[rt-server-rs](./rt-server-rs)**: The Ritsu scheduler server implemented in Rust.
+- **[rt-core-rs](./rt-core-rs)**: The core scheduling logic. Manages process states and dependency resolutions.
+- **[rt-server-rs](./rt-server-rs)**: The Ritsu scheduler server. Responsible for client management, timing control, and coordinating execution with the core scheduler.
+- **[rt-message-rs](./rt-message-rs)**: Common message types and serialization protocol used for server-client communication.
 - **[rt-client-rs](./rt-client-rs)**: High-level client library for Rust-based processes.
 - **[rt-client-py](./rt-client-py)**: Client implementation for Python-based processes.
 
