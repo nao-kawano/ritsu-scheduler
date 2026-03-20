@@ -36,14 +36,14 @@ sequenceDiagram
 Note over S,B: << cycle N >>
 
   Note over S: Check process A,B status.<br />-> OK
-  S --) A: OK
+  S --) A: START,cycle=N
   Note over A: Running
   A ->> A: process
 
 Note over S,B: << cycle N+1 >>
   Note over S: Check process A,B status.<br />A still Running -> mark as Overrun
 
-  S --) B: SKIP
+  S --) B: SKIP,cycle=N+1
   Note over B: send READY again
   B -) S: READY
 
@@ -56,7 +56,7 @@ Note over S,B: << cycle N+1 >>
   A -) S: READY
   Note over A: Ready
   Note over S: skip this cycle
-  S --) A: *LATE*
+  S --) A: *LATE,cycle=N+1*
     Note over A: send READY again
 
   A -) S: READY

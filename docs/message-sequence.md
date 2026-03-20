@@ -18,16 +18,16 @@ sequenceDiagram
   Note over A: None
   Note over B: None
 
-  A -) S: JOIN
+  A -) S: JOIN,version=1
   Note over A: Connecting
-  S --) A: OK
+  S --) A: JOINED,version=1
 
   A -) S: READY
   Note over A: Ready
 
-  B -) S: JOIN
+  B -) S: JOIN,version=1
   Note over B: Connecting
-  S --) B: OK
+  S --) B: JOINED,version=1
 
   B -) S: READY
   Note over B: Ready
@@ -39,14 +39,14 @@ sequenceDiagram
   A -) S: READY
   alt Scheduler initiated shutdown
     Note over S: response ERROR in shutdown
-    S --) A: *ERROR*
+    S --) A: *ERROR,reason=Shutdown*
       Note over A: Disconnecting
     A -) S: EXIT
     S --) A: OK
       Note over A: None
 
     B -) S: READY
-    S --) B: *ERROR*
+    S --) B: *ERROR,reason=Shutdown*
       Note over B: Disconnecting
     B -) S: EXIT
     S --) B: OK
@@ -61,7 +61,7 @@ sequenceDiagram
       Note over B: None
 
     Note over S: response ERROR in shutdown
-    S --) A: *ERROR*
+    S --) A: *ERROR,reason=ClientExit,cid=002*
       Note over A: Disconnecting
     A -) S: EXIT
     S --) A: OK
@@ -93,7 +93,7 @@ sequenceDiagram
   S ->> S: trigger (time-based)
   Note over S: check dependency -> run Process A
 
-  S --) A: OK
+  S --) A: START,cycle=1
   Note over A: Running
   A ->> A: process
   A -) S: DONE
@@ -101,9 +101,9 @@ sequenceDiagram
   S --) A: OK
 
   Note over S: check dependency -> run Process B and C
-  S --) B: OK
+  S --) B: START,cycle=1
   Note over B: Running
-  S --) C: OK
+  S --) C: START,cycle=1
   Note over C: Running
 
   A -) S: READY

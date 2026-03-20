@@ -34,13 +34,13 @@ sequenceDiagram
   C -) S: READY
 
   Note over S: Time-based trigger -> Run A
-  S --) A: OK
+  S --) A: START
   Note over A: Processing...
   A -) S: DONE
 
   Note over S: Dependency check -> Run B and C
-  S --) B: OK
-  S --) C: OK
+  S --) B: START
+  S --) C: START
   Note over B,C: Processing...
 
   A -) S: READY (Next cycle)
