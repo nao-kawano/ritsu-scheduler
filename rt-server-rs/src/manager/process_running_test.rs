@@ -62,7 +62,11 @@ fn test_normal_cycle_flow() {
     let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
     assert_eq!(result.len(), 1);
-    assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Ok);
+    assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Start);
+    assert_eq!(
+        rmap.get(&0).unwrap().get_extra("cycle"),
+        Some(&"0".to_string())
+    );
 
     // CID 0 sends DONE -> CID 1 should start immediately (Floating).
     let m_done0 = Message::new(MessageType::Done, 1, 0, None).unwrap();
@@ -70,7 +74,11 @@ fn test_normal_cycle_flow() {
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
     assert_eq!(result.len(), 2);
     assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Ok); // Ack for 0
-    assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Ok); // Start for 1
+    assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Start); // Start for 1
+    assert_eq!(
+        rmap.get(&1).unwrap().get_extra("cycle"),
+        Some(&"0".to_string())
+    );
 
     // CID 1 sends DONE -> CID 2 is Ready but waits for Offset 1 (Non-Floating).
     let m_done1 = Message::new(MessageType::Done, 5, 1, None).unwrap();
@@ -84,8 +92,16 @@ fn test_normal_cycle_flow() {
     let result = proc.on_cycle_start(&mut ctx, 124).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
     assert_eq!(result.len(), 2);
-    assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Ok); // Start for 2
-    assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Ok); // Start for 3
+    assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Start); // Start for 2
+    assert_eq!(
+        rmap.get(&2).unwrap().get_extra("cycle"),
+        Some(&"1".to_string())
+    );
+    assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Start); // Start for 3
+    assert_eq!(
+        rmap.get(&3).unwrap().get_extra("cycle"),
+        Some(&"1".to_string())
+    );
 }
 
 #[test]
@@ -188,7 +204,11 @@ fn test_retransmission_handling() {
     let result = proc.on_client_ready(&mut ctx, &m_ready0).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
     assert_eq!(result.len(), 1);
-    assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Ok); // Should allow to continue.
+    assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Start); // Should allow to continue.
+    assert_eq!(
+        rmap.get(&0).unwrap().get_extra("cycle"),
+        Some(&"0".to_string())
+    );
 
     // 2. Done retransmission while Idle.
     let m_done0 = Message::new(MessageType::Done, 2, 0, None).unwrap();
