@@ -88,15 +88,9 @@ impl ManagerProc for ManagerProcExiting {
                     "<STAT> CYC:{:05} CID:{:03} MID:{} DONE (Exiting)",
                     context.cycle_current, message.cid, message.mid
                 );
-                client.set_client_state(ClientState::Exiting, context.cycle_current);
+                // Always return OK for DONE. Return ERROR on the next READY.
                 responses.push(
-                    Message::new(
-                        MessageType::Error,
-                        client.last_mid,
-                        message.cid,
-                        context.exit_reason.clone(),
-                    )
-                    .unwrap(),
+                    Message::new(MessageType::Ok, client.last_mid, message.cid, None).unwrap(),
                 );
             } else {
                 warn!(

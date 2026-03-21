@@ -132,14 +132,14 @@ fn test_on_client_done() {
 
     // check result.
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].mtype, MessageType::Error);
+    assert_eq!(result[0].mtype, MessageType::Ok);
     assert_eq!(result[0].cid, 2);
-    assert_eq!(result[0].get_extra("reason"), Some(&"Shutdown".to_string()));
+    assert_eq!(result[0].get_extra("reason"), None);
     assert_eq!(ctx.state, ManagerState::Exiting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exiting);
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
-    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exiting);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active); // Should remain Active (Idle on client)
     assert_eq!(ctx.num_active_clients, 3);
 }
 
