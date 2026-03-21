@@ -32,7 +32,9 @@ class ResponseType(Enum):
     """
     Enum representing the types of responses the server can send.
     """
-    OK = "OK"  # Response indicating success.
+    JOINED = "JOINED"  # Response indicating successful join.
+    START = "START"  # Response indicating the process should start.
+    OK = "OK"  # Response indicating success for DONE or EXIT.
     SKIP = "SKIP"  # Response indicating the task should be skipped.
     LATE = "LATE"  # Response indicating the process is too late.
     ERROR = "ERROR"  # Response indicating an error occurred.
@@ -145,14 +147,17 @@ class RtClient:
         else:
             self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
             self.sock.bind(("0.0.0.0", 0))
-            resp_type = self._send_request(RequestType.JOIN,
-                                           self.config.RETRY_SEC_JOIN,
-                                           self.config.RETRY_COUNT_JOIN)
-            if resp_type == ResponseType.OK:
+            resp_type, extras = self._send_request(RequestType.JOIN,
+                                                   self.config.RETRY_SEC_JOIN,
+                                                   self.config.RETRY_COUNT_JOIN,
+                                                   extras={"version": "1"})
+            if resp_type == ResponseType.JOINED:
                 self.connected = True
                 self.startup = True
+                log(f"joined successfully (version={extras.get("version", "unknown")})")
                 return True
             else:
+                log(f"failed to join: {resp_type.value} (reason={extras.get("reason", "N/A")}, cid={extras.get("cid", "N/A")})")
                 return False
 
     def exit(self) -> None:
@@ -169,11 +174,11 @@ class RtClient:
             self.sock = None
             self.connected = False
 
-    def wait_next(self) -> ResponseType:
+    def wait_next(self) -> tuple[ResponseType, dict[str, str]]:
         """
         Wait for the next process timing from the server.
         Returns:
-            ResponseType: The response type from the server.
+            Tuple[ResponseType, dict[str, str]]: The response type and extras from the server.
         Raises:
             RuntimeError: If the client is not connected.
         """
@@ -183,10 +188,10 @@ class RtClient:
         timeout_sec = self.config.RETRY_SEC_READY_STARTUP if self.startup else self.config.RETRY_SEC_READY
         retry_count = self.config.RETRY_COUNT_READY_STARTUP if self.startup else self.config.RETRY_COUNT_READY
 
-        resp_type = self._send_request(RequestType.READY, timeout_sec, retry_count)
+        resp_type, extras = self._send_request(RequestType.READY, timeout_sec, retry_count)
         self.startup = False
 
-        return resp_type
+        return resp_type, extras
 
     def notify_done(self) -> ResponseType:
         """
@@ -198,34 +203,36 @@ class RtClient:
         """
         if not self.connected:
             raise RuntimeError("notify_done called before connected")
-        resp_type = self._send_request(RequestType.DONE,
-                                       self.config.RETRY_SEC_DONE,
-                                       self.config.RETRY_COUNT_DONE)
+        resp_type, _ = self._send_request(RequestType.DONE,
+                                          self.config.RETRY_SEC_DONE,
+                                          self.config.RETRY_COUNT_DONE)
         return resp_type
 
-    def _send_request(self, req_type: RequestType, timeout_sec: float, retry_count: int) -> ResponseType:
+    def _send_request(self, req_type: RequestType, timeout_sec: float, retry_count: int, extras: dict[str, str] | None = None) -> tuple[ResponseType, dict[str, str]]:
         """
         Send a request to the server and handle the response.
         Args:
             req_type (RequestType): The type of request to send.
             timeout_sec (float): The timeout in seconds for the request.
             retry_count (int): The number of times to retry the request.
+            extras (dict[str, str], optional): Extra information to include in the request.
         Returns:
-            ResponseType: The response type from the server.
+            Tuple[ResponseType, dict[str, str]]: The response type and extras from the server.
         """
         self._clear_recv_buffer()
         ret_resp_type: ResponseType = ResponseType.ERROR
-        packet: bytes = self._create_packet(req_type)
+        ret_extras: dict[str, str] = {}
+        packet: bytes = self._create_packet(req_type, extras)
         for count in range(1 + retry_count):
             log(f">> send {req_type.value} CID:{self.client_id:03d} MID:{self.message_id} ({count+1}/{1+retry_count}) t/o={timeout_sec:.3f}s")
             self.sock.sendto(packet, (self.host, self.port))
-            mtype = self._wait_for_matching_response(timeout_sec, req_type, self.message_id)
-            if mtype is not None:
-                ret_resp_type = mtype
+            res = self._wait_for_matching_response(timeout_sec, req_type, self.message_id)
+            if res is not None:
+                ret_resp_type, ret_extras = res
                 break
-        return ret_resp_type
+        return ret_resp_type, ret_extras
 
-    def _wait_for_matching_response(self, timeout_sec: float, req_type: RequestType, expected_mid: int) -> ResponseType | None:
+    def _wait_for_matching_response(self, timeout_sec: float, req_type: RequestType, expected_mid: int) -> tuple[ResponseType, dict[str, str]] | None:
         """
         Wait for a response that matches the expected MessageID.
         Args:
@@ -233,7 +240,7 @@ class RtClient:
             req_type (RequestType): The type of request waiting for response.
             expected_mid (int): The expected MessageID.
         Returns:
-            ResponseType | None: The matching ResponseType or None if timeout.
+            Tuple[ResponseType, dict[str, str]] | None: The matching ResponseType and extras or None if timeout.
         """
         wait_start = time.time()
         while True:
@@ -245,38 +252,48 @@ class RtClient:
             self.sock.settimeout(remaining)
             try:
                 data, _ = self.sock.recvfrom(self.config.PACKET_SIZE)
-                resp_type, resp_id = self._parse_packet(data)
+                resp_type, resp_id, extras = self._parse_packet(data)
                 if resp_id == expected_mid:
                     log(f"<< recv {resp_type.value} for {req_type.value} CID:{self.client_id:03d} MID:{expected_mid}")
-                    return resp_type
+                    return resp_type, extras
                 log(
                     f"<< mid mismatch, expected MID:{expected_mid}, actual MID:{resp_id}, discard and keep waiting")
             except socket.timeout:
                 log(f"timeout, retrying... {req_type.value}")
                 return None
-            except Exception:
+            except Exception as e:
                 # If parse error or other error, keep waiting
+                log(f"parse error: {e}")
                 continue
 
-    def _create_packet(self, request: RequestType) -> bytes:
+    def _create_packet(self, request: RequestType, extras: dict[str, str] | None = None) -> bytes:
         """
         Create a packet to send to the server.
         Args:
             request (RequestType): The type of request to create the packet for.
+            extras (dict[str, str], optional): Extra information to include in the request.
         Returns:
             bytes: The encoded packet.
         """
         self.message_id = (self.message_id + 1) % 10  # update message_id before send.
         packet_str: str = PACKET_FORMAT.format(request.value, self.message_id, self.client_id)
+
+        if extras:
+            for k, v in extras.items():
+                if v:
+                    packet_str += f",{k}={v}"
+                else:
+                    packet_str += f",{k}"
+
         return packet_str.encode(PACKET_ENCODING)
 
-    def _parse_packet(self, data: bytes) -> tuple[ResponseType, int]:
+    def _parse_packet(self, data: bytes) -> tuple[ResponseType, int, dict[str, str]]:
         """
         Parse a packet received from the server.
         Args:
             data (bytes): The data received from the server.
         Returns:
-            Tuple[ResponseType, int]: A tuple containing the response type and message ID.
+            Tuple[ResponseType, int, dict[str, str]]: A tuple containing the response type, message ID and extras.
         Raises:
             ValueError: If the packet format is invalid.
         """
@@ -300,9 +317,18 @@ class RtClient:
         if client_id != self.client_id:
             raise ValueError(
                 f"Invalid client id mismatch, expected {self.client_id}, actual {client_id}")
-        # TODO: parse extras.
+        # -- extras
+        extras = {}
+        for extra_str in bodies[1:]:
+            if not extra_str:
+                continue
+            if "=" in extra_str:
+                k, v = extra_str.split("=", maxsplit=1)
+                extras[k] = v
+            else:
+                extras[extra_str] = ""
 
-        return (resp_type, resp_id)
+        return (resp_type, resp_id, extras)
 
     def _clear_recv_buffer(self) -> None:
         """Clears the receive buffer by reading and discarding any data present.
@@ -314,12 +340,12 @@ class RtClient:
         while True:
             try:
                 _, _ = self.sock.recvfrom(self.config.PACKET_SIZE)
-            except BlockingIOError:
+            except (BlockingIOError, socket.error):
                 break
         self.sock.setblocking(True)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # Example usage:
     import sys
     import time
@@ -358,10 +384,11 @@ if __name__ == '__main__':
     log(f"client joined")
     while True:
         try:
-            resp_type: ResponseType = client.wait_next()
-            log(f"start count={proc_count}")
-            if resp_type == ResponseType.OK:
-                log(f"got OK, do some process with {args.proc_time_sec:.3f} sec ...")
+            resp_type, extras = client.wait_next()
+            cyc = extras.get("cycle", "N/A")
+            log(f"wait_next done: {resp_type.value}, cycle={cyc}, count={proc_count}")
+            if resp_type == ResponseType.START:
+                log(f"got START, do some process with {args.proc_time_sec:.3f} sec ...")
                 # some process here.
                 time.sleep(args.proc_time_sec)
                 # client must send DONE and send READY (wait_next).
@@ -374,8 +401,9 @@ if __name__ == '__main__':
                 log("got LATE, retry")
             else:
                 # client must send EXIT if got ERROR.
-                log("got ERROR, going to exit")
+                log(f"got {resp_type.value}, going to exit (reason={extras.get("reason", "N/A")}, cid={extras.get("cid", "N/A")})")
                 break
+
             # logic for a sample program.
             proc_count += 1
             if proc_count >= PROC_COUNT_MAX:
