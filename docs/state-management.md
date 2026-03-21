@@ -108,5 +108,8 @@ Note:
 - Exiting
   - Client is Disconnecting.
   - Server is waiting for `EXIT`.
+  - **Note on Server Shutdown**: Based on the request-response model, shutdown notifications are delivered exclusively via `ERROR` responses.
+    - Clients in the `Ready` state (waiting for response) receive an immediate `ERROR` and transition to `Exiting`.
+    - Other clients transition to `Exiting` after receiving an `ERROR` in response to their next request (typically `READY`).
 
 EOF
