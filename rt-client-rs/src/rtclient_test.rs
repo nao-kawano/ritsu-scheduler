@@ -164,7 +164,7 @@ fn test_join() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
     let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
@@ -180,6 +180,7 @@ fn test_join() {
         let requests = requests.lock().unwrap();
         assert_eq!(requests.len(), 1);
         assert_eq!(requests[0].mtype, MessageType::Join);
+        assert_eq!(requests[0].get_extra("version").unwrap(), "1");
     }
 }
 
@@ -195,7 +196,7 @@ fn test_join_retry_ok() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, client.config.retry_sec_join + 0.005),
+        MockResponse::new(MessageType::Joined, client.config.retry_sec_join + 0.005),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
     let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
@@ -229,7 +230,7 @@ fn test_join_retry_ng() {
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse::new(
-            MessageType::Ok,
+            MessageType::Joined,
             client.config.retry_sec_join * (retry_count as f64 + 1.0) + 0.005,
         ),
     ];
@@ -264,7 +265,7 @@ fn test_join_precond() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
     let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
@@ -293,9 +294,12 @@ fn test_ready_startup() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready.
-        MockResponse::new(MessageType::Ok, client.config.retry_sec_ready_startup / 2.0),
+        MockResponse::new(
+            MessageType::Start,
+            client.config.retry_sec_ready_startup / 2.0,
+        ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
     let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
@@ -305,7 +309,7 @@ fn test_ready_startup() {
     let ret = client.wait_next();
     let _ = mock_handle.join();
     // check result.
-    assert_eq!(ret, MessageType::Ok);
+    assert_eq!(ret.mtype, MessageType::Start);
     assert_eq!(client.connected, true);
     assert_eq!(client.startup, false);
     {
@@ -330,10 +334,10 @@ fn test_ready_startup_retry_ok() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready.
         MockResponse::new(
-            MessageType::Ok,
+            MessageType::Start,
             client.config.retry_sec_ready_startup + 0.005,
         ),
     ];
@@ -345,7 +349,7 @@ fn test_ready_startup_retry_ok() {
     let ret = client.wait_next();
     let _ = mock_handle.join();
     // check result.
-    assert_eq!(ret, MessageType::Ok);
+    assert_eq!(ret.mtype, MessageType::Start);
     assert_eq!(client.connected, true);
     assert_eq!(client.startup, false);
     {
@@ -372,10 +376,10 @@ fn test_ready_startup_retry_ng() {
     let retry_count: u32 = client.config.retry_count_ready_startup;
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready.
         MockResponse::new(
-            MessageType::Ok,
+            MessageType::Start,
             client.config.retry_sec_ready_startup * (retry_count as f64 + 1.0) + 0.005,
         ),
     ];
@@ -387,7 +391,7 @@ fn test_ready_startup_retry_ng() {
     let ret = client.wait_next();
     let _ = mock_handle.join();
     // check result.
-    assert_eq!(ret, MessageType::Error);
+    assert_eq!(ret.mtype, MessageType::Error);
     assert_eq!(client.connected, true);
     assert_eq!(client.startup, false);
     {
@@ -434,13 +438,13 @@ fn test_ready() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Start, 0.0),
         // Done.
         MockResponse::new(MessageType::Ok, 0.0),
         // Ready.
-        MockResponse::new(MessageType::Ok, client.config.retry_sec_ready / 2.0),
+        MockResponse::new(MessageType::Start, client.config.retry_sec_ready / 2.0),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
     let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
@@ -452,7 +456,7 @@ fn test_ready() {
     let ret = client.wait_next();
     let _ = mock_handle.join();
     // check result.
-    assert_eq!(ret, MessageType::Ok);
+    assert_eq!(ret.mtype, MessageType::Start);
     assert_eq!(client.connected, true);
     assert_eq!(client.startup, false);
     {
@@ -479,13 +483,13 @@ fn test_ready_retry_ok() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Start, 0.0),
         // Done.
         MockResponse::new(MessageType::Ok, 0.0),
         // Ready.
-        MockResponse::new(MessageType::Ok, client.config.retry_sec_ready + 0.005),
+        MockResponse::new(MessageType::Start, client.config.retry_sec_ready + 0.005),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
     let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
@@ -497,7 +501,7 @@ fn test_ready_retry_ok() {
     let ret = client.wait_next();
     let _ = mock_handle.join();
     // check result.
-    assert_eq!(ret, MessageType::Ok);
+    assert_eq!(ret.mtype, MessageType::Start);
     assert_eq!(client.connected, true);
     assert_eq!(client.startup, false);
     {
@@ -526,14 +530,14 @@ fn test_ready_retry_ng() {
     let retry_count: u32 = client.config.retry_count_ready;
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Start, 0.0),
         // Done.
         MockResponse::new(MessageType::Ok, 0.0),
         // Ready.
         MockResponse::new(
-            MessageType::Ok,
+            MessageType::Start,
             client.config.retry_sec_ready * (retry_count as f64 + 1.0) + 0.005,
         ),
     ];
@@ -547,7 +551,7 @@ fn test_ready_retry_ng() {
     let ret = client.wait_next();
     let _ = mock_handle.join();
     // check result.
-    assert_eq!(ret, MessageType::Error);
+    assert_eq!(ret.mtype, MessageType::Error);
     assert_eq!(client.connected, true);
     assert_eq!(client.startup, false);
     {
@@ -574,7 +578,7 @@ fn test_ready_skip() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready -> Skip.
         MockResponse::new(MessageType::Skip, 0.0),
     ];
@@ -587,7 +591,7 @@ fn test_ready_skip() {
     let _ = mock_handle.join();
 
     // check result.
-    assert_eq!(ret, MessageType::Skip);
+    assert_eq!(ret.mtype, MessageType::Skip);
     assert_eq!(client.connected, true);
     assert_eq!(client.startup, false);
 }
@@ -604,7 +608,7 @@ fn test_ready_late() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready -> Late.
         MockResponse::new(MessageType::Late, 0.0),
     ];
@@ -617,7 +621,7 @@ fn test_ready_late() {
     let _ = mock_handle.join();
 
     // check result.
-    assert_eq!(ret, MessageType::Late);
+    assert_eq!(ret.mtype, MessageType::Late);
     assert_eq!(client.connected, true);
     assert_eq!(client.startup, false);
 }
@@ -634,7 +638,7 @@ fn test_ready_error() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready -> Error.
         MockResponse::new(MessageType::Error, 0.0),
     ];
@@ -647,7 +651,7 @@ fn test_ready_error() {
     let _ = mock_handle.join();
 
     // check result.
-    assert_eq!(ret, MessageType::Error);
+    assert_eq!(ret.mtype, MessageType::Error);
     assert_eq!(client.connected, true);
     assert_eq!(client.startup, false);
 }
@@ -664,9 +668,9 @@ fn test_done() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Start, 0.0),
         // Done.
         MockResponse::new(MessageType::Ok, 0.0),
     ];
@@ -680,7 +684,7 @@ fn test_done() {
     let _ = mock_handle.join();
 
     // check result.
-    assert_eq!(ret, MessageType::Ok);
+    assert_eq!(ret.mtype, MessageType::Ok);
     assert_eq!(client.connected, true);
     assert_eq!(client.startup, false);
 }
@@ -699,11 +703,11 @@ fn test_ready_mid_mismatch() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready -> Mismatch MID, then immediate followup.
-        MockResponse::new_with_id_followup(MessageType::Ok, 9, 0, 0.0), // mid 9 instead of 2
+        MockResponse::new_with_id_followup(MessageType::Start, 9, 0, 0.0), // mid 9 instead of 2
         // Ready -> Correct MID.
-        MockResponse::new_with_id(MessageType::Ok, 2, 0, 0.0), // mid 2
+        MockResponse::new_with_id(MessageType::Start, 2, 0, 0.0), // mid 2
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
     let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
@@ -714,7 +718,7 @@ fn test_ready_mid_mismatch() {
     let _ = mock_handle.join();
 
     // check result.
-    assert_eq!(ret, MessageType::Ok);
+    assert_eq!(ret.mtype, MessageType::Start);
     {
         let requests = requests.lock().unwrap();
         // Join + Ready(only 1 attempt, even after mismatch because it should keep waiting)
@@ -738,9 +742,9 @@ fn test_done_retry_ng() {
     let retry_count: u32 = client.config.retry_count_done;
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Ready.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Start, 0.0),
         // Done.
         MockResponse::new(
             MessageType::Ok,
@@ -756,7 +760,7 @@ fn test_done_retry_ng() {
     let ret = client.notify_done();
     let _ = mock_handle.join();
     // check result.
-    assert_eq!(ret, MessageType::Error);
+    assert_eq!(ret.mtype, MessageType::Error);
     assert_eq!(client.connected, true);
     assert_eq!(client.startup, false);
     {
@@ -801,7 +805,7 @@ fn test_exit() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Exit.
         MockResponse::new(MessageType::Ok, client.config.retry_sec_exit / 2.0),
     ];
@@ -836,7 +840,7 @@ fn test_exit_retry_ok() {
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Exit.
         MockResponse::new(MessageType::Ok, client.config.retry_sec_exit + 0.005),
     ];
@@ -873,7 +877,7 @@ fn test_exit_retry_ng() {
     let retry_count: u32 = client.config.retry_count_exit;
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Ok, 0.0),
+        MockResponse::new(MessageType::Joined, 0.0),
         // Exit.
         MockResponse::new(
             MessageType::Ok,

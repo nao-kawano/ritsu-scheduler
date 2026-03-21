@@ -14,15 +14,15 @@ illustrating the process flow that each client should implement.
 ```mermaid
 stateDiagram-v2
     [*] --> Connecting
-    note left of Connecting : (entry) Send JOIN
+    note left of Connecting : (entry) Send JOIN,version=1
 
-    Connecting --> [*] : Recv ERROR
-    Connecting --> Ready : Recv OK
+    Connecting --> [*] : Recv ERROR,reason=...
+    Connecting --> Ready : Recv JOINED,version=1
     note left of Ready : (entry) Send READY
 
     State Active {
-        Ready --> Running : Recv OK
-        Ready --> Ready : Recv SKIP or LATE
+        Ready --> Running : Recv START,cycle=N
+        Ready --> Ready : Recv SKIP,cycle=N or LATE,cycle=N
 
         Running --> Idle : Process Complete
         note right of Idle : (entry) Send DONE
@@ -47,7 +47,7 @@ control of client processes.
 ```mermaid
 stateDiagram-v2
     [*] --> None
-    None --> Sync : Recv JOIN / Send OK
+    None --> Sync : Recv JOIN / Send JOINED
     Sync --> Ready : Recv READY
 
     Sync --> None : Recv EXIT / Send OK
@@ -58,7 +58,7 @@ stateDiagram-v2
 
     State Active {
         note right of Ready : hold response until cycle and dependency met
-        Ready --> Running : cycle and dependency met / Send OK
+        Ready --> Running : cycle and dependency met / Send START
         Running --> Idle : Recv DONE / Send OK
         Idle --> Ready : Recv READY
 
@@ -108,5 +108,8 @@ Note:
 - Exiting
   - Client is Disconnecting.
   - Server is waiting for `EXIT`.
+  - **Note on Server Shutdown**: Based on the request-response model, shutdown notifications are delivered exclusively via `ERROR` responses.
+    - Clients in the `Ready` state (waiting for response) receive an immediate `ERROR` and transition to `Exiting`.
+    - Other clients transition to `Exiting` after receiving an `ERROR` in response to their next request (typically `READY`).
 
 EOF

@@ -8,6 +8,9 @@ mod message_test;
 
 /* -------------------------------------------------------------------------- */
 
+/// Protocol version.
+pub const PROTOCOL_VERSION: &str = "1";
+
 /// Message ID length in string.
 pub const MSG_ID_LEN: usize = 1;
 /// Maximum Message ID in number.
@@ -36,10 +39,14 @@ pub enum ParseError {
 /// Message types.
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum MessageType {
+    // Client Requests
     Join,
     Ready,
     Done,
     Exit,
+    // Server Responses
+    Joined,
+    Start,
     Ok,
     Skip,
     Late,
@@ -54,6 +61,8 @@ impl MessageType {
             MessageType::Ready => "READY",
             MessageType::Done => "DONE",
             MessageType::Exit => "EXIT",
+            MessageType::Joined => "JOINED",
+            MessageType::Start => "START",
             MessageType::Ok => "OK",
             MessageType::Skip => "SKIP",
             MessageType::Late => "LATE",
@@ -68,6 +77,8 @@ impl MessageType {
             "READY" => Ok(MessageType::Ready),
             "DONE" => Ok(MessageType::Done),
             "EXIT" => Ok(MessageType::Exit),
+            "JOINED" => Ok(MessageType::Joined),
+            "START" => Ok(MessageType::Start),
             "OK" => Ok(MessageType::Ok),
             "SKIP" => Ok(MessageType::Skip),
             "LATE" => Ok(MessageType::Late),
@@ -95,7 +106,7 @@ pub struct Message {
     /// Client ID.
     pub cid: u16,
     /// Extra Info.
-    pub extras: Vec<String>,
+    pub extras: Vec<(String, String)>,
 }
 
 impl Message {
@@ -104,7 +115,7 @@ impl Message {
         message_type: MessageType,
         message_id: u8,
         client_id: u16,
-        extras: Option<Vec<String>>,
+        extras: Option<Vec<(String, String)>>,
     ) -> Result<Self, ParseError> {
         if client_id > CLIENT_ID_MAX {
             return Err(ParseError::InvalidClientId);
@@ -116,8 +127,22 @@ impl Message {
             mtype: message_type,
             mid: message_id,
             cid: client_id,
-            extras: extras.unwrap_or(vec![]),
+            extras: extras.unwrap_or_default(),
         })
+    }
+
+    /// Get extra value by key.
+    pub fn get_extra(&self, key: &str) -> Option<&String> {
+        self.extras.iter().find(|(k, _)| k == key).map(|(_, v)| v)
+    }
+
+    /// Set extra value by key.
+    pub fn set_extra(&mut self, key: &str, value: &str) {
+        if let Some(pos) = self.extras.iter().position(|(k, _)| k == key) {
+            self.extras[pos].1 = value.to_string();
+        } else {
+            self.extras.push((key.to_string(), value.to_string()));
+        }
     }
 
     /// Create a new message from a string.
@@ -160,7 +185,17 @@ impl Message {
             .ok_or(ParseError::InvalidClientId)?;
 
         // check extras.
-        let extras: Vec<String> = msg_payload_parts.map(|s| s.to_string()).collect();
+        let mut extras = Vec::new();
+        for extra_str in msg_payload_parts {
+            if extra_str.is_empty() {
+                continue;
+            }
+            if let Some((k, v)) = extra_str.split_once("=") {
+                extras.push((k.to_string(), v.to_string()));
+            } else {
+                extras.push((extra_str.to_string(), "".to_string()));
+            }
+        }
 
         Ok(Message {
             mtype: message_type,
@@ -190,9 +225,15 @@ impl Message {
         )
         .unwrap();
 
-        for extra in &self.extras {
+        for (k, v) in &self.extras {
             msg.push(',');
-            msg.push_str(extra);
+            if v.is_empty() {
+                msg.push_str(k);
+            } else {
+                msg.push_str(k);
+                msg.push('=');
+                msg.push_str(v);
+            }
         }
 
         if msg.len() > MESSAGE_LEN_MAX {

@@ -30,9 +30,19 @@ impl ManagerProc for ManagerProcExiting {
         Ok(vec![])
     }
 
-    fn on_client_join(&self, _context: &mut ManagerContext, message: &Message) -> EventResult {
+    fn on_client_join(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
         trace!("on_client_join CID:{:03} MID:{}", message.cid, message.mid);
-        Err(format!("invalid Join from CID:{:03}", message.cid))
+        let mut responses: Vec<Message> = Vec::new();
+        responses.push(
+            Message::new(
+                MessageType::Error,
+                message.mid,
+                message.cid,
+                context.exit_reason.clone(),
+            )
+            .unwrap(),
+        );
+        Ok(responses)
     }
 
     fn on_client_ready(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
@@ -47,7 +57,13 @@ impl ManagerProc for ManagerProcExiting {
                 );
                 client.set_client_state(ClientState::Exiting, context.cycle_current);
                 responses.push(
-                    Message::new(MessageType::Error, client.last_mid, message.cid, None).unwrap(),
+                    Message::new(
+                        MessageType::Error,
+                        client.last_mid,
+                        message.cid,
+                        context.exit_reason.clone(),
+                    )
+                    .unwrap(),
                 );
             } else {
                 warn!(
@@ -72,9 +88,9 @@ impl ManagerProc for ManagerProcExiting {
                     "<STAT> CYC:{:05} CID:{:03} MID:{} DONE (Exiting)",
                     context.cycle_current, message.cid, message.mid
                 );
-                client.set_client_state(ClientState::Exiting, context.cycle_current);
+                // Always return OK for DONE. Return ERROR on the next READY.
                 responses.push(
-                    Message::new(MessageType::Error, client.last_mid, message.cid, None).unwrap(),
+                    Message::new(MessageType::Ok, client.last_mid, message.cid, None).unwrap(),
                 );
             } else {
                 warn!(

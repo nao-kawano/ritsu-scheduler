@@ -65,8 +65,18 @@ impl ManagerProc for ManagerProcRunning {
                         "<STAT> CYC:{:05} CID:{:03} MID:{} {:?} -> {:?} (Cycle)",
                         context.cycle_current, change.cid, c.last_mid, change.before, change.after
                     );
-                    responses
-                        .push(Message::new(MessageType::Ok, c.last_mid, change.cid, None).unwrap());
+                    responses.push(
+                        Message::new(
+                            MessageType::Start,
+                            c.last_mid,
+                            change.cid,
+                            Some(vec![(
+                                "cycle".to_string(),
+                                context.cycle_current.to_string(),
+                            )]),
+                        )
+                        .unwrap(),
+                    );
                 }
                 ProcessState::Overrun => {
                     warn!(
@@ -80,7 +90,16 @@ impl ManagerProc for ManagerProcRunning {
                         context.cycle_current, change.cid, c.last_mid, change.before, change.after
                     );
                     responses.push(
-                        Message::new(MessageType::Skip, c.last_mid, change.cid, None).unwrap(),
+                        Message::new(
+                            MessageType::Skip,
+                            c.last_mid,
+                            change.cid,
+                            Some(vec![(
+                                "cycle".to_string(),
+                                context.cycle_current.to_string(),
+                            )]),
+                        )
+                        .unwrap(),
                     );
                 }
                 ProcessState::Late => {
@@ -151,13 +170,23 @@ impl ManagerProc for ManagerProcRunning {
                     }
                 }
                 ProcessState::Running => {
-                    // maybe retransmission, send OK to start immediately.
+                    // maybe retransmission, send START to start immediately.
                     warn!(
                         "<STAT> CYC:{:05} CID:{:03} MID:{} {:?} -> {:?} (Retransmit)",
                         context.cycle_current, change.cid, c.last_mid, change.before, change.after
                     );
-                    responses
-                        .push(Message::new(MessageType::Ok, c.last_mid, change.cid, None).unwrap());
+                    responses.push(
+                        Message::new(
+                            MessageType::Start,
+                            c.last_mid,
+                            change.cid,
+                            Some(vec![(
+                                "cycle".to_string(),
+                                context.cycle_current.to_string(),
+                            )]),
+                        )
+                        .unwrap(),
+                    );
                 }
                 ProcessState::Idle => {
                     if change.before == ProcessState::Late {
@@ -170,7 +199,16 @@ impl ManagerProc for ManagerProcRunning {
                             change.after
                         );
                         responses.push(
-                            Message::new(MessageType::Late, c.last_mid, change.cid, None).unwrap(),
+                            Message::new(
+                                MessageType::Late,
+                                c.last_mid,
+                                change.cid,
+                                Some(vec![(
+                                    "cycle".to_string(),
+                                    context.cycle_current.to_string(),
+                                )]),
+                            )
+                            .unwrap(),
                         );
                     } else {
                         // already idle or unexpected.
@@ -182,7 +220,7 @@ impl ManagerProc for ManagerProcRunning {
                 }
                 ProcessState::Overrun | ProcessState::Skip | ProcessState::Late => {
                     warn!(
-                        "CID:{:03} invalid state change by start {:?}",
+                        "CID:{:03} invalid state change by ready {:?}",
                         change.cid, change
                     );
                 }
@@ -211,8 +249,18 @@ impl ManagerProc for ManagerProcRunning {
                         "<STAT> CYC:{:05} CID:{:03} MID:{} {:?} -> {:?} (Dependency)",
                         context.cycle_current, change.cid, c.last_mid, change.before, change.after
                     );
-                    responses
-                        .push(Message::new(MessageType::Ok, c.last_mid, change.cid, None).unwrap());
+                    responses.push(
+                        Message::new(
+                            MessageType::Start,
+                            c.last_mid,
+                            change.cid,
+                            Some(vec![(
+                                "cycle".to_string(),
+                                context.cycle_current.to_string(),
+                            )]),
+                        )
+                        .unwrap(),
+                    );
                 }
                 ProcessState::Idle => {
                     // normal case or retransmission.

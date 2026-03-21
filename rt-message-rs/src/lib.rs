@@ -10,4 +10,5 @@ pub use message::MESSAGE_LEN_MAX;
 pub use message::MSG_ID_MAX;
 pub use message::Message;
 pub use message::MessageType;
+pub use message::PROTOCOL_VERSION;
 pub use message::ParseError;
