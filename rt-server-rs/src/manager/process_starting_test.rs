@@ -76,12 +76,25 @@ fn test_on_client_join() {
     ctx.num_active_clients = 1;
 
     // send event.
-    let m = Message::new(MessageType::Join, 0, 1, None).unwrap();
+    let m = Message::new(
+        MessageType::Join,
+        0,
+        1,
+        Some(vec![(
+            "version".to_string(),
+            rt_message::PROTOCOL_VERSION.to_string(),
+        )]),
+    )
+    .unwrap();
     let result = proc.on_client_join(&mut ctx, &m).unwrap();
 
     // check result.
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].mtype, MessageType::Ok);
+    assert_eq!(result[0].mtype, MessageType::Joined);
+    assert_eq!(
+        result[0].get_extra("version"),
+        Some(&rt_message::PROTOCOL_VERSION.to_string())
+    );
     assert_eq!(result[0].cid, 1);
     assert_eq!(ctx.state, ManagerState::Starting);
     assert_eq!(ctx.state_changed, false);
@@ -91,12 +104,25 @@ fn test_on_client_join() {
     assert_eq!(ctx.num_active_clients, 2);
 
     // send event.
-    let m = Message::new(MessageType::Join, 0, 2, None).unwrap();
+    let m = Message::new(
+        MessageType::Join,
+        0,
+        2,
+        Some(vec![(
+            "version".to_string(),
+            rt_message::PROTOCOL_VERSION.to_string(),
+        )]),
+    )
+    .unwrap();
     let result = proc.on_client_join(&mut ctx, &m).unwrap();
 
     // check result.
     assert_eq!(result.len(), 1);
-    assert_eq!(result[0].mtype, MessageType::Ok);
+    assert_eq!(result[0].mtype, MessageType::Joined);
+    assert_eq!(
+        result[0].get_extra("version"),
+        Some(&rt_message::PROTOCOL_VERSION.to_string())
+    );
     assert_eq!(result[0].cid, 2);
     assert_eq!(ctx.state, ManagerState::Starting);
     assert_eq!(ctx.state_changed, false);
@@ -273,4 +299,66 @@ fn test_on_shutdown() {
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Exiting);
     assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Sync);
     assert_eq!(ctx.num_active_clients, 3);
+}
+
+#[test]
+fn test_on_client_join_incompatible_version() {
+    // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
+    let mut ctx = create_context();
+    let proc = ManagerProcStarting;
+
+    // setup condition.
+    ctx.clients.get_mut(&0).unwrap().state = ClientState::None;
+    ctx.num_active_clients = 0;
+
+    // send event.
+    let m = Message::new(
+        MessageType::Join,
+        0,
+        0,
+        Some(vec![("version".to_string(), "999".to_string())]),
+    )
+    .unwrap();
+    let result = proc.on_client_join(&mut ctx, &m).unwrap();
+
+    // check result.
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].mtype, MessageType::Error);
+    assert_eq!(
+        result[0].get_extra("reason"),
+        Some(&"IncompatibleVersion".to_string())
+    );
+    assert_eq!(result[0].cid, 0);
+    assert_eq!(ctx.state, ManagerState::Starting);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::None);
+    assert_eq!(ctx.num_active_clients, 0);
+}
+
+#[test]
+fn test_on_client_join_missing_version() {
+    // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
+    let mut ctx = create_context();
+    let proc = ManagerProcStarting;
+
+    // setup condition.
+    ctx.clients.get_mut(&0).unwrap().state = ClientState::None;
+    ctx.num_active_clients = 0;
+
+    // send event.
+    let m = Message::new(MessageType::Join, 0, 0, None).unwrap();
+    let result = proc.on_client_join(&mut ctx, &m).unwrap();
+
+    // check result.
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].mtype, MessageType::Error);
+    assert_eq!(
+        result[0].get_extra("reason"),
+        Some(&"IncompatibleVersion".to_string())
+    );
+    assert_eq!(result[0].cid, 0);
+    assert_eq!(ctx.state, ManagerState::Starting);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::None);
+    assert_eq!(ctx.num_active_clients, 0);
 }
