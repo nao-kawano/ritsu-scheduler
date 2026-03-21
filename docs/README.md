@@ -82,4 +82,11 @@ graph TD
 - [State Management](./state-management.md)
   - State management in the client and server.
 
+## Design Studies & Internal Resources
+
+- [Logging Guidelines](./logging.md)
+  - Standards for logs and visualization support.
+- [Design Study for UDP Packet Loss](./study_udp-packet-loss.md)
+  - Detailed analysis and expected behavior for packet loss scenarios.
+
 EOF
