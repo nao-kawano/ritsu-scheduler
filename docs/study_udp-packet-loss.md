@@ -57,8 +57,8 @@ The server does not receive the client's request.
 - `JOIN`
   - Server state: `None`
   - Action: Server ignores the lost packet.
-  - Recovery: Client retransmits `JOIN`. Server receives it, sends `OK`, and transitions to `Sync`.
-  - Duplicate: If Server receives `JOIN` while in `Sync`, it resends `OK`.
+  - Recovery: Client retransmits `JOIN`. Server receives it, sends `JOINED`, and transitions to `Sync`.
+  - Duplicate: If Server receives `JOIN` while in `Sync`, it resends `JOINED`.
 - `READY` (before cyclic operation)
   - Server state: `Sync`
   - Action: Server keeps waiting.
@@ -70,7 +70,7 @@ The server does not receive the client's request.
   - Recovery:
     - The client's request times out (after >1 cycle time). The client retransmits `READY` with the same `MessageID`.
     - The server, now in the `Late` state for that client, receives the retransmitted `READY`.
-    - The server responds with `LATE`, including the `MessageID` of the request.
+    - The server responds with `LATE,cycle=...`, including the `MessageID` of the request.
     - The client receives `LATE`, sends a new `READY` for the next cycle, and waits again.
   - Duplicate: If Server receives `READY` while in `READY`, holds response to client.
 - `DONE`
@@ -92,18 +92,18 @@ The server receives the client's request, but the client does not receive the re
   - Server state: `Sync` (Transitioned from `None`)
   - Action: Client does not receive the response.
   - Recovery: Client retransmits `JOIN`. Server receives duplicate `JOIN`.
-  - Duplicate: Server keeps current state and resends `OK`.
+  - Duplicate: Server keeps current state and resends `JOINED,version=...`.
 - `READY` (before cyclic operation)
   - Server state: `Ready` (Transitioned from `Sync`)
   - Action: Client does not receive the response.
   - Recovery: Client retransmits `READY`. Server receives duplicate `READY`.
-  - Duplicate: Server keeps current state and resends `OK` (or holds response if trigger is not ready).
+  - Duplicate: Server keeps current state and resends `START,cycle=...` (or holds response if trigger is not ready).
 - `READY` (in cyclic operation)
   - Server state: `Running`, `Skip` or `Idle` (Transitioned from `Ready`, `Ready` or `Late`)
-  - Action: Client does not receive the response (`OK`, `SKIP` or `LATE`).
+  - Action: Client does not receive the response (`START`, `SKIP` or `LATE`).
   - Recovery: Client retransmits `READY` after timeout. Server receives duplicate `READY`.
   - Duplicate:
-    - If Server state is `Running`, keeps current state and resends `OK`.
+    - If Server state is `Running`, keeps current state and resends `START,cycle=...`.
     - If Server state is `Skip` or `Idle`, transitions to `Ready` and waits for the next cycle.
       - (Note: This simplifies server logic. The client won't be notified about the missed `SKIP`/`LATE`.)
 - `DONE`
