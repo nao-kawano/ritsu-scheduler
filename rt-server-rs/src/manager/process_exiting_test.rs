@@ -12,6 +12,7 @@ fn create_context() -> ManagerContext {
         0,
     );
     ctx.state = ManagerState::Exiting;
+    ctx.exit_reason = Some(vec![("reason".to_string(), "Shutdown".to_string())]);
     ctx.clients.get_mut(&0).unwrap().state = ClientState::Exiting;
     ctx.clients.get_mut(&1).unwrap().state = ClientState::Active;
     ctx.clients.get_mut(&2).unwrap().state = ClientState::Active;
@@ -79,10 +80,13 @@ fn test_on_client_join() {
 
     // send event.
     let m = Message::new(MessageType::Join, 0, 0, None).unwrap();
-    let result = proc.on_client_join(&mut ctx, &m);
+    let result = proc.on_client_join(&mut ctx, &m).unwrap();
 
     // check result.
-    assert_eq!(result.is_err(), true);
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].mtype, MessageType::Error);
+    assert_eq!(result[0].cid, 0);
+    assert_eq!(result[0].get_extra("reason"), Some(&"Shutdown".to_string()));
 }
 
 #[test]
@@ -103,6 +107,7 @@ fn test_on_client_ready() {
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].mtype, MessageType::Error);
     assert_eq!(result[0].cid, 1);
+    assert_eq!(result[0].get_extra("reason"), Some(&"Shutdown".to_string()));
     assert_eq!(ctx.state, ManagerState::Exiting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exiting);
@@ -129,6 +134,7 @@ fn test_on_client_done() {
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].mtype, MessageType::Error);
     assert_eq!(result[0].cid, 2);
+    assert_eq!(result[0].get_extra("reason"), Some(&"Shutdown".to_string()));
     assert_eq!(ctx.state, ManagerState::Exiting);
     assert_eq!(ctx.state_changed, false);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exiting);

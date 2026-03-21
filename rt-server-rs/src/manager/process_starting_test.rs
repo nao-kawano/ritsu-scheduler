@@ -236,6 +236,11 @@ fn test_on_client_exit() {
     assert_eq!(result[0].mtype, MessageType::Ok);
     assert_eq!(result[0].cid, 0);
     assert_eq!(result[1].mtype, MessageType::Error);
+    assert_eq!(
+        result[1].get_extra("reason"),
+        Some(&"ClientExit".to_string())
+    );
+    assert_eq!(result[1].get_extra("cid"), Some(&"000".to_string()));
     assert_eq!(result[1].cid, 1);
     assert_eq!(ctx.state, ManagerState::Exiting);
     assert_eq!(ctx.state_changed, true);
@@ -292,6 +297,7 @@ fn test_on_shutdown() {
     // check result.
     assert_eq!(result.len(), 1);
     assert_eq!(result[0].mtype, MessageType::Error);
+    assert_eq!(result[0].get_extra("reason"), Some(&"Shutdown".to_string()));
     assert_eq!(result[0].cid, 1);
     assert_eq!(ctx.state, ManagerState::Exiting);
     assert_eq!(ctx.state_changed, true);

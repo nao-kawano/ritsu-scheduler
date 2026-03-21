@@ -54,6 +54,10 @@ pub trait ManagerProc {
         let mut responses: Vec<Message> = Vec::new();
         client.set_client_state(ClientState::None, context.cycle_current);
         context.num_active_clients -= 1;
+        context.exit_reason = Some(vec![
+            ("reason".to_string(), "ClientExit".to_string()),
+            ("cid".to_string(), format!("{:03}", message.cid)),
+        ]);
         responses.push(Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap());
         // send exit to ready clients.
         self.going_to_exit(context, &mut responses);
@@ -70,6 +74,7 @@ pub trait ManagerProc {
         }
         // send exit to ready clients.
         let mut responses: Vec<Message> = Vec::new();
+        context.exit_reason = Some(vec![("reason".to_string(), "Shutdown".to_string())]);
         self.going_to_exit(context, &mut responses);
         //
         Ok(responses)
@@ -97,7 +102,7 @@ pub trait ManagerProc {
                                 MessageType::Error,
                                 client.last_mid,
                                 client.config.client_id,
-                                None,
+                                context.exit_reason.clone(),
                             )
                             .unwrap(),
                         );

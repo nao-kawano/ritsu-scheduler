@@ -110,6 +110,7 @@ pub struct ManagerContext {
     // manager.
     pub state: ManagerState,
     pub state_changed: bool,
+    pub exit_reason: Option<Vec<(String, String)>>,
     // for connection.
     pub clients: HashMap<u16, ClientInfo>,
     pub num_active_clients: usize,
@@ -182,6 +183,7 @@ impl ManagerContext {
         ManagerContext {
             state: ManagerState::Starting,
             state_changed: false,
+            exit_reason: None,
             clients,
             num_active_clients: 0,
             cycle_current: 0,

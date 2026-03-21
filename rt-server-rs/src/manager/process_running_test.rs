@@ -260,6 +260,14 @@ fn test_on_client_exit() {
     assert_eq!(result.len(), 4);
     assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Ok);
     assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Error);
+    assert_eq!(
+        rmap.get(&1).unwrap().get_extra("reason"),
+        Some(&"ClientExit".to_string())
+    );
+    assert_eq!(
+        rmap.get(&1).unwrap().get_extra("cid"),
+        Some(&"000".to_string())
+    );
     assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Error);
     assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Error);
     // Manager state change to Exitting.
@@ -290,6 +298,10 @@ fn test_on_shutdown() {
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
     assert_eq!(result.len(), 2);
     assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Error);
+    assert_eq!(
+        rmap.get(&2).unwrap().get_extra("reason"),
+        Some(&"Shutdown".to_string())
+    );
     assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Error);
     // Manager should transition to Exiting and notify others.
     assert_eq!(ctx.state, ManagerState::Exiting);
