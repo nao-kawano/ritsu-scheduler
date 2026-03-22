@@ -5,16 +5,15 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use std::time::Instant;
-
+use rt_core::{ProcessState, ProcessStateChange};
 use rt_message::{Message, MessageType};
 
 use super::EventResult;
-use super::context::ManagerContext;
+use super::context::{ClientInfo, ManagerContext};
 use super::process::ManagerProc;
 use crate::config::ClientConfig;
-use rt_core::ProcessState;
-use rt_core::ProcessStateChange;
+
+use std::time;
 
 #[cfg(test)]
 #[path = "process_running_test.rs"]
@@ -31,7 +30,7 @@ impl ManagerProc for ManagerProcRunning {
 
     fn on_cycle_start(&self, context: &mut ManagerContext, global_cycle: u64) -> EventResult {
         if context.stats.start_at.is_none() {
-            context.stats.start_at = Some(Instant::now());
+            context.stats.start_at = Some(time::Instant::now());
             context.stats.start_cycle = global_cycle;
         }
         context.stats.last_cycle = global_cycle;
@@ -347,7 +346,7 @@ impl ManagerProcRunning {
             let client = context.clients.get_mut(&change.cid).unwrap();
             match change.after {
                 ProcessState::Running => {
-                    client.running_start_at = Some(Instant::now());
+                    client.running_start_at = Some(time::Instant::now());
                 }
                 ProcessState::Idle => {
                     if change.before == ProcessState::Running {
@@ -374,7 +373,7 @@ impl ManagerProcRunning {
         }
     }
 
-    fn record_success(&self, client: &mut crate::manager::context::ClientInfo) {
+    fn record_success(&self, client: &mut ClientInfo) {
         client.stats.success_count += 1;
         client.stats.trigger_count += 1;
         if let Some(start_at) = client.running_start_at.take() {
@@ -385,7 +384,7 @@ impl ManagerProcRunning {
         }
     }
 
-    fn record_overrun_success(&self, client: &mut crate::manager::context::ClientInfo) {
+    fn record_overrun_success(&self, client: &mut ClientInfo) {
         client.stats.overrun_count += 1;
         client.stats.trigger_count += 1;
         if let Some(start_at) = client.running_start_at.take() {

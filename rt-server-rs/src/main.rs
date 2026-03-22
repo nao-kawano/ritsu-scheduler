@@ -5,22 +5,26 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+#[cfg(feature = "perf-log")]
+use rt_message::MessageType;
+
 mod clients;
 mod config;
 mod cycle;
 mod event;
 mod manager;
 
+use clients::{ClientConnector, udp::UdpTransport};
+use config::{ClientConfig, SchedulerConfig, ServerConfig};
+use cycle::{CycleGenerator, interval::IntervalTrigger};
+use event::Event;
+use manager::{EventManager, ManagerState};
+
 use std::fs;
 use std::io::Write;
 use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
-
-use clients::{ClientConnector, udp::UdpTransport};
-use config::{ClientConfig, SchedulerConfig, ServerConfig};
-use cycle::CycleGenerator;
-use event::Event;
-use manager::{EventManager, ManagerState};
+#[cfg(feature = "perf-log")]
+use std::time;
 
 /* -------------------------------------------------------------------------- */
 
@@ -66,12 +70,12 @@ fn load_config(path: &str) -> SchedulerConfig {
 /// This will be zero-cost when the "perf-log" feature is disabled.
 #[cfg(feature = "perf-log")]
 struct PerfMetrics {
-    mtype: rt_message::MessageType,
+    mtype: MessageType,
     cid: u16,
     // measurement points.
-    time_recv: Option<std::time::Instant>,
-    time_start_proc: Option<std::time::Instant>,
-    time_start_send: Option<std::time::Instant>,
+    time_recv: Option<time::Instant>,
+    time_start_proc: Option<time::Instant>,
+    time_start_send: Option<time::Instant>,
 }
 
 #[cfg(feature = "perf-log")]
@@ -87,8 +91,8 @@ impl PerfMetrics {
             }
         } else {
             Self {
-                mtype: rt_message::MessageType::Ready, // dummy
-                cid: 0,                                // dummy
+                mtype: MessageType::Ready, // dummy
+                cid: 0,                    // dummy
                 time_recv: None,
                 time_start_proc: None,
                 time_start_send: None,
@@ -97,19 +101,19 @@ impl PerfMetrics {
     }
     fn mark_proc_start(&mut self) {
         if self.time_recv.is_some() {
-            self.time_start_proc = Some(std::time::Instant::now());
+            self.time_start_proc = Some(time::Instant::now());
         }
     }
     fn mark_send_start(&mut self) {
         if self.time_recv.is_some() {
-            self.time_start_send = Some(std::time::Instant::now());
+            self.time_start_send = Some(time::Instant::now());
         }
     }
     fn finish(self) {
         if let Some(time_recv) = self.time_recv {
-            let time_finish = std::time::Instant::now();
-            let time_start_proc = self.time_start_proc.unwrap_or(std::time::Instant::now());
-            let time_start_send = self.time_start_send.unwrap_or(std::time::Instant::now());
+            let time_finish = time::Instant::now();
+            let time_start_proc = self.time_start_proc.unwrap_or(time::Instant::now());
+            let time_start_send = self.time_start_send.unwrap_or(time::Instant::now());
             let elapsed_q_wait = time_start_proc.saturating_duration_since(time_recv);
             let elapsed_proc = time_start_send.saturating_duration_since(time_start_proc);
             let elapsed_send = time_finish.saturating_duration_since(time_start_send);
@@ -176,7 +180,7 @@ fn main() {
     let config = load_config("./config.toml");
 
     // setup channel between modules.
-    let (tx, rx): (Sender<Event>, Receiver<Event>) = mpsc::channel();
+    let (tx, rx): (mpsc::Sender<Event>, mpsc::Receiver<Event>) = mpsc::channel();
 
     // setup manager.
     let mut event_manager = EventManager::new(
@@ -194,9 +198,7 @@ fn main() {
 
     // setup cycle generator.
     let tx_cycle = tx.clone();
-    let trigger = Box::new(cycle::interval::IntervalTrigger::new(
-        config.server_config.cycle_time_ms,
-    ));
+    let trigger = Box::new(IntervalTrigger::new(config.server_config.cycle_time_ms));
     let mut cycle = CycleGenerator::new(trigger);
     cycle
         .start(tx_cycle)

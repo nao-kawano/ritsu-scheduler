@@ -5,14 +5,14 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::Sender;
-use std::thread;
+pub mod interval;
 
 use crate::event::Event;
 
-pub mod interval;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
+use std::thread;
 
 /* -------------------------------------------------------------------------- */
 
@@ -46,7 +46,7 @@ impl CycleGenerator {
     }
 
     /// Starts the cycle generator thread.
-    pub fn start(&mut self, tx_channel: Sender<Event>) -> Result<(), String> {
+    pub fn start(&mut self, tx_channel: mpsc::Sender<Event>) -> Result<(), String> {
         info!("starting");
 
         let trigger = Arc::clone(&self.trigger);

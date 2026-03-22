@@ -5,15 +5,17 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::mpsc::Sender;
-use std::thread;
-
-use crate::event::Event;
 use rt_message::Message;
 
 pub mod udp;
+
+use crate::event::Event;
+
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc;
+use std::thread;
+use std::time;
 
 /* -------------------------------------------------------------------------- */
 
@@ -49,7 +51,7 @@ impl ClientConnector {
     }
 
     /// Starts the receiver thread.
-    pub fn start(&mut self, tx_channel: Sender<Event>) -> Result<(), String> {
+    pub fn start(&mut self, tx_channel: mpsc::Sender<Event>) -> Result<(), String> {
         info!("starting");
 
         let transport = Arc::clone(&self.transport);
@@ -66,7 +68,7 @@ impl ClientConnector {
             loop {
                 match transport.receive(&stop_flag) {
                     Ok(Some(msg)) => {
-                        let now = std::time::Instant::now();
+                        let now = time::Instant::now();
                         trace!(
                             "<RECV> CID:{:03} MID:{} ({:?})",
                             msg.cid, msg.mid, msg.mtype

@@ -5,16 +5,19 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use std::collections::HashMap;
-use std::net::{SocketAddr, UdpSocket};
-use std::sync::{
-    Arc, Mutex,
-    atomic::{AtomicBool, Ordering},
-};
-use std::time;
+use rt_message::{MESSAGE_LEN_MAX, Message, MessageType};
 
 use super::ClientTransport;
-use rt_message::{MESSAGE_LEN_MAX, Message, MessageType};
+
+use std::collections::HashMap;
+use std::io;
+use std::net::{SocketAddr, UdpSocket};
+use std::str;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{Arc, Mutex};
+use std::time;
+
+/* -------------------------------------------------------------------------- */
 
 pub struct UdpTransport {
     port: u16,
@@ -27,7 +30,7 @@ pub struct UdpTransport {
 
 impl UdpTransport {
     const TIMEOUT_MS: u64 = 100;
-    const TIMEOUT: std::time::Duration = time::Duration::from_millis(UdpTransport::TIMEOUT_MS);
+    const TIMEOUT: time::Duration = time::Duration::from_millis(UdpTransport::TIMEOUT_MS);
 
     pub fn new(port: u16) -> Self {
         UdpTransport {
@@ -38,7 +41,7 @@ impl UdpTransport {
         }
     }
 
-    fn create_socket(port: u16) -> Result<UdpSocket, std::io::Error> {
+    fn create_socket(port: u16) -> Result<UdpSocket, io::Error> {
         let socket = UdpSocket::bind(format!("127.0.0.1:{}", port))?;
         socket.set_read_timeout(Some(UdpTransport::TIMEOUT))?;
         Ok(socket)
@@ -84,7 +87,7 @@ impl ClientTransport for UdpTransport {
             // Receive one message.
             match socket.recv_from(&mut recv_buf) {
                 Ok((buf_size, src_addr)) => {
-                    match std::str::from_utf8(&recv_buf[..buf_size]) {
+                    match str::from_utf8(&recv_buf[..buf_size]) {
                         Ok(recv_msg) => {
                             let msg = Message::from_str(recv_msg)
                                 .map_err(|e| format!("Invalid message: {:?}", e))?;
@@ -102,9 +105,9 @@ impl ClientTransport for UdpTransport {
                     }
                 }
                 Err(e) => {
-                    if e.kind() == std::io::ErrorKind::TimedOut {
+                    if e.kind() == io::ErrorKind::TimedOut {
                         continue;
-                    } else if e.kind() == std::io::ErrorKind::ConnectionReset {
+                    } else if e.kind() == io::ErrorKind::ConnectionReset {
                         // On Windows, recv_from may return ConnectionReset if a previous send_to
                         // failed with Port Unreachable. We should ignore this and continue.
                         warn!("receive error (ignored): {:?}", e);

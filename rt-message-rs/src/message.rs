@@ -2,6 +2,8 @@
 //! Message for Ritsu.
 //!
 
+use std::fmt;
+
 #[cfg(test)]
 #[path = "message_test.rs"]
 mod message_test;
@@ -88,8 +90,8 @@ impl MessageType {
     }
 }
 
-impl std::fmt::Display for MessageType {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Display for MessageType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.write_str(self.as_str())
     }
 }
@@ -215,7 +217,7 @@ impl Message {
         }
 
         let mut msg = String::with_capacity(MESSAGE_LEN_MAX);
-        use std::fmt::Write;
+        use fmt::Write;
         write!(
             msg,
             "{}@{:1}:{:>03}",

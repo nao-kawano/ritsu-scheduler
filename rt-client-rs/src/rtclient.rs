@@ -5,15 +5,17 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+#[cfg(target_os = "windows")]
+use windows::Win32::Media::{timeBeginPeriod, timeEndPeriod};
+
 use rt_message::{MESSAGE_LEN_MAX, Message, MessageType, PROTOCOL_VERSION};
 
 use crate::rtclientconfig::RtClientConfig;
 
+use std::io;
 use std::net::UdpSocket;
-use std::time::{Duration, Instant};
-
-#[cfg(target_os = "windows")]
-use windows::Win32::Media::{timeBeginPeriod, timeEndPeriod};
+use std::str;
+use std::time;
 
 #[cfg(test)]
 #[path = "rtclient_test.rs"]
@@ -279,15 +281,15 @@ impl RtClient {
         expected_mid: u8,
         recv_buf: &mut [u8; MESSAGE_LEN_MAX],
     ) -> Option<Message> {
-        let wait_start = Instant::now();
+        let wait_start = time::Instant::now();
         loop {
-            let now = Instant::now();
+            let now = time::Instant::now();
             let elapsed = now.duration_since(wait_start);
-            if elapsed >= Duration::from_secs_f64(timeout_sec) {
+            if elapsed >= time::Duration::from_secs_f64(timeout_sec) {
                 warn!("timeout, retrying... {:?}", req_type);
                 return None;
             }
-            let remaining = Duration::from_secs_f64(timeout_sec) - elapsed;
+            let remaining = time::Duration::from_secs_f64(timeout_sec) - elapsed;
             let _ = sock.set_read_timeout(Some(remaining));
 
             let (response, is_timeout) = RtClient::_recv_response(sock, recv_buf);
@@ -322,7 +324,7 @@ impl RtClient {
         recv_buf: &mut [u8; MESSAGE_LEN_MAX],
     ) -> (Option<Message>, bool) {
         match sock.recv_from(recv_buf) {
-            Ok((buf_size, _)) => match std::str::from_utf8(&recv_buf[..buf_size]) {
+            Ok((buf_size, _)) => match str::from_utf8(&recv_buf[..buf_size]) {
                 Ok(recv_msg) => match Message::from_str(recv_msg) {
                     Ok(response) => {
                         return (Some(response), false);
@@ -338,7 +340,7 @@ impl RtClient {
                 }
             },
             Err(e) => {
-                if e.kind() == std::io::ErrorKind::TimedOut {
+                if e.kind() == io::ErrorKind::TimedOut {
                     return (None, true);
                 } else {
                     warn!("failed to receive: {:?}", e);
@@ -360,7 +362,7 @@ impl RtClient {
                             continue; // keep reading until the buffer is empty.
                         }
                         Err(e) => {
-                            if e.kind() == std::io::ErrorKind::WouldBlock {
+                            if e.kind() == io::ErrorKind::WouldBlock {
                                 break; // buffer is empty.
                             } else {
                                 warn!("recv_from error: {:?}", e);

@@ -5,11 +5,14 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use super::CycleTrigger;
+
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::{thread, time};
+use std::thread;
+use std::time;
 
-use super::CycleTrigger;
+/* -------------------------------------------------------------------------- */
 
 pub struct IntervalTrigger {
     cycle_ms: u32,

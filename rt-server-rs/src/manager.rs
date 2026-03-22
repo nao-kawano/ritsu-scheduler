@@ -5,17 +5,14 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use rt_message::{Message, MessageType};
+
 mod context;
 mod process;
 mod process_exited;
 mod process_exiting;
 mod process_running;
 mod process_starting;
-
-use std::collections::HashMap;
-use std::hash::Hash;
-
-use rt_message::{Message, MessageType};
 
 use crate::config::ClientConfig;
 use crate::event::Event;
@@ -25,6 +22,9 @@ use process_exited::ManagerProcExited;
 use process_exiting::ManagerProcExiting;
 use process_running::ManagerProcRunning;
 use process_starting::ManagerProcStarting;
+
+use std::collections::HashMap;
+use std::hash::Hash;
 
 /* -------------------------------------------------------------------------- */
 

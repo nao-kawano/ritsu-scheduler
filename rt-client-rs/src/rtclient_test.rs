@@ -54,14 +54,14 @@ fn start_mock_server(
             sock = Some(r.unwrap());
             break;
         }
-        std::thread::sleep(Duration::from_millis(SLEEP_MSEC));
+        std::thread::sleep(time::Duration::from_millis(SLEEP_MSEC));
     }
     if sock.is_none() {
         panic!("MockServer bind failed");
     }
 
     let sock: UdpSocket = sock.unwrap();
-    sock.set_read_timeout(Some(Duration::from_millis(100)))
+    sock.set_read_timeout(Some(time::Duration::from_millis(100)))
         .expect("MockServer Failed to set read timeout");
     let received_clone = received.clone();
 
@@ -90,7 +90,7 @@ fn start_mock_server(
                             // delay for response.
                             if r.delay_sec > 0.0 {
                                 println!("MockServer delay {} sec", r.delay_sec);
-                                std::thread::sleep(Duration::from_secs_f64(r.delay_sec));
+                                std::thread::sleep(time::Duration::from_secs_f64(r.delay_sec));
                             }
                             // send.
                             if r.auto_id {

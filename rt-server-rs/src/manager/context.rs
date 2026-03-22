@@ -5,13 +5,13 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use std::collections::HashMap;
-use std::time::Instant;
+use rt_core::{ProcessEntry, Scheduler};
 
 use super::ManagerState;
 use crate::config::ClientConfig;
-use rt_core::ProcessEntry;
-use rt_core::Scheduler;
+
+use std::collections::HashMap;
+use std::time;
 
 #[cfg(test)]
 #[path = "context_test.rs"]
@@ -70,7 +70,7 @@ pub struct ClientInfo {
     pub state: ClientState,
     pub last_mid: u8,
     pub stats: ClientStats,
-    pub running_start_at: Option<Instant>,
+    pub running_start_at: Option<time::Instant>,
 }
 
 impl ClientInfo {
@@ -100,7 +100,7 @@ impl ClientInfo {
 
 pub struct ServerStats {
     pub interval_cycle: u32,
-    pub start_at: Option<Instant>,
+    pub start_at: Option<time::Instant>,
     pub start_cycle: u64,
     pub last_cycle: u64,
 }

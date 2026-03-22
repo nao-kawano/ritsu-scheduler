@@ -5,7 +5,7 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use rt_message::{Message, MessageType};
+use rt_message::{Message, MessageType, PROTOCOL_VERSION};
 
 use super::EventResult;
 use super::ManagerState;
@@ -36,7 +36,7 @@ impl ManagerProc for ManagerProcStarting {
 
         // check protocol version
         if let Some(version) = message.get_extra("version") {
-            if version != rt_message::PROTOCOL_VERSION {
+            if version != PROTOCOL_VERSION {
                 warn!(
                     "CYC:{:05} CID:{:03} MID:{} Incompatible version: {}",
                     context.cycle_current, message.cid, message.mid, version
@@ -90,10 +90,7 @@ impl ManagerProc for ManagerProcStarting {
                             MessageType::Joined,
                             message.mid,
                             message.cid,
-                            Some(vec![(
-                                "version".to_string(),
-                                rt_message::PROTOCOL_VERSION.to_string(),
-                            )]),
+                            Some(vec![("version".to_string(), PROTOCOL_VERSION.to_string())]),
                         )
                         .unwrap(),
                     );
@@ -109,10 +106,7 @@ impl ManagerProc for ManagerProcStarting {
                             MessageType::Joined,
                             message.mid,
                             message.cid,
-                            Some(vec![(
-                                "version".to_string(),
-                                rt_message::PROTOCOL_VERSION.to_string(),
-                            )]),
+                            Some(vec![("version".to_string(), PROTOCOL_VERSION.to_string())]),
                         )
                         .unwrap(),
                     );

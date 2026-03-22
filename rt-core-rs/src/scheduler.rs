@@ -5,10 +5,10 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use std::collections::{HashMap, HashSet};
-
 use crate::entry::ProcessEntry;
 use crate::entry::ProcessState;
+
+use std::collections::{HashMap, HashSet};
 
 #[cfg(test)]
 #[path = "scheduler_test.rs"]
