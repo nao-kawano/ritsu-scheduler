@@ -2,9 +2,6 @@
 //! Entry point.
 //!
 
-extern crate chrono;
-extern crate env_logger;
-extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 

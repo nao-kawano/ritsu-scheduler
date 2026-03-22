@@ -2,7 +2,6 @@
 //! Handles event and control clients.
 //!
 
-extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 

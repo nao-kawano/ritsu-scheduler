@@ -2,7 +2,6 @@
 //! Client Connector engine and Transport trait.
 //!
 
-extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 

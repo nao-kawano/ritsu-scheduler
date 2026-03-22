@@ -2,7 +2,6 @@
 //! UDP based Client Transport with dual-socket (Rx/Tx) design.
 //!
 
-extern crate log;
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
