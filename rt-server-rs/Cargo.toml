@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+rt-config.workspace = true
 rt-core.workspace = true
 rt-message.workspace = true
 chrono.workspace = true

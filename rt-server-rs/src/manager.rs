@@ -5,6 +5,7 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use rt_config::ClientConfig;
 use rt_message::{Message, MessageType};
 
 mod context;
@@ -14,7 +15,6 @@ mod process_exiting;
 mod process_running;
 mod process_starting;
 
-use crate::config::ClientConfig;
 use crate::event::Event;
 use context::ManagerContext;
 use process::ManagerProc;

@@ -67,9 +67,6 @@ impl ClientConfig {
             depends,
         })
     }
-
-    // -----
-    // private methods.
 }
 
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]

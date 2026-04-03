@@ -1,7 +1,7 @@
 #[cfg(test)]
 use super::*;
+
 use crate::ManagerState;
-use crate::config::*;
 use crate::manager::context::ClientState;
 
 use std::collections::HashMap;

@@ -1,6 +1,7 @@
 #[cfg(test)]
 use super::*;
-use crate::config::*;
+
+use rt_config::ClientConfig;
 
 fn create_context() -> ManagerContext {
     let mut ctx = ManagerContext::new(

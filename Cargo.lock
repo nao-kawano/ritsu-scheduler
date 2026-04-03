@@ -385,6 +385,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "rt-config"
+version = "0.1.0"
+dependencies = [
+ "rt-message",
+ "serde",
+]
+
+[[package]]
 name = "rt-core"
 version = "0.1.0"
 dependencies = [
@@ -404,6 +412,7 @@ dependencies = [
  "ctrlc",
  "env_logger",
  "log",
+ "rt-config",
  "rt-core",
  "rt-message",
  "serde",

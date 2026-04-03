@@ -5,10 +5,10 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use rt_config::ClientConfig;
 use rt_core::{ProcessEntry, Scheduler};
 
 use super::ManagerState;
-use crate::config::ClientConfig;
 
 use std::collections::HashMap;
 use std::time;

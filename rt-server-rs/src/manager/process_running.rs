@@ -5,13 +5,13 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use rt_config::ClientConfig;
 use rt_core::{ProcessState, ProcessStateChange};
 use rt_message::{Message, MessageType};
 
 use super::EventResult;
 use super::context::{ClientInfo, ManagerContext};
 use super::process::ManagerProc;
-use crate::config::ClientConfig;
 
 use std::time;
 

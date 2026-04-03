@@ -5,17 +5,16 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use rt_config::{ClientConfig, SchedulerConfig, ServerConfig};
 #[cfg(feature = "perf-log")]
 use rt_message::MessageType;
 
 mod clients;
-mod config;
 mod cycle;
 mod event;
 mod manager;
 
 use clients::{ClientConnector, udp::UdpTransport};
-use config::{ClientConfig, SchedulerConfig, ServerConfig};
 use cycle::{CycleGenerator, interval::IntervalTrigger};
 use event::Event;
 use manager::{EventManager, ManagerState};
