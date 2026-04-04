@@ -5,7 +5,7 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use rt_config::{ClientConfig, SchedulerConfig, ServerConfig};
+use rt_config::SchedulerConfig;
 #[cfg(feature = "perf-log")]
 use rt_message::MessageType;
 
@@ -26,28 +26,6 @@ use std::sync::mpsc;
 use std::time;
 
 /* -------------------------------------------------------------------------- */
-
-#[allow(dead_code)]
-fn load_sample_config() -> SchedulerConfig {
-    let server_config = ServerConfig {
-        port: 7878,
-        cycle_time_ms: 50,
-        stats_interval_cycle: 0,
-    };
-    #[rustfmt::skip]
-    let client_configs = vec![
-        ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
-        ClientConfig::new(1, 2, 0, vec![], 0).unwrap(),
-        ClientConfig::new(10, 2, 0, vec![0], 0).unwrap(),
-        ClientConfig::new(11, 2, 0, vec![0, 1], 0).unwrap(),
-        ClientConfig::new(20, 2, 1, vec![10, 11], 0).unwrap(),
-        ClientConfig::new(2, 2, 1, vec![], 0).unwrap(),
-    ];
-    SchedulerConfig {
-        server_config,
-        client_configs,
-    }
-}
 
 fn load_config(path: &str) -> SchedulerConfig {
     let r = fs::read_to_string(path);
