@@ -5,7 +5,7 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
-use rt_config::ClientConfig;
+use rt_config::{ClientConfig, ClientRule};
 use rt_message::{Message, MessageType};
 
 mod context;
@@ -46,9 +46,14 @@ pub struct EventManager {
 }
 
 impl EventManager {
-    pub fn new(client_configs: Vec<ClientConfig>, stats_interval_cycle: u32) -> Self {
+    pub fn new(
+        client_configs: Vec<ClientConfig>,
+        rules: HashMap<u16, ClientRule>,
+        stats_interval_cycle: u32,
+    ) -> Self {
         // create context.
-        let mut context: ManagerContext = ManagerContext::new(client_configs, stats_interval_cycle);
+        let mut context: ManagerContext =
+            ManagerContext::new(client_configs, rules, stats_interval_cycle);
         // create procs.
         let mut procs: HashMap<ManagerState, Box<dyn ManagerProc>> = HashMap::new();
         procs.insert(ManagerState::Starting, Box::new(ManagerProcStarting));

@@ -178,12 +178,24 @@ fn main() {
     // load configuration from file.
     let config = load_config("./config.toml");
 
+    // validate configuration and derive execution rules.
+    let rules = match config.get_client_rules() {
+        Ok(rules) => rules,
+        Err(errors) => {
+            for err in errors {
+                error!("{}", err);
+            }
+            panic!("Configuration validation failed. Please check your config.toml");
+        }
+    };
+
     // setup channel between modules.
     let (tx, rx): (mpsc::Sender<Event>, mpsc::Receiver<Event>) = mpsc::channel();
 
     // setup manager.
     let mut event_manager = EventManager::new(
         config.client_configs,
+        rules,
         config.server_config.stats_interval_cycle,
     );
 
