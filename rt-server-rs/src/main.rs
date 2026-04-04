@@ -36,12 +36,12 @@ fn load_sample_config() -> SchedulerConfig {
     };
     #[rustfmt::skip]
     let client_configs = vec![
-        ClientConfig::new(0, 2, 0, vec![]).unwrap(),
-        ClientConfig::new(1, 2, 0, vec![]).unwrap(),
-        ClientConfig::new(10, 2, 0, vec![0]).unwrap(),
-        ClientConfig::new(11, 2, 0, vec![0, 1]).unwrap(),
-        ClientConfig::new(20, 2, 1, vec![10, 11]).unwrap(),
-        ClientConfig::new(2, 2, 1, vec![]).unwrap(),
+        ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
+        ClientConfig::new(1, 2, 0, vec![], 0).unwrap(),
+        ClientConfig::new(10, 2, 0, vec![0], 0).unwrap(),
+        ClientConfig::new(11, 2, 0, vec![0, 1], 0).unwrap(),
+        ClientConfig::new(20, 2, 1, vec![10, 11], 0).unwrap(),
+        ClientConfig::new(2, 2, 1, vec![], 0).unwrap(),
     ];
     SchedulerConfig {
         server_config,

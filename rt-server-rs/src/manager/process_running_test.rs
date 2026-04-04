@@ -10,10 +10,10 @@ fn create_context_scenarios() -> ManagerContext {
     let mut ctx = ManagerContext::new(
         vec![
             // CID, Cycle, Offset, Depends
-            ClientConfig::new(0, 2, 0, vec![]).unwrap(),
-            ClientConfig::new(1, 2, 0, vec![0]).unwrap(), // Floating (depends on 0, same offset)
-            ClientConfig::new(2, 2, 1, vec![1]).unwrap(), // Non-Floating (depends on 1, different offset)
-            ClientConfig::new(3, 2, 1, vec![]).unwrap(),  // Root (offset 1)
+            ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
+            ClientConfig::new(1, 2, 0, vec![0], 0).unwrap(), // Floating (depends on 0, same offset)
+            ClientConfig::new(2, 2, 1, vec![1], 0).unwrap(), // Non-Floating (depends on 1, different offset)
+            ClientConfig::new(3, 2, 1, vec![], 0).unwrap(),  // Root (offset 1)
         ],
         0,
     );

@@ -21,8 +21,8 @@ fn test_client_stats_default() {
 fn test_manager_context_new() {
     // Given
     let configs = vec![
-        ClientConfig::new(0, 2, 0, vec![]).unwrap(),
-        ClientConfig::new(1, 2, 0, vec![0]).unwrap(),
+        ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
+        ClientConfig::new(1, 2, 0, vec![0], 0).unwrap(),
     ];
 
     // When
@@ -41,7 +41,7 @@ fn test_manager_context_new() {
 #[test]
 fn test_manager_context_set_state() {
     // Given
-    let configs = vec![ClientConfig::new(0, 1, 0, vec![]).unwrap()];
+    let configs = vec![ClientConfig::new(0, 1, 0, vec![], 0).unwrap()];
     let mut context = ManagerContext::new(configs, 0);
 
     // When
@@ -74,7 +74,7 @@ fn test_manager_context_new_empty_configs() {
 #[should_panic]
 fn test_manager_context_new_no_cycle_trigger() {
     // Given
-    let configs = vec![ClientConfig::new(1, 2, 0, vec![0]).unwrap()];
+    let configs = vec![ClientConfig::new(1, 2, 0, vec![0], 0).unwrap()];
 
     // When
     ManagerContext::new(configs, 0);

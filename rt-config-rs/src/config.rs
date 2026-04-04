@@ -20,6 +20,8 @@ pub struct ClientConfig {
     pub cycle: u8,
     pub cycle_offset: u8,
     pub depends: Vec<u16>,
+    #[serde(default)]
+    pub expected_duration_ms: u32,
 }
 
 impl ClientConfig {
@@ -28,6 +30,7 @@ impl ClientConfig {
         cycle: u8,
         cycle_offset: u8,
         depends: Vec<u16>,
+        expected_duration_ms: u32,
     ) -> Result<Self, String> {
         // validate client_id.
         if client_id > CLIENT_ID_MAX {
@@ -65,6 +68,7 @@ impl ClientConfig {
             cycle,
             cycle_offset,
             depends,
+            expected_duration_ms,
         })
     }
 }

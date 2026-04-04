@@ -67,4 +67,11 @@ Per client configuration below:
   - `"001"`: Run after process "001" completes.
   - `"001,002"`: Run after both processes "001" and "002" complete.
 
+### Expected Duration MS
+
+- Specifies the expected execution time for this process in milliseconds.
+  - This value is used by visualization tools (like Ritsu Vis) to display the "planned" execution time on a chart.
+  - It does not affect the actual execution of the process in the scheduler.
+  - Default is `0` if not specified.
+
 EOF
