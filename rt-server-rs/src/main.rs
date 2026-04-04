@@ -60,6 +60,11 @@ fn load_config(path: &str) -> SchedulerConfig {
         panic!("failed to parse config file {}, {}", path, r.unwrap_err());
     };
 
+    // Output raw configuration with <CONFIG> prefix for each line after successful parse.
+    for line in content.lines() {
+        info!("<CONFIG> {}", line);
+    }
+
     return config;
 }
 
