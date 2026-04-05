@@ -6,6 +6,7 @@ members = [
     "rt-core-rs",
     "rt-message-rs",
     "rt-server-rs",
+    "rt-vis-rs/src-tauri",
 ]
 
 [workspace.dependencies]
