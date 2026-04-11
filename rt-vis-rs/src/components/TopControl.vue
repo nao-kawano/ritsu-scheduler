@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { useAppState } from '../composables/useAppState';
 
-const { mode, config, saveConfig } = useAppState();
+const { mode, config, loadConfig, saveConfig } = useAppState();
 </script>
 
 <template>
@@ -33,7 +33,9 @@ const { mode, config, saveConfig } = useAppState();
         </div>
       </div>
       <div class="actions">
-        <button class="primary" @click="saveConfig">Save Config</button>
+        <div class="config-actions-label">Config:</div>
+        <button class="secondary" @click="loadConfig">Load</button>
+        <button class="primary" @click="saveConfig">Save</button>
       </div>
     </div>
   </header>
@@ -126,13 +128,35 @@ const { mode, config, saveConfig } = useAppState();
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-.actions button.primary {
-  background: var(--primary-color);
-  color: white;
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.config-actions-label {
+  font-size: 0.8rem;
+  font-weight: bold;
+  color: var(--text-dim);
+  margin-right: 0.25rem;
+}
+
+.actions button {
   border: none;
   padding: 0.6rem 1.2rem;
   border-radius: 6px;
   font-weight: bold;
   cursor: pointer;
+}
+
+.actions button.primary {
+  background: var(--primary-color);
+  color: white;
+}
+
+.actions button.secondary {
+  background: var(--bg-color);
+  color: var(--text-main);
+  border: 1px solid var(--border-color);
 }
 </style>

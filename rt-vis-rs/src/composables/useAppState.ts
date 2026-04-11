@@ -1,4 +1,6 @@
 import { ref, reactive } from "vue";
+import { invoke } from "@tauri-apps/api/core";
+import { open, save } from "@tauri-apps/plugin-dialog";
 import type { SchedulerConfig, AppMode, ClientConfig } from "../types/config";
 
 // --- Singleton App State ---
@@ -6,6 +8,7 @@ const mode = ref<AppMode>('Create');
 const editingClient = ref<ClientConfig | null>(null);
 const originalClientId = ref<number | null>(null);
 const editingDependsStr = ref<string>("");
+const currentConfigPath = ref<string>("../../rt-server-rs/config.toml");
 
 // --- Sample Data ---
 const config = reactive<SchedulerConfig>({
@@ -22,8 +25,54 @@ const config = reactive<SchedulerConfig>({
 });
 
 // --- Actions ---
-const saveConfig = () => {
-  console.log("Saving config...", JSON.stringify(config, null, 2));
+const loadConfig = async () => {
+  try {
+    const selectedPath = await open({
+      title: 'Select Config File',
+      filters: [{ name: 'TOML Configuration', extensions: ['toml'] }],
+      defaultPath: currentConfigPath.value
+    });
+
+    if (selectedPath === null) {
+      return; // User cancelled
+    }
+
+    currentConfigPath.value = selectedPath as string;
+
+    const loaded = await invoke<SchedulerConfig>("load_config", { path: currentConfigPath.value });
+    // Apply loaded config to the reactive object
+    config.server_config = loaded.server_config;
+    config.client_configs = loaded.client_configs;
+    console.log("Config loaded successfully.");
+    alert(`Config loaded successfully!\nPath: ${currentConfigPath.value}`);
+  } catch (e) {
+    console.error("Failed to load config:", e);
+    alert(`Failed to load config:\n${e}`);
+  }
+};
+
+const saveConfig = async () => {
+  try {
+    const selectedPath = await save({
+      title: 'Save Config File',
+      filters: [{ name: 'TOML Configuration', extensions: ['toml'] }],
+      defaultPath: currentConfigPath.value
+    });
+
+    if (selectedPath === null) {
+      return; // User cancelled
+    }
+
+    currentConfigPath.value = selectedPath as string;
+
+    console.log("Saving config...", JSON.stringify(config, null, 2));
+    await invoke("save_config", { path: currentConfigPath.value, config: config });
+    console.log("Config saved successfully.");
+    alert(`Config saved successfully!\nPath: ${currentConfigPath.value}`);
+  } catch (e) {
+    console.error("Failed to save config:", e);
+    alert(`Failed to save config:\n${e}`);
+  }
 };
 
 const openEdit = (client: ClientConfig) => {
@@ -77,6 +126,7 @@ export function useAppState() {
     originalClientId,
     editingDependsStr,
     config,
+    loadConfig,
     saveConfig,
     openEdit,
     closeEdit,

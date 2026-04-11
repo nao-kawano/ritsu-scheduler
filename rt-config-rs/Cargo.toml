@@ -5,4 +5,4 @@ edition = "2024"
 
 [dependencies]
 rt-message.workspace = true
-serde = { version="1.0", features=["derive"] }
+serde.workspace = true
