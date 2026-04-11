@@ -14,6 +14,9 @@ const {
   editingClient,
   editingDependsStr,
   closeEdit,
+  deleteProcess,
+  isConfirmingDelete,
+  resetDeleteConfirm,
 } = useAppState();
 
 // Component Refs to extract actual elements
@@ -70,6 +73,11 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
           <input type="text" v-model="editingDependsStr" />
         </div>
         <div class="popup-actions">
+          <button class="danger" :class="{ confirming: isConfirmingDelete }" @click="deleteProcess"
+            @mouseleave="resetDeleteConfirm">
+            {{ isConfirmingDelete ? 'Confirm Delete' : 'Delete' }}
+          </button>
+          <div style="flex: 1"></div>
           <button @click="closeEdit(false)">Cancel</button>
           <button class="primary" @click="closeEdit(true)">Apply</button>
         </div>
@@ -208,6 +216,7 @@ html {
   margin-top: 2rem;
   display: flex;
   justify-content: flex-end;
+  align-items: center;
   gap: 1rem;
 }
 
@@ -215,11 +224,12 @@ html {
   background: transparent;
   color: var(--text-main);
   border: 1px solid var(--border-color);
-  padding: 0.6rem 1.2rem;
+  padding: 0 1.2rem;
+  height: 38px;
   border-radius: 6px;
   font-weight: bold;
   cursor: pointer;
-  transition: background 0.2s;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 .popup-actions button:hover {
@@ -230,9 +240,23 @@ button.primary {
   background: var(--primary-color);
   color: white;
   border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
+  /* padding and height inherited from .popup-actions button */
+}
+
+button.danger {
+  color: #f44336;
+  border-color: #f44336;
+}
+
+button.danger:hover {
+  background: rgba(244, 67, 54, 0.1);
+}
+
+button.danger.confirming {
+  background: #f44336;
+  color: white;
+  border-color: #f44336;
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
+  transform: scale(1.05);
 }
 </style>

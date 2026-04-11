@@ -8,6 +8,7 @@ const mode = ref<AppMode>('Create');
 const editingClient = ref<ClientConfig | null>(null);
 const originalClientId = ref<number | null>(null);
 const editingDependsStr = ref<string>("");
+const isConfirmingDelete = ref<boolean>(false);
 const currentConfigPath = ref<string>("../../rt-server-rs/config.toml");
 
 // --- Sample Data ---
@@ -79,6 +80,7 @@ const openEdit = (client: ClientConfig) => {
   editingClient.value = JSON.parse(JSON.stringify(client));
   originalClientId.value = client.client_id;
   editingDependsStr.value = client.depends.join(', ');
+  isConfirmingDelete.value = false;
 };
 
 const closeEdit = (save: boolean) => {
@@ -106,6 +108,7 @@ const closeEdit = (save: boolean) => {
   editingClient.value = null;
   originalClientId.value = null;
   editingDependsStr.value = "";
+  isConfirmingDelete.value = false;
 };
 
 const addProcess = () => {
@@ -119,17 +122,42 @@ const addProcess = () => {
   });
 };
 
+const resetDeleteConfirm = () => {
+  isConfirmingDelete.value = false;
+};
+
+const deleteProcess = async () => {
+  if (originalClientId.value !== null) {
+    if (!isConfirmingDelete.value) {
+      isConfirmingDelete.value = true;
+      return;
+    }
+
+    const cid = originalClientId.value;
+    config.client_configs = config.client_configs.filter(c => c.client_id !== cid);
+
+    // Close the popup after deletion without saving
+    editingClient.value = null;
+    originalClientId.value = null;
+    editingDependsStr.value = "";
+    isConfirmingDelete.value = false;
+  }
+};
+
 export function useAppState() {
   return {
     mode,
     editingClient,
     originalClientId,
     editingDependsStr,
+    isConfirmingDelete,
     config,
     loadConfig,
     saveConfig,
     openEdit,
     closeEdit,
-    addProcess
+    addProcess,
+    deleteProcess,
+    resetDeleteConfirm
   };
 }
