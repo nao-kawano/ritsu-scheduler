@@ -1,14 +1,10 @@
 import { Ref } from 'vue';
 
 /**
- * Provides strict scroll synchronization between the 5 main panes of the visualizer.
+ * Provides strict scroll synchronization between the main panes of the visualizer.
  *
- * - Timeline Scroll (Main) -> syncs Process List (Vertical)
- * - Timeline Scroll (Main) -> syncs Timeline Header, Metrics Header & Metrics Chart (Horizontal)
- * - Metrics Chart Scroll   -> syncs Timeline Scroll, Timeline Header & Metrics Header (Horizontal)
- *
- * Uses `requestAnimationFrame` to prevent layout thrashing and an `isSyncing` flag
- * to prevent infinite event loops between mutually synced elements.
+ * Uses a "driving element" lock pattern to completely eliminate infinite echo loops
+ * while allowing pixel-perfect native scrolling and momentum.
  */
 export function useScrollSync(
   processListScroll: Ref<HTMLElement | null>,
@@ -17,57 +13,52 @@ export function useScrollSync(
   metricsHeaderScroll: Ref<HTMLElement | null>,
   metricsChartScroll: Ref<HTMLElement | null>
 ) {
-  let isSyncing = false;
+  let driving: HTMLElement | null = null;
+  let drivingTimeout: number | null = null;
 
-  const onTimelineScroll = (e: Event) => {
-    if (isSyncing) return;
-    isSyncing = true;
-
+  const onScroll = (e: Event) => {
     const target = e.target as HTMLElement;
 
-    window.requestAnimationFrame(() => {
-      // Vertical sync
-      if (processListScroll.value) {
-        processListScroll.value.scrollTop = target.scrollTop;
-      }
+    // Ignore echoed scroll events from slave elements
+    if (driving && driving !== target) {
+      return;
+    }
 
-      // Horizontal sync
-      if (timelineHeaderScroll.value) {
-        timelineHeaderScroll.value.scrollLeft = target.scrollLeft;
-      }
-      if (metricsHeaderScroll.value) {
-        metricsHeaderScroll.value.scrollLeft = target.scrollLeft;
-      }
-      if (metricsChartScroll.value) {
-        metricsChartScroll.value.scrollLeft = target.scrollLeft;
-      }
-      isSyncing = false;
-    });
-  };
+    // Set this element as the current driving master
+    driving = target;
 
-  const onMetricsScroll = (e: Event) => {
-    if (isSyncing) return;
-    isSyncing = true;
+    // Clear any existing timeout
+    if (drivingTimeout !== null) {
+      window.clearTimeout(drivingTimeout);
+    }
 
-    const target = e.target as HTMLElement;
+    // Release the lock 50ms after the last scroll event from the driver
+    drivingTimeout = window.setTimeout(() => {
+      driving = null;
+      drivingTimeout = null;
+    }, 50);
 
     window.requestAnimationFrame(() => {
-      // Horizontal sync
-      if (timelineScroll.value) {
-        timelineScroll.value.scrollLeft = target.scrollLeft;
+      if (target === processListScroll.value) {
+        if (timelineScroll.value) timelineScroll.value.scrollTop = target.scrollTop;
+      } 
+      else if (target === timelineScroll.value) {
+        if (processListScroll.value) processListScroll.value.scrollTop = target.scrollTop;
+        if (timelineHeaderScroll.value) timelineHeaderScroll.value.scrollLeft = target.scrollLeft;
+        if (metricsHeaderScroll.value) metricsHeaderScroll.value.scrollLeft = target.scrollLeft;
+        if (metricsChartScroll.value) metricsChartScroll.value.scrollLeft = target.scrollLeft;
       }
-      if (timelineHeaderScroll.value) {
-        timelineHeaderScroll.value.scrollLeft = target.scrollLeft;
+      else if (target === metricsChartScroll.value) {
+        if (timelineScroll.value) timelineScroll.value.scrollLeft = target.scrollLeft;
+        if (timelineHeaderScroll.value) timelineHeaderScroll.value.scrollLeft = target.scrollLeft;
+        if (metricsHeaderScroll.value) metricsHeaderScroll.value.scrollLeft = target.scrollLeft;
       }
-      if (metricsHeaderScroll.value) {
-        metricsHeaderScroll.value.scrollLeft = target.scrollLeft;
-      }
-      isSyncing = false;
     });
   };
 
   return {
-    onTimelineScroll,
-    onMetricsScroll
+    onProcessListScroll: onScroll,
+    onTimelineScroll: onScroll,
+    onMetricsScroll: onScroll
   };
 }

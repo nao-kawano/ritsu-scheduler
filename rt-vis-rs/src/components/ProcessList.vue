@@ -5,13 +5,21 @@ import { useAppState } from '../composables/useAppState';
 const { config, openEdit, addProcess } = useAppState();
 const scrollEl = ref<HTMLElement | null>(null);
 
+const emit = defineEmits<{
+  (e: 'scroll', event: Event): void
+}>();
+
+const onScroll = (e: Event) => {
+  emit('scroll', e);
+};
+
 defineExpose({ scrollEl });
 </script>
 
 <template>
   <aside class="process-list-pane">
     <div class="pane-header">Processes</div>
-    <div class="scroll-area process-list-scroll" ref="scrollEl">
+    <div class="scroll-area process-list-scroll hide-scrollbar" ref="scrollEl" @scroll="onScroll">
       <div class="process-list-container">
         <div v-for="client in config.client_configs" :key="client.client_id" class="process-row-wrapper">
           <div class="process-card" @click="openEdit(client)">
@@ -64,7 +72,8 @@ defineExpose({ scrollEl });
 }
 
 .process-list-scroll {
-  overflow: hidden;
+  overflow-y: scroll;
+  overflow-x: hidden;
 }
 
 .process-row-wrapper {

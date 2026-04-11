@@ -29,7 +29,7 @@ const metricsHeaderScroll = computed(() => metricsChartRef.value?.headerScrollEl
 const metricsChartScroll = computed(() => metricsChartRef.value?.contentScrollEl || null);
 
 // Initialize Scroll Sync
-const { onTimelineScroll, onMetricsScroll } = useScrollSync(
+const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync(
   processListScroll,
   timelineHeaderScroll,
   timelineScroll,
@@ -45,7 +45,7 @@ const { onTimelineScroll, onMetricsScroll } = useScrollSync(
 
     <div class="process-section">
       <!-- Left Pane -->
-      <ProcessList ref="processListRef" />
+      <ProcessList ref="processListRef" @scroll="onProcessListScroll" />
 
       <!-- Right Pane -->
       <TimelineView ref="timelineViewRef" @scroll="onTimelineScroll" />
@@ -112,6 +112,7 @@ const { onTimelineScroll, onMetricsScroll } = useScrollSync(
 
 * {
   box-sizing: border-box;
+  overscroll-behavior: none;
 }
 
 body,
