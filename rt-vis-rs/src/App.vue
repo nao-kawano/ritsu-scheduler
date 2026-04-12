@@ -5,9 +5,13 @@ import { useAppState } from "./composables/useAppState";
 
 import TopControl from "./components/TopControl.vue";
 import ProcessList from "./components/ProcessList.vue";
-import TimelineView from "./components/TimelineView.vue";
 import MetricsLabels from "./components/MetricsLabels.vue";
-import MetricsChart from "./components/MetricsChart.vue";
+
+// Mode-specific components
+import TimelineViewGeneric from "./components/TimelineView.vue";
+import MetricsChartGeneric from "./components/MetricsChart.vue";
+import TimelineViewCreate from "./components/TimelineViewCreate.vue";
+import MetricsChartCreate from "./components/MetricsChartCreate.vue";
 
 const {
   mode,
@@ -21,8 +25,8 @@ const {
 
 // Component Refs to extract actual elements
 const processListRef = ref<InstanceType<typeof ProcessList> | null>(null);
-const timelineViewRef = ref<InstanceType<typeof TimelineView> | null>(null);
-const metricsChartRef = ref<InstanceType<typeof MetricsChart> | null>(null);
+const timelineViewRef = ref<any>(null);
+const metricsChartRef = ref<any>(null);
 
 // Computed Refs for Scroll Sync (extracting the exposed HTML elements)
 const processListScroll = computed(() => processListRef.value?.scrollEl || null);
@@ -51,13 +55,15 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
       <ProcessList ref="processListRef" @scroll="onProcessListScroll" />
 
       <!-- Right Pane -->
-      <TimelineView ref="timelineViewRef" @scroll="onTimelineScroll" />
+      <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewGeneric" ref="timelineViewRef"
+        @scroll="onTimelineScroll" />
     </div>
 
     <!-- Bottom Pane -->
     <footer class="metrics-section">
       <MetricsLabels />
-      <MetricsChart ref="metricsChartRef" @scroll="onMetricsScroll" />
+      <component :is="mode === 'Create' ? MetricsChartCreate : MetricsChartGeneric" ref="metricsChartRef"
+        @scroll="onMetricsScroll" />
     </footer>
 
     <!-- Edit Popup -->
