@@ -6,6 +6,7 @@ import { useAppState } from "./composables/useAppState";
 import TopControl from "./components/TopControl.vue";
 import ProcessList from "./components/ProcessList.vue";
 import MetricsLabels from "./components/MetricsLabels.vue";
+import ZoomControl from "./components/ZoomControl.vue";
 
 // Mode-specific components
 import TimelineViewGeneric from "./components/TimelineView.vue";
@@ -57,6 +58,9 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
       <!-- Right Pane -->
       <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewGeneric" ref="timelineViewRef"
         @scroll="onTimelineScroll" />
+
+      <!-- Floating Zoom Control -->
+      <ZoomControl class="floating-zoom" />
     </div>
 
     <!-- Bottom Pane -->
@@ -167,6 +171,14 @@ html {
   grid-template-columns: var(--left-width) 1fr;
   overflow: hidden;
   min-height: 0;
+  position: relative;
+}
+
+.floating-zoom {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  z-index: 50;
 }
 
 .metrics-section {
