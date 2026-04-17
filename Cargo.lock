@@ -3224,6 +3224,7 @@ name = "rt-vis"
 version = "0.1.0"
 dependencies = [
  "rt-config",
+ "rt-core",
  "serde",
  "serde_json",
  "tauri",
