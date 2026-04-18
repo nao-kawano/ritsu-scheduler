@@ -3223,6 +3223,7 @@ dependencies = [
 name = "rt-vis"
 version = "0.1.0"
 dependencies = [
+ "env_logger",
  "rt-config",
  "rt-core",
  "serde",
