@@ -203,6 +203,14 @@ struct CycleTrigger {
 
 #[tauri::command]
 pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String> {
+    // If there are no processes, return empty results immediately.
+    if config.client_configs.is_empty() {
+        return Ok(SimulationResult {
+            executions: Vec::new(),
+            metrics: Vec::new(),
+        });
+    }
+
     // Build entries for scheduler and triggers.
     let mut entries = HashMap::new();
     let mut max_cycle: u32 = 1;
