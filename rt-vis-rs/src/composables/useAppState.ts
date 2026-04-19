@@ -1,7 +1,8 @@
-import { ref, reactive } from "vue";
+import { ref, reactive, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import type { SchedulerConfig, AppMode, ClientConfig } from "../types/config";
+import type { PlannedExecution, PlannedMetricPoint, SimulationResult } from "../types/simulation";
 
 // --- Singleton App State ---
 const mode = ref<AppMode>('Create');
@@ -10,6 +11,33 @@ const originalClientId = ref<number | null>(null);
 const editingDependsStr = ref<string>("");
 const isConfirmingDelete = ref<boolean>(false);
 const currentConfigPath = ref<string>("../../rt-server-rs/config.toml");
+
+// --- Simulation State ---
+const plannedExecutions = ref<PlannedExecution[]>([]);
+const plannedMetrics = ref<PlannedMetricPoint[]>([]);
+
+let simulateTimeout: ReturnType<typeof setTimeout> | null = null;
+
+/**
+ * Execute simulation on the Rust backend via IPC.
+ * Results are used to render the timeline and metrics chart.
+ */
+const simulatePlan = () => {
+  // Use debouncing to prevent excessive IPC calls during rapid configuration changes.
+  if (simulateTimeout) clearTimeout(simulateTimeout);
+  simulateTimeout = setTimeout(async () => {
+    try {
+      const result = await invoke<SimulationResult>("simulate_plan", { config: config });
+      plannedExecutions.value = result.executions;
+      plannedMetrics.value = result.metrics;
+    } catch (e) {
+      console.error("Simulation failed:", e);
+      // Clear simulation results on failure to maintain UI consistency.
+      plannedExecutions.value = [];
+      plannedMetrics.value = [];
+    }
+  }, 100); // 100ms debounce
+};
 
 // --- Sample Data ---
 const config = reactive<SchedulerConfig>({
@@ -25,7 +53,15 @@ const config = reactive<SchedulerConfig>({
   ]
 });
 
-// --- Actions ---
+// Automatically trigger simulation whenever the reactive config object changes.
+watch(config, () => {
+  if (mode.value === 'Create') {
+    simulatePlan();
+  }
+}, { deep: true, immediate: true });
+
+// --- Configuration Management Actions ---
+
 const loadConfig = async () => {
   try {
     const selectedPath = await open({
@@ -39,9 +75,9 @@ const loadConfig = async () => {
     }
 
     currentConfigPath.value = selectedPath as string;
-
     const loaded = await invoke<SchedulerConfig>("load_config", { path: currentConfigPath.value });
-    // Apply loaded config to the reactive object
+
+    // Sync reactive config with loaded data
     config.server_config = loaded.server_config;
     config.client_configs = loaded.client_configs;
     console.log("Config loaded successfully.");
@@ -76,7 +112,10 @@ const saveConfig = async () => {
   }
 };
 
+// --- Process Editing Actions ---
+
 const openEdit = (client: ClientConfig) => {
+  // Create a deep copy for editing to allow cancellation.
   editingClient.value = JSON.parse(JSON.stringify(client));
   originalClientId.value = client.client_id;
   editingDependsStr.value = client.depends.join(', ');
@@ -85,26 +124,31 @@ const openEdit = (client: ClientConfig) => {
 
 const closeEdit = (save: boolean) => {
   if (save && editingClient.value && originalClientId.value !== null) {
-    // CID duplication check
     const newId = editingClient.value.client_id;
+
+    // Validate CID uniqueness if it has been changed.
     if (newId !== originalClientId.value) {
       const exists = config.client_configs.some(c => c.client_id === newId);
       if (exists) {
         alert(`CID ${newId} already exists! Please choose a unique ID.`);
-        return; // Abort save, keep popup open
+        return;
       }
     }
-    // Parse depends CSV
+
+    // Parse comma-separated string back to array of numbers.
     editingClient.value.depends = editingDependsStr.value
       .split(',')
       .map(s => parseInt(s.trim()))
       .filter(n => !isNaN(n));
-    // Save
+
+    // Update the main config array.
     const idx = config.client_configs.findIndex(c => c.client_id === originalClientId.value);
     if (idx !== -1) {
       config.client_configs[idx] = editingClient.value;
     }
   }
+
+  // Reset editing state.
   editingClient.value = null;
   originalClientId.value = null;
   editingDependsStr.value = "";
@@ -134,7 +178,14 @@ const deleteProcess = async () => {
     }
 
     const cid = originalClientId.value;
+
+    // 1. Remove the target process itself
     config.client_configs = config.client_configs.filter(c => c.client_id !== cid);
+
+    // 2. Cleanup stale dependencies: Remove the deleted CID from all other processes' depends lists
+    config.client_configs.forEach(c => {
+      c.depends = c.depends.filter(depId => depId !== cid);
+    });
 
     // Close the popup after deletion without saving
     editingClient.value = null;
@@ -144,6 +195,9 @@ const deleteProcess = async () => {
   }
 };
 
+/**
+ * Hook to access global application state.
+ */
 export function useAppState() {
   return {
     mode,
@@ -152,6 +206,8 @@ export function useAppState() {
     editingDependsStr,
     isConfirmingDelete,
     config,
+    plannedExecutions,
+    plannedMetrics,
     loadConfig,
     saveConfig,
     openEdit,
