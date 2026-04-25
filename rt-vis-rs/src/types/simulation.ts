@@ -3,6 +3,8 @@
  * Based on rt-vis-rs/src-tauri/src/simulator.rs structure.
  */
 
+export type ExecutionStatus = 'normal' | 'overrun' | 'skip';
+
 export interface PlannedExecution {
   instanceId: number;
   cid: number;
@@ -11,6 +13,7 @@ export interface PlannedExecution {
   startMs: number;
   durationMs: number;
   dependsInstanceIds: number[];
+  status: ExecutionStatus;
 }
 
 export interface PlannedMetricPoint {
@@ -21,4 +24,5 @@ export interface PlannedMetricPoint {
 export interface SimulationResult {
   executions: PlannedExecution[];
   metrics: PlannedMetricPoint[];
+  configErrors: Record<number, string[]>;
 }

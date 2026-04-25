@@ -24,6 +24,14 @@ const MIN_DURATION_MS: u32 = 5;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub enum ExecutionStatus {
+    Normal,
+    Overrun,
+    Skip,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PlannedExecution {
     pub instance_id: u32,
     pub cid: u16,
@@ -32,6 +40,7 @@ pub struct PlannedExecution {
     pub start_ms: u32,
     pub duration_ms: u32,
     pub depends_instance_ids: Vec<u32>,
+    pub status: ExecutionStatus,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,6 +55,7 @@ pub struct PlannedMetricPoint {
 pub struct SimulationResult {
     pub executions: Vec<PlannedExecution>,
     pub metrics: Vec<PlannedMetricPoint>,
+    pub config_errors: HashMap<u16, Vec<String>>,
 }
 
 /* -------------------------------------------------------------------------- */
@@ -172,6 +182,7 @@ impl SimulationState {
                             .iter()
                             .filter_map(|&d| self.last_instance_ids.get(&d).copied())
                             .collect(),
+                        status: ExecutionStatus::Normal,
                     });
                     self.events.push(SimulationEvent {
                         time_ms: time_ms + duration_ms,
@@ -208,6 +219,7 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
         return Ok(SimulationResult {
             executions: Vec::new(),
             metrics: Vec::new(),
+            config_errors: HashMap::new(),
         });
     }
 
@@ -215,19 +227,16 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
     let mut entries = HashMap::new();
     let mut max_cycle: u32 = 1;
     let mut triggers = Vec::new();
-    // let rules = config.get_client_rules().map_err(|errs| errs.join(", "))?;
+
+    // Static validation: Check rules and collect errors.
     let rules = match config.get_client_rules() {
         Ok(r) => r,
         Err(errs) => {
-            let mut errormsg = String::new();
-            for (k, v) in errs {
-                if !errormsg.is_empty() {
-                    errormsg.push_str(", ");
-                }
-                errormsg.push_str(&format!("[CID:{:03}] ", k));
-                errormsg.push_str(&v.join(","));
-            }
-            return Err(errormsg);
+            return Ok(SimulationResult {
+                executions: Vec::new(),
+                metrics: Vec::new(),
+                config_errors: errs,
+            });
         }
     };
     for client in &config.client_configs {
@@ -304,5 +313,6 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
     Ok(SimulationResult {
         executions: state.executions,
         metrics: state.metrics,
+        config_errors: HashMap::new(),
     })
 }
