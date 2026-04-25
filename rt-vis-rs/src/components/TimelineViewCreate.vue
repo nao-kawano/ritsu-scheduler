@@ -6,13 +6,17 @@ import { useCreateModeLayout } from '../composables/useCreateModeLayout';
 import type { PlannedExecution } from '../types/simulation';
 
 // --- State and Composables ---
-const { config, plannedExecutions, openEdit } = useAppState();
+const { config, plannedExecutions, configErrors, openEdit } = useAppState();
 const { cycleTimeMs, getPos } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
 // --- Layout Constants ---
 const ROW_HEIGHT = 84;   // Fixed height of each process row (px)
 const RECT_HEIGHT = 36;  // Height of the execution bar (px)
+
+const getErrors = (cid: number) => {
+  return configErrors.value[cid] || [];
+};
 
 // --- Viewport and Scrolling ---
 const headerScrollEl = ref<HTMLElement | null>(null);
@@ -180,6 +184,17 @@ const handleExecClick = (exec: PlannedExecution) => {
             'is-dimmed': hoveredInstanceId !== null && !(arrow.fromId === hoveredInstanceId || arrow.toId === hoveredInstanceId)
           }" marker-end="url(#arrowhead)" />
 
+          <!-- Static Configuration Errors -->
+          <g v-for="(client, index) in config.client_configs" :key="'err-' + client.client_id">
+            <template v-if="getErrors(client.client_id).length > 0">
+              <rect x="0" :y="index * ROW_HEIGHT" :width="totalWidth" :height="ROW_HEIGHT" class="error-row-bg" />
+              <text v-for="(err, i) in getErrors(client.client_id)" :key="i" x="12"
+                :y="index * ROW_HEIGHT + 24 + (i * 18)" class="error-text-msg">
+                • {{ err }}
+              </text>
+            </template>
+          </g>
+
           <!-- Execution Bars Grouped by Instance -->
           <g v-for="exec in activeExecutions" :key="exec.instanceId"
             :transform="`translate(${getPos(exec.startMs)}, ${getY(exec.cid)})`" class="exec-group" :class="{
@@ -317,6 +332,18 @@ const handleExecClick = (exec: PlannedExecution) => {
   stroke-width: 2;
   opacity: 0.6;
   transition: opacity 0.2s, stroke 0.2s, stroke-width 0.2s;
+}
+
+/* --- Error Overlays --- */
+.error-row-bg {
+  fill: rgba(255, 77, 79, 0.08);
+  stroke: rgba(255, 77, 79, 0.2);
+  stroke-width: 1;
+}
+
+.error-text-msg {
+  fill: #cf1322;
+  font-size: 11px;
 }
 
 /* ==========================================================================

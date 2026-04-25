@@ -15,6 +15,8 @@ const currentConfigPath = ref<string>("../../rt-server-rs/config.toml");
 // --- Simulation State ---
 const plannedExecutions = ref<PlannedExecution[]>([]);
 const plannedMetrics = ref<PlannedMetricPoint[]>([]);
+const configErrors = ref<Record<number, string[]>>({});
+const simulationError = ref<string | null>(null);
 
 let simulateTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -30,11 +32,15 @@ const simulatePlan = () => {
       const result = await invoke<SimulationResult>("simulate_plan", { config: config });
       plannedExecutions.value = result.executions;
       plannedMetrics.value = result.metrics;
+      configErrors.value = result.configErrors;
+      simulationError.value = null;
     } catch (e) {
       console.error("Simulation failed:", e);
+      simulationError.value = String(e);
       // Clear simulation results on failure to maintain UI consistency.
       plannedExecutions.value = [];
       plannedMetrics.value = [];
+      configErrors.value = {};
     }
   }, 100); // 100ms debounce
 };
@@ -208,6 +214,8 @@ export function useAppState() {
     config,
     plannedExecutions,
     plannedMetrics,
+    configErrors,
+    simulationError,
     loadConfig,
     saveConfig,
     openEdit,

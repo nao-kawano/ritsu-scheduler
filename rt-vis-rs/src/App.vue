@@ -7,6 +7,7 @@ import TopControl from "./components/TopControl.vue";
 import ProcessList from "./components/ProcessList.vue";
 import MetricsLabels from "./components/MetricsLabels.vue";
 import ZoomControl from "./components/ZoomControl.vue";
+import GlobalError from "./components/GlobalError.vue";
 
 // Mode-specific components
 import TimelineViewGeneric from "./components/TimelineView.vue";
@@ -16,6 +17,7 @@ import MetricsChartCreate from "./components/MetricsChartCreate.vue";
 
 const {
   mode,
+  simulationError,
   editingClient,
   editingDependsStr,
   closeEdit,
@@ -23,6 +25,12 @@ const {
   isConfirmingDelete,
   resetDeleteConfirm,
 } = useAppState();
+
+// Derived state for common components
+const currentErrorMessage = computed(() => {
+  if (mode.value === 'Create') return simulationError.value;
+  return null;
+});
 
 // Component Refs to extract actual elements
 const processListRef = ref<InstanceType<typeof ProcessList> | null>(null);
@@ -52,6 +60,9 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
     <TopControl />
 
     <div class="process-section">
+      <!-- Global Floating Error Display -->
+      <GlobalError :message="currentErrorMessage" class="floating-error" />
+
       <!-- Left Pane -->
       <ProcessList ref="processListRef" @scroll="onProcessListScroll" />
 
@@ -172,6 +183,13 @@ html {
   overflow: hidden;
   min-height: 0;
   position: relative;
+}
+
+.floating-error {
+  position: absolute;
+  top: 20px;
+  right: 40px;
+  z-index: 100;
 }
 
 .floating-zoom {
