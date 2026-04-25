@@ -165,8 +165,10 @@ fn main() {
     let rules = match config.get_client_rules() {
         Ok(rules) => rules,
         Err(errors) => {
-            for err in errors {
-                error!("{}", err);
+            for (cid, errs) in errors {
+                for err in errs {
+                    error!("[ClientConfig CID:{:03}] {}", cid, err);
+                }
             }
             panic!("Configuration validation failed. Please check your config.toml");
         }

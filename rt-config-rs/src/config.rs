@@ -33,6 +33,33 @@ pub struct ClientConfig {
 }
 
 impl ClientConfig {
+    /// Basic validation of the client configuration.
+    pub fn validate(&self) -> Vec<String> {
+        let mut errs = Vec::new();
+        // Validate client_id.
+        if self.client_id > CLIENT_ID_MAX {
+            errs.push(format!("Client ID {:03} is too large", self.client_id));
+        }
+        // Validate cycle.
+        if self.cycle == 0 {
+            errs.push("Cycle must not be zero".to_string());
+        }
+        // Validate cycle_offset.
+        if self.cycle_offset >= self.cycle {
+            errs.push(format!(
+                "CycleOffset ({}) must be less than trigger cycle ({})",
+                self.cycle_offset, self.cycle
+            ));
+        }
+        // Validate depends.
+        for depend in &self.depends {
+            if *depend > CLIENT_ID_MAX {
+                errs.push(format!("Depends CID:{:03} is too large", depend));
+            }
+        }
+        errs
+    }
+
     /// Create a new ClientConfig with basic validation.
     pub fn new(
         client_id: u16,
@@ -41,44 +68,23 @@ impl ClientConfig {
         depends: Vec<u16>,
         expected_duration_ms: u32,
     ) -> Result<Self, String> {
-        // Validate client_id.
-        if client_id > CLIENT_ID_MAX {
-            return Err(format!(
-                "[ClientConfig {:03}] Client ID {:03} is too large",
-                client_id, client_id
-            ));
-        }
-        // Validate cycle.
-        if cycle == 0 {
-            return Err(format!(
-                "[ClientConfig {:03}] Cycle must not be zero",
-                client_id
-            ));
-        }
-        // Validate cycle_offset.
-        if cycle_offset >= cycle {
-            return Err(format!(
-                "[ClientConfig {:03}] CycleOffset must be less than trigger cycle",
-                client_id
-            ));
-        }
-        // Validate depends.
-        for depend in &depends {
-            if *depend > CLIENT_ID_MAX {
-                return Err(format!(
-                    "[ClientConfig {:03}] Depends {:03} is too large",
-                    client_id, depend
-                ));
-            }
-        }
-        // pass.
-        Ok(Self {
+        let config = Self {
             client_id,
             cycle,
             cycle_offset,
             depends,
             expected_duration_ms,
-        })
+        };
+        let errs = config.validate();
+        if errs.is_empty() {
+            Ok(config)
+        } else {
+            Err(format!(
+                "[ClientConfig CID:{:03}] {}",
+                client_id,
+                errs.join(", ")
+            ))
+        }
     }
 }
 
@@ -98,9 +104,9 @@ pub struct SchedulerConfig {
 
 impl SchedulerConfig {
     /// Validate all client configurations and derive execution rules.
-    /// Returns a map of rules indexed by Client ID, or a list of error messages.
-    pub fn get_client_rules(&self) -> Result<HashMap<u16, ClientRule>, Vec<String>> {
-        let mut errors = Vec::new();
+    /// Returns a map of rules indexed by Client ID, or a map of error messages per Client ID.
+    pub fn get_client_rules(&self) -> Result<HashMap<u16, ClientRule>, HashMap<u16, Vec<String>>> {
+        let mut errors: HashMap<u16, Vec<String>> = HashMap::new();
         let mut rules = HashMap::with_capacity(self.client_configs.len());
 
         // Create a lookup map for faster access.
@@ -112,26 +118,23 @@ impl SchedulerConfig {
 
         for client in &self.client_configs {
             let mut is_floating = false;
-            let prefix = format!("[ClientConfig CID:{:03}]", client.client_id);
+            let mut client_errors = client.validate();
 
             for depend_id in &client.depends {
                 match configs.get(depend_id) {
                     Some(dep_config) => {
                         // All dependent processes must have the same cycle.
                         if dep_config.cycle != client.cycle {
-                            errors.push(format!(
-                                "{} Dependent process CID:{:03} has different cycle ({} vs {})",
-                                prefix, dep_config.client_id, dep_config.cycle, client.cycle
+                            client_errors.push(format!(
+                                "Dependent process CID:{:03} has different cycle ({} vs {})",
+                                dep_config.client_id, dep_config.cycle, client.cycle
                             ));
                         }
                         // Dependent processes must not have a future cycle offset.
                         if dep_config.cycle_offset > client.cycle_offset {
-                            errors.push(format!(
-                                "{} Dependent process CID:{:03} has larger cycle_offset ({} > {})",
-                                prefix,
-                                dep_config.client_id,
-                                dep_config.cycle_offset,
-                                client.cycle_offset
+                            client_errors.push(format!(
+                                "Dependent process CID:{:03} has larger cycle_offset ({} > {})",
+                                dep_config.client_id, dep_config.cycle_offset, client.cycle_offset
                             ));
                         }
                         // If the dependent process has the same cycle and cycle offset,
@@ -141,13 +144,18 @@ impl SchedulerConfig {
                         }
                     }
                     None => {
-                        errors.push(format!(
-                            "{} Dependent process CID:{:03} does not exist",
-                            prefix, depend_id
+                        client_errors.push(format!(
+                            "Dependent process CID:{:03} does not exist",
+                            depend_id
                         ));
                     }
                 }
             }
+
+            if !client_errors.is_empty() {
+                errors.insert(client.client_id, client_errors);
+            }
+
             rules.insert(
                 client.client_id,
                 ClientRule {

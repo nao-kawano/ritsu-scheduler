@@ -215,7 +215,21 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
     let mut entries = HashMap::new();
     let mut max_cycle: u32 = 1;
     let mut triggers = Vec::new();
-    let rules = config.get_client_rules().map_err(|errs| errs.join(", "))?;
+    // let rules = config.get_client_rules().map_err(|errs| errs.join(", "))?;
+    let rules = match config.get_client_rules() {
+        Ok(r) => r,
+        Err(errs) => {
+            let mut errormsg = String::new();
+            for (k, v) in errs {
+                if !errormsg.is_empty() {
+                    errormsg.push_str(", ");
+                }
+                errormsg.push_str(&format!("[CID:{:03}] ", k));
+                errormsg.push_str(&v.join(","));
+            }
+            return Err(errormsg);
+        }
+    };
     for client in &config.client_configs {
         let rule = rules.get(&client.client_id).unwrap();
         entries.insert(

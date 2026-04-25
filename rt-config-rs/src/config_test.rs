@@ -69,9 +69,27 @@ fn test_get_client_rules_invalid_all_errors() {
     assert!(result.is_err());
     let errors = result.err().unwrap();
 
-    // Check if all expected errors are collected.
+    // Check if all expected errors are collected for specific CIDs.
     assert_eq!(errors.len(), 3);
-    assert!(errors.iter().any(|e| e.contains("different cycle")));
-    assert!(errors.iter().any(|e| e.contains("does not exist")));
-    assert!(errors.iter().any(|e| e.contains("larger cycle_offset")));
+    assert!(
+        errors
+            .get(&1)
+            .unwrap()
+            .iter()
+            .any(|e| e.contains("different cycle"))
+    );
+    assert!(
+        errors
+            .get(&3)
+            .unwrap()
+            .iter()
+            .any(|e| e.contains("does not exist"))
+    );
+    assert!(
+        errors
+            .get(&5)
+            .unwrap()
+            .iter()
+            .any(|e| e.contains("larger cycle_offset"))
+    );
 }
