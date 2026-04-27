@@ -321,6 +321,7 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
                 // Update the manager cycle and check if the simulation limit is reached.
                 manager_cycle = cycle;
                 if manager_cycle >= max_manager_cycle {
+                    state.record_metric(event.time_ms);
                     break;
                 }
                 // Enqueue next cycle.

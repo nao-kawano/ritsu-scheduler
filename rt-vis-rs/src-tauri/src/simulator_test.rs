@@ -38,12 +38,12 @@ fn test_simulate_plan_single_process() {
     assert_eq!(ex1.start_ms, 100);
     assert_eq!(ex1.duration_ms, 40);
 
-    // Metrics should capture the starts and ends.
-    // At 0ms: start 1 process. -> count = 1
-    // At 40ms: end 1 process. -> count = 0
-    // At 100ms: start 1 process. -> count = 1
-    // At 140ms: end 1 process. -> count = 0
-    assert_eq!(result.metrics.len(), 4);
+    // 0ms: P1 starts (1).
+    // 40ms: P1 ends (0).
+    // 100ms: P1 starts (1).
+    // 140ms: P1 ends (0).
+    // 200ms: End of simulation (0).
+    assert_eq!(result.metrics.len(), 5);
     assert_eq!(result.metrics[0].time_ms, 0);
     assert_eq!(result.metrics[0].running_count, 1);
     assert_eq!(result.metrics[1].time_ms, 40);
@@ -52,6 +52,8 @@ fn test_simulate_plan_single_process() {
     assert_eq!(result.metrics[2].running_count, 1);
     assert_eq!(result.metrics[3].time_ms, 140);
     assert_eq!(result.metrics[3].running_count, 0);
+    assert_eq!(result.metrics[4].time_ms, 200);
+    assert_eq!(result.metrics[4].running_count, 0);
 }
 
 #[test]
@@ -95,13 +97,12 @@ fn test_simulate_plan_dependencies() {
     assert_eq!(execs_1[1].start_ms, 200);
     assert_eq!(execs_1[1].duration_ms, 120);
 
-    // Metrics should capture the floating start.
     // 0ms: P1 starts (1).
     // 120ms: P1 ends, P2 starts (1).
     // 170ms: P2 ends (0).
     // 200ms: P1 starts (1).
-    // (omit 320ms: P1 ends (0))
-    assert_eq!(result.metrics.len(), 4);
+    // 300ms: End of simulation (1).
+    assert_eq!(result.metrics.len(), 5);
     assert_eq!(result.metrics[0].time_ms, 0);
     assert_eq!(result.metrics[0].running_count, 1);
     assert_eq!(result.metrics[1].time_ms, 120);
@@ -110,6 +111,8 @@ fn test_simulate_plan_dependencies() {
     assert_eq!(result.metrics[2].running_count, 0);
     assert_eq!(result.metrics[3].time_ms, 200);
     assert_eq!(result.metrics[3].running_count, 1);
+    assert_eq!(result.metrics[4].time_ms, 300);
+    assert_eq!(result.metrics[4].running_count, 1);
 }
 
 #[test]
@@ -152,14 +155,14 @@ fn test_simulate_plan_offset() {
     assert_eq!(execs_1[1].start_ms, 200);
     assert_eq!(execs_1[1].duration_ms, 10);
 
-    // Metrics should capture the offset start.
     // 0ms: P1 starts (1).
     // 10ms: P1 ends (0).
     // 100ms: P2 starts (1).
     // 110ms: P2 ends (0).
     // 200ms: P1 starts (1).
     // 210ms: P1 ends (0).
-    assert_eq!(result.metrics.len(), 6);
+    // 300ms: End of simulation (0).
+    assert_eq!(result.metrics.len(), 7);
     assert_eq!(result.metrics[0].time_ms, 0);
     assert_eq!(result.metrics[0].running_count, 1);
     assert_eq!(result.metrics[1].time_ms, 10);
@@ -172,6 +175,8 @@ fn test_simulate_plan_offset() {
     assert_eq!(result.metrics[4].running_count, 1);
     assert_eq!(result.metrics[5].time_ms, 210);
     assert_eq!(result.metrics[5].running_count, 0);
+    assert_eq!(result.metrics[6].time_ms, 300);
+    assert_eq!(result.metrics[6].running_count, 0);
 }
 
 #[test]
@@ -214,15 +219,13 @@ fn test_simulate_plan_concurrent_metrics() {
     assert_eq!(execs_1[1].start_ms, 200);
     assert_eq!(execs_1[1].duration_ms, 150);
 
-    // Verify 0 -> 1 -> 2 -> 1 -> 0 pattern
-    // 0ms: P1 starts (1)
-    // 100ms: P2 starts (2)
-    // 130ms: P2 ends (1)
-    // 150ms: P1 ends (0)
-    // 200ms: P1 starts (1)
-    // (omit 300ms: P2 starts (2))
-    // (omit 350ms: P1 ends (0))
-    assert_eq!(result.metrics.len(), 5);
+    // 0ms: P1 starts (1).
+    // 100ms: P2 starts (2).
+    // 130ms: P2 ends (1).
+    // 150ms: P1 ends (0).
+    // 200ms: P1 starts (1).
+    // 300ms: End of simulation (1).
+    assert_eq!(result.metrics.len(), 6);
     assert_eq!(result.metrics[0].time_ms, 0);
     assert_eq!(result.metrics[0].running_count, 1);
     assert_eq!(result.metrics[1].time_ms, 100);
@@ -233,6 +236,8 @@ fn test_simulate_plan_concurrent_metrics() {
     assert_eq!(result.metrics[3].running_count, 0);
     assert_eq!(result.metrics[4].time_ms, 200);
     assert_eq!(result.metrics[4].running_count, 1);
+    assert_eq!(result.metrics[5].time_ms, 300);
+    assert_eq!(result.metrics[5].running_count, 1);
 }
 
 #[test]
@@ -256,7 +261,8 @@ fn test_simulate_plan_default_duration() {
     // 5ms: P1 ends (0).
     // 100ms: P1 starts (1).
     // 105ms: P1 ends (0).
-    assert_eq!(result.metrics.len(), 4);
+    // 200ms: End of simulation (0).
+    assert_eq!(result.metrics.len(), 5);
     assert_eq!(result.metrics[0].time_ms, 0);
     assert_eq!(result.metrics[0].running_count, 1);
     assert_eq!(result.metrics[1].time_ms, 5);
@@ -265,6 +271,8 @@ fn test_simulate_plan_default_duration() {
     assert_eq!(result.metrics[2].running_count, 1);
     assert_eq!(result.metrics[3].time_ms, 105);
     assert_eq!(result.metrics[3].running_count, 0);
+    assert_eq!(result.metrics[4].time_ms, 200);
+    assert_eq!(result.metrics[4].running_count, 0);
 }
 
 #[test]
