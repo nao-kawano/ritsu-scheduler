@@ -4,8 +4,8 @@
 
 use serde::{Deserialize, Serialize};
 
-use rt_config::SchedulerConfig;
-use rt_core::{ProcessEntry, ProcessStateChange, Scheduler};
+use rt_config::{ClientConfig, SchedulerConfig};
+use rt_core::{ProcessEntry, ProcessState, ProcessStateChange, Scheduler};
 
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
@@ -135,70 +135,110 @@ impl SimulationState {
         });
     }
 
-    fn process_changes(
+    fn process_change(
         &mut self,
         time_ms: u32,
-        changes: Vec<ProcessStateChange>,
+        change: &ProcessStateChange,
+        manager_cycle_time: u32,
         manager_cycle: u32,
-        config: &SchedulerConfig,
+        config_client: &ClientConfig,
     ) {
-        use rt_core::ProcessState::*;
-        let cycle_time = config.server_config.cycle_time_ms as u32;
+        match change.after {
+            ProcessState::Running => {
+                // == Process Started Normally
+                let duration_ms = config_client.expected_duration_ms.max(MIN_DURATION_MS);
+                let i_id = self.instance_counter;
+                self.instance_counter += 1;
 
-        for change in changes {
-            let before_running = matches!(change.before, Running | Overrun);
-            let after_running = matches!(change.after, Running | Overrun);
-            // TODO: detect overrun and skip. (invalid configuration)
-
-            match (before_running, after_running) {
-                (false, true) => {
-                    // == Process Started
-
-                    // Find client_config for this process.
-                    let config_client = config
-                        .client_configs
+                self.current_running.insert(change.cid, i_id);
+                self.executions.push(PlannedExecution {
+                    instance_id: i_id,
+                    cid: change.cid,
+                    cycle: manager_cycle,
+                    cycle_offset_ms: time_ms % manager_cycle_time,
+                    start_ms: time_ms,
+                    duration_ms,
+                    depends_instance_ids: config_client
+                        .depends
                         .iter()
-                        .find(|c| c.client_id == change.cid)
-                        .unwrap();
-
-                    // Calculate the duration.
-                    let duration_ms = config_client.expected_duration_ms.max(MIN_DURATION_MS);
-
-                    // Assign a unique instance_id and add the process to the running list.
-                    let i_id = self.instance_counter;
-                    self.instance_counter += 1;
-
-                    // Push execution and schedule the end of this execution.
-                    self.current_running.insert(change.cid, i_id);
-                    self.executions.push(PlannedExecution {
-                        instance_id: i_id,
-                        cid: change.cid,
-                        cycle: manager_cycle,
-                        cycle_offset_ms: time_ms % cycle_time,
-                        start_ms: time_ms,
-                        duration_ms,
-                        depends_instance_ids: config_client
-                            .depends
-                            .iter()
-                            .filter_map(|&d| self.last_instance_ids.get(&d).copied())
-                            .collect(),
-                        status: ExecutionStatus::Normal,
-                    });
-                    self.events.push(SimulationEvent {
-                        time_ms: time_ms + duration_ms,
-                        kind: EventKind::ProcessDone(change.cid, i_id),
-                    });
+                        .filter_map(|&d| self.last_instance_ids.get(&d).copied())
+                        .collect(),
+                    status: ExecutionStatus::Normal,
+                });
+                self.events.push(SimulationEvent {
+                    time_ms: time_ms + duration_ms,
+                    kind: EventKind::ProcessDone(change.cid, i_id),
+                });
+            }
+            ProcessState::Overrun => {
+                // == Overrun Detected (Running -> Overrun)
+                if let Some(&i_id) = self.current_running.get(&change.cid) {
+                    if let Some(exec) = self.executions.iter_mut().find(|e| e.instance_id == i_id) {
+                        exec.status = ExecutionStatus::Overrun;
+                    }
                 }
-                (true, false) => {
-                    // == Process Finished
+            }
+            ProcessState::Skip => {
+                // == Skip Detected (Dependency unmet)
+                let duration_ms = config_client.expected_duration_ms.max(MIN_DURATION_MS);
+                let i_id = self.instance_counter;
+                self.instance_counter += 1;
+
+                // Insert dummy entry without Done event.
+                self.executions.push(PlannedExecution {
+                    instance_id: i_id,
+                    cid: change.cid,
+                    cycle: manager_cycle,
+                    cycle_offset_ms: time_ms % manager_cycle_time,
+                    start_ms: time_ms,
+                    duration_ms,
+                    depends_instance_ids: vec![],
+                    status: ExecutionStatus::Skip,
+                });
+            }
+            ProcessState::Late => {
+                if change.before == ProcessState::Overrun {
+                    // == Overrun Process Finished (Overrun -> Late)
                     if let Some(i_id) = self.current_running.remove(&change.cid) {
                         self.last_instance_ids.insert(change.cid, i_id);
                     }
                 }
-                _ => {}
             }
+            ProcessState::Idle => {
+                if change.before == ProcessState::Running {
+                    // == Process Finished Normally (Running -> Idle)
+                    if let Some(i_id) = self.current_running.remove(&change.cid) {
+                        self.last_instance_ids.insert(change.cid, i_id);
+                    }
+                }
+            }
+            ProcessState::Ready => {}
         }
+    }
 
+    fn process_changes(
+        &mut self,
+        time_ms: u32,
+        changes: &Vec<ProcessStateChange>,
+        manager_cycle: u32,
+        config: &SchedulerConfig,
+    ) {
+        let manager_cycle_time = config.server_config.cycle_time_ms as u32;
+        // Process state changes.
+        for change in changes {
+            let config_client = config
+                .client_configs
+                .iter()
+                .find(|c| c.client_id == change.cid)
+                .unwrap();
+            self.process_change(
+                time_ms,
+                change,
+                manager_cycle_time,
+                manager_cycle,
+                config_client,
+            );
+        }
         // Record the count of currently running processes.
         self.record_metric(time_ms);
     }
@@ -292,7 +332,22 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
                 for t in &triggers {
                     if (manager_cycle % t.cycle) == t.cycle_offset {
                         if let Ok(changes) = scheduler.on_start(t.cid) {
-                            state.process_changes(event.time_ms, changes, manager_cycle, &config);
+                            // Records process state.
+                            state.process_changes(event.time_ms, &changes, manager_cycle, &config);
+                            // TODO: insert missed dependency processes.
+                            // Set Skipped process to Ready for next cycle.
+                            for change in &changes {
+                                match change.after {
+                                    ProcessState::Skip => {
+                                        let _ = scheduler.on_ready(change.cid); // Skip -> Ready.
+                                    }
+                                    ProcessState::Late => {
+                                        let _ = scheduler.on_ready(change.cid); // Late -> Idle.
+                                        let _ = scheduler.on_ready(change.cid); // Idle -> Ready.
+                                    }
+                                    _ => {}
+                                }
+                            }
                         }
                     }
                 }
@@ -301,10 +356,22 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
                 // Ensure this is the currently running instance of this process.
                 if state.current_running.get(&cid) == Some(&instance_id) {
                     if let Ok(changes) = scheduler.on_done(cid) {
-                        state.process_changes(event.time_ms, changes, manager_cycle, &config);
+                        // Records process state.
+                        state.process_changes(event.time_ms, &changes, manager_cycle, &config);
+                        // Set to ready for next cycle.
+                        if let Some(change) = changes.iter().find(|c| c.cid == cid) {
+                            match change.after {
+                                ProcessState::Idle => {
+                                    let _ = scheduler.on_ready(cid); // Idle -> Ready.
+                                }
+                                ProcessState::Late => {
+                                    let _ = scheduler.on_ready(cid); // Late -> Idle.
+                                    let _ = scheduler.on_ready(cid); // Idle -> Ready.
+                                }
+                                _ => {}
+                            }
+                        }
                     }
-                    // Set to ready for next cycle.
-                    let _ = scheduler.on_ready(cid);
                 }
             }
         }

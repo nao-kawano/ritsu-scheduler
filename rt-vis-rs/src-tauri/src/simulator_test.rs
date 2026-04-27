@@ -266,3 +266,94 @@ fn test_simulate_plan_default_duration() {
     assert_eq!(result.metrics[3].time_ms, 105);
     assert_eq!(result.metrics[3].running_count, 0);
 }
+
+#[test]
+fn test_simulate_plan_status_overrun_and_recovery() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
+    // P1: Cycle 1, Duration 150ms (Causes Overrun every cycle)
+    // P99: Cycle 3 (Extends simulation range to Cycle 4 to see recovery at Cycle 2)
+    let config = create_config(vec![
+        ClientConfig::new(1, 1, 0, vec![], 150).unwrap(),
+        ClientConfig::new(99, 3, 0, vec![], 10).unwrap(),
+    ]);
+
+    let result = simulate_plan(config).unwrap();
+
+    // Check P1 (cid=1) executions
+    let mut execs_1: Vec<_> = result.executions.iter().filter(|e| e.cid == 1).collect();
+    execs_1.sort_by_key(|e| e.start_ms);
+
+    // Should have 2 executions (Starts at 0ms and 200ms)
+    // At Cycle 1 and 3, on_start(1) finds P1 running and updates its status,
+    // it does NOT create a new PlannedExecution.
+    assert_eq!(execs_1.len(), 2);
+
+    // 1st run (Starts at Cycle 0)
+    assert_eq!(execs_1[0].start_ms, 0);
+    assert_eq!(execs_1[0].cycle, 0);
+    // At 100ms (Cycle 1 start), status is updated to Overrun
+    assert!(matches!(execs_1[0].status, ExecutionStatus::Overrun));
+
+    // 2nd run (Starts at Cycle 2) - Recovery successful
+    assert_eq!(execs_1[1].start_ms, 200);
+    assert_eq!(execs_1[1].cycle, 2);
+    // At 300ms (Cycle 3 start), it becomes Overrun again
+    assert!(matches!(execs_1[1].status, ExecutionStatus::Overrun));
+}
+
+#[test]
+fn test_simulate_plan_status_cascade_skip() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
+    // P1(10ms) -> P2(150ms) -> P3(10ms) -> P4(10ms)
+    // All Cycle 1, Offset 0.
+    // P2-P4 are Floating because they depend on the previous one in the same offset.
+    let config = create_config(vec![
+        ClientConfig::new(1, 1, 0, vec![], 10).unwrap(),
+        ClientConfig::new(2, 1, 0, vec![1], 150).unwrap(),
+        ClientConfig::new(3, 1, 0, vec![2], 10).unwrap(),
+        ClientConfig::new(4, 1, 0, vec![3], 10).unwrap(),
+    ]);
+
+    let result = simulate_plan(config).unwrap();
+
+    // -- Timeline Expectation --
+    // Cycle 0 (0ms):
+    //   P1 starts (Normal), ends at 10ms.
+    //   P2 starts (Normal), ends at 160ms.
+    //   (P3 and P4 will start after 160ms in Cycle 0, but we focus on Cycle 1)
+
+    // Cycle 1 (100ms):
+    //   on_start(1) is called.
+    //   P2 is still Running (from Cycle 0).
+    //   Result:
+    //     P1: Cycle 1 trigger is SKIPPED because dependent P2 is running.
+    //     P2: Updated to OVERRUN.
+    //     P3 & P4: Cascading SKIP because their dependency P2 is overrun.
+
+    // Check P1 (cid=1): Cycle 1 should be Skip
+    let mut execs_1: Vec<_> = result.executions.iter().filter(|e| e.cid == 1).collect();
+    execs_1.sort_by_key(|e| e.start_ms);
+    assert_eq!(execs_1.len(), 2);
+    assert!(matches!(execs_1[1].status, ExecutionStatus::Skip));
+
+    // Check P2 (cid=2): Cycle 0 should be Overrun
+    let mut execs_2: Vec<_> = result.executions.iter().filter(|e| e.cid == 2).collect();
+    execs_2.sort_by_key(|e| e.start_ms);
+    assert_eq!(execs_2.len(), 1);
+    assert!(matches!(execs_2[0].status, ExecutionStatus::Overrun));
+
+    // Check P3 & P4 (cid=3, 4): Cycle 1 should be Skip
+    let mut execs_3: Vec<_> = result.executions.iter().filter(|e| e.cid == 3).collect();
+    execs_3.sort_by_key(|e| e.start_ms);
+    assert_eq!(execs_3.len(), 1);
+    assert_eq!(execs_3[0].cycle, 1);
+    assert!(matches!(execs_3[0].status, ExecutionStatus::Skip));
+
+    let mut execs_4: Vec<_> = result.executions.iter().filter(|e| e.cid == 4).collect();
+    execs_4.sort_by_key(|e| e.start_ms);
+    assert_eq!(execs_4.len(), 1);
+    assert_eq!(execs_4[0].cycle, 1);
+    assert!(matches!(execs_4[0].status, ExecutionStatus::Skip));
+}

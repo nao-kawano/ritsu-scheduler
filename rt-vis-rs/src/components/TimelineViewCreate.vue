@@ -47,6 +47,20 @@ const activeExecutions = computed(() => {
   return plannedExecutions.value.filter(e => existingCids.has(e.cid));
 });
 
+/**
+ * Identify CIDs that have any execution with a warning status (Overrun or Skip).
+ * Used to highlight the entire row for better visibility.
+ */
+const warningCids = computed(() => {
+  const cids = new Set<number>();
+  activeExecutions.value.forEach(exec => {
+    if (exec.status !== 'normal') {
+      cids.add(exec.cid);
+    }
+  });
+  return cids;
+});
+
 // --- Highlighting Logic ---
 const hoveredInstanceId = ref<number | null>(null);
 
@@ -167,7 +181,8 @@ const handleExecClick = (exec: PlannedExecution) => {
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
       }">
         <!-- Row Backgrounds for structural alignment -->
-        <div v-for="client in config.client_configs" :key="client.client_id" class="timeline-row"></div>
+        <div v-for="client in config.client_configs" :key="client.client_id" class="timeline-row"
+          :class="{ 'has-warning': warningCids.has(client.client_id) }"></div>
         <div class="timeline-row add-btn-placeholder"></div>
 
         <!-- SVG Layer for dynamic content (Arrows and Bars) -->
@@ -199,12 +214,16 @@ const handleExecClick = (exec: PlannedExecution) => {
           <g v-for="exec in activeExecutions" :key="exec.instanceId"
             :transform="`translate(${getPos(exec.startMs)}, ${getY(exec.cid)})`" class="exec-group" :class="{
               'is-highlighted': highlightedIds.has(exec.instanceId),
-              'is-dimmed': hoveredInstanceId !== null && !highlightedIds.has(exec.instanceId)
+              'is-dimmed': hoveredInstanceId !== null && !highlightedIds.has(exec.instanceId),
+              'is-overrun': exec.status === 'overrun',
+              'is-skip': exec.status === 'skip'
             }" @mouseenter="hoveredInstanceId = exec.instanceId" @mouseleave="hoveredInstanceId = null"
             @click="handleExecClick(exec)">
             <rect :width="getPos(exec.durationMs)" :height="RECT_HEIGHT" rx="6" class="exec-rect" />
-            <text x="8" :y="RECT_HEIGHT / 2 + 4" fill="white" font-size="11" font-weight="bold" class="exec-label">
+            <text x="8" :y="RECT_HEIGHT / 2 + 4" font-size="11" font-weight="bold" class="exec-label">
               {{ String(exec.cid).padStart(3, '0') }}
+              {{ exec.status === 'overrun' ? ' (Overrun)' : '' }}
+              {{ exec.status === 'skip' ? ' (Skip)' : '' }}
             </text>
           </g>
         </svg>
@@ -293,6 +312,10 @@ const handleExecClick = (exec: PlannedExecution) => {
   border-bottom: 1px solid var(--border-color);
 }
 
+.timeline-row.has-warning {
+  background-color: rgba(255, 200, 0, 0.12);
+}
+
 /* ==========================================================================
    2. SVG Overlay Components
    ========================================================================== */
@@ -321,8 +344,27 @@ const handleExecClick = (exec: PlannedExecution) => {
 }
 
 .exec-label {
+  fill: white;
   pointer-events: none;
   user-select: none;
+}
+
+/* --- Execution Status States (Overrun / Skip) --- */
+.exec-group.is-overrun .exec-rect {
+  /* Deep red for overrun by default */
+  fill: #a61d24;
+}
+
+.exec-group.is-skip .exec-rect {
+  /* Slight fill to improve visibility against grid */
+  fill: rgba(255, 255, 255, 0.5);
+  stroke: var(--text-dim);
+  stroke-width: 2;
+  stroke-dasharray: 4 4;
+}
+
+.exec-group.is-skip .exec-label {
+  fill: var(--text-dim);
 }
 
 /* --- Dependency Arrows (Edges) --- */
@@ -365,6 +407,15 @@ const handleExecClick = (exec: PlannedExecution) => {
   stroke: #fff;
   stroke-width: 2;
   filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
+}
+
+.is-highlighted.is-overrun .exec-rect {
+  fill: #ff4d4f;
+}
+
+.is-highlighted.is-skip .exec-rect {
+  /* Opaque white to clear grid interference */
+  fill: rgba(255, 255, 255, 0.9);
 }
 
 .arrow-path.is-highlighted {
