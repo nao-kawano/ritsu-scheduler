@@ -323,7 +323,9 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
     // Setup scheduling data.
     let mut state = SimulationState::new();
     let mut manager_cycle: u32 = 0;
-    let max_manager_cycle = max_cycle + 1;
+    // Simulate for 2x max_cycle to cover offset scenarios.
+    // NOTE: Keep in sync with frontend: useCreateModeLayout.ts -> totalCycles
+    let max_manager_cycle = max_cycle * 2;
     let mut loop_count = 0;
 
     while let Some(event) = state.events.pop() {

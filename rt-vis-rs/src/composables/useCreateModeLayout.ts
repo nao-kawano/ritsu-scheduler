@@ -12,12 +12,13 @@ export function useCreateModeLayout() {
 
   /**
    * Calculate how many cycles to show in Create Mode.
-   * Based on (max_cycle + 1) to cover all process patterns.
+   * Based on (maxCycle * 2) to cover all process patterns including offsets.
+   * NOTE: Keep in sync with backend: simulator.rs -> max_manager_cycle
    */
   const totalCycles = computed(() => {
     if (!config.client_configs || config.client_configs.length === 0) return 2;
     const maxCycle = Math.max(...config.client_configs.map(c => c.cycle));
-    return maxCycle + 1;
+    return maxCycle * 2;
   });
 
   /**
