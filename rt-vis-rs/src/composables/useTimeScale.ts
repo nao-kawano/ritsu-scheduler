@@ -2,11 +2,12 @@ import { ref, computed } from 'vue';
 import { useAppState } from './useAppState';
 
 // Singleton state to synchronize zoom across all components
-const pxPerCycle = ref(500);
+const pxPerCycle = ref(400);
 
 // Predefined zoom steps for pxPerCycle
-const ZOOM_STEPS = [75, 125, 250, 375, 500, 750, 1000, 2000];
-const DEFAULT_PX_PER_CYCLE = 500;
+// Based on 400px/cycle as 100% (20%, 30%, 50%, 75%, 100%, 150%, 200%, 400%)
+const ZOOM_STEPS = [80, 120, 200, 300, 400, 600, 800, 1600];
+const DEFAULT_PX_PER_CYCLE = 400;
 
 /**
  * Time Scale Engine (Core)
