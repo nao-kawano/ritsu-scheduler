@@ -199,17 +199,6 @@ const handleExecClick = (exec: PlannedExecution) => {
             'is-dimmed': hoveredInstanceId !== null && !(arrow.fromId === hoveredInstanceId || arrow.toId === hoveredInstanceId)
           }" marker-end="url(#arrowhead)" />
 
-          <!-- Static Configuration Errors -->
-          <g v-for="(client, index) in config.client_configs" :key="'err-' + client.client_id">
-            <template v-if="getErrors(client.client_id).length > 0">
-              <rect x="0" :y="index * ROW_HEIGHT" :width="totalWidth" :height="ROW_HEIGHT" class="error-row-bg" />
-              <text v-for="(err, i) in getErrors(client.client_id)" :key="i" x="12"
-                :y="index * ROW_HEIGHT + 24 + (i * 18)" class="error-text-msg">
-                • {{ err }}
-              </text>
-            </template>
-          </g>
-
           <!-- Execution Bars Grouped by Instance -->
           <g v-for="exec in activeExecutions" :key="exec.instanceId"
             :transform="`translate(${getPos(exec.startMs)}, ${getY(exec.cid)})`" class="exec-group" :class="{
@@ -225,6 +214,17 @@ const handleExecClick = (exec: PlannedExecution) => {
               {{ exec.status === 'overrun' ? ' (Overrun)' : '' }}
               {{ exec.status === 'skip' ? ' (Skip)' : '' }}
             </text>
+          </g>
+
+          <!-- Static Configuration Errors -->
+          <g v-for="(client, index) in config.client_configs" :key="'err-' + client.client_id">
+            <template v-if="getErrors(client.client_id).length > 0">
+              <rect x="0" :y="index * ROW_HEIGHT" :width="totalWidth" :height="ROW_HEIGHT" class="error-row-bg" />
+              <text v-for="(err, i) in getErrors(client.client_id)" :key="i" x="12"
+                :y="index * ROW_HEIGHT + 24 + (i * 18)" class="error-text-msg">
+                • {{ err }}
+              </text>
+            </template>
           </g>
         </svg>
       </div>
