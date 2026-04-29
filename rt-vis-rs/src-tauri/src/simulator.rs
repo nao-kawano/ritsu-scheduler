@@ -58,6 +58,30 @@ pub struct SimulationResult {
     pub config_errors: HashMap<u16, Vec<String>>,
 }
 
+impl SimulationResult {
+    fn new(
+        executions: Vec<PlannedExecution>,
+        metrics: Vec<PlannedMetricPoint>,
+        config_errors: HashMap<u16, Vec<String>>,
+    ) -> Self {
+        Self {
+            executions,
+            metrics,
+            config_errors,
+        }
+    }
+
+    /// Creates a result with no executions or errors.
+    fn empty() -> Self {
+        Self::new(Vec::new(), Vec::new(), HashMap::new())
+    }
+
+    /// Creates a result representing static configuration errors.
+    fn error(config_errors: HashMap<u16, Vec<String>>) -> Self {
+        Self::new(Vec::new(), Vec::new(), config_errors)
+    }
+}
+
 /* -------------------------------------------------------------------------- */
 
 #[derive(Debug, Clone, Eq, PartialEq)]
@@ -256,11 +280,7 @@ struct CycleTrigger {
 pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String> {
     // If there are no processes, return empty results immediately.
     if config.client_configs.is_empty() {
-        return Ok(SimulationResult {
-            executions: Vec::new(),
-            metrics: Vec::new(),
-            config_errors: HashMap::new(),
-        });
+        return Ok(SimulationResult::empty());
     }
 
     // Build entries for scheduler and triggers.
@@ -272,11 +292,7 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
     let rules = match config.get_client_rules() {
         Ok(r) => r,
         Err(errs) => {
-            return Ok(SimulationResult {
-                executions: Vec::new(),
-                metrics: Vec::new(),
-                config_errors: errs,
-            });
+            return Ok(SimulationResult::error(errs));
         }
     };
     for client in &config.client_configs {
@@ -378,9 +394,9 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
         }
     }
 
-    Ok(SimulationResult {
-        executions: state.executions,
-        metrics: state.metrics,
-        config_errors: HashMap::new(),
-    })
+    Ok(SimulationResult::new(
+        state.executions,
+        state.metrics,
+        HashMap::new(),
+    ))
 }
