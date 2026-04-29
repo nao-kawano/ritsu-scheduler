@@ -283,11 +283,6 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
         return Ok(SimulationResult::empty());
     }
 
-    // Build entries for scheduler and triggers.
-    let mut entries = HashMap::new();
-    let mut max_cycle: u32 = 1;
-    let mut triggers = Vec::new();
-
     // Static validation: Check rules and collect errors.
     let rules = match config.get_client_rules() {
         Ok(r) => r,
@@ -295,6 +290,12 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
             return Ok(SimulationResult::error(errs));
         }
     };
+
+    // Build entries for scheduler and triggers.
+    let mut entries = HashMap::new();
+    let mut triggers = Vec::new();
+    let mut max_cycle: u32 = 1;
+
     for client in &config.client_configs {
         let rule = rules.get(&client.client_id).unwrap();
         entries.insert(
