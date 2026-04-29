@@ -42,7 +42,8 @@
 }
 
 .metric-label {
-  height: calc((var(--bottom-height) - var(--header-row-height) - 10px) / 2);
+  /* Matching ROW_HEIGHT and METRICS_HEIGHT for UI consistency */
+  height: var(--row-height);
   display: flex;
   align-items: center;
   padding: 0 1rem;

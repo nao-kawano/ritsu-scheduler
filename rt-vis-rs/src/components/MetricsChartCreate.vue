@@ -27,7 +27,7 @@ defineExpose({
 });
 
 // --- Chart Constants ---
-const METRICS_HEIGHT = 60; // Height of each metric chart row (px)
+const METRICS_HEIGHT = 84; // Height of each metric chart row (px) - Matching ROW_HEIGHT in Timeline
 
 // --- Path Generation ---
 
@@ -177,6 +177,8 @@ const areaPath = computed(() => {
 
 .metrics-container {
   min-height: 100%;
+  /* Accommodate horizontal scrollbar height to prevent obscuring Jitter chart */
+  padding-bottom: 20px;
   /* Visual grid synchronization using CSS linear-gradients */
   background-image:
     linear-gradient(90deg, rgba(128, 128, 128, 0.3) 1px, transparent 1px),
@@ -186,7 +188,7 @@ const areaPath = computed(() => {
 
 /* Base row for metric charts (no padding to allow full-width SVG alignment) */
 .metrics-row {
-  height: 60px;
+  height: var(--row-height);
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
