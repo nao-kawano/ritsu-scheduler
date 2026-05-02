@@ -69,11 +69,11 @@ fn test_simulate_plan_dependencies() {
 
     let result = simulate_plan(config).unwrap();
 
-    // Max cycle is 2, so it will simulate cycle 0, 1, 2. (max_cycle + 1)
+    // Max cycle is 2, so it will simulate cycle 0, 1, 2, 3. (max_cycle * 2)
     // Process 1 runs at cycle 0 and cycle 2. (2 times)
-    // Process 2 runs at cycle 1. (1 time, after Process 1)
-    // Total executions: 3
-    assert_eq!(result.executions.len(), 3);
+    // Process 2 runs at cycle 1 and cycle 3. (2 times, after Process 1)
+    // Total executions: 4
+    assert_eq!(result.executions.len(), 4);
 
     // Filter executions by CID
     let mut execs_1: Vec<_> = result.executions.iter().filter(|e| e.cid == 1).collect();
@@ -82,7 +82,7 @@ fn test_simulate_plan_dependencies() {
     execs_2.sort_by_key(|e| e.start_ms);
 
     assert_eq!(execs_1.len(), 2);
-    assert_eq!(execs_2.len(), 1);
+    assert_eq!(execs_2.len(), 2);
 
     // Process 1 Cycle 0
     assert_eq!(execs_1[0].start_ms, 0);
@@ -97,12 +97,19 @@ fn test_simulate_plan_dependencies() {
     assert_eq!(execs_1[1].start_ms, 200);
     assert_eq!(execs_1[1].duration_ms, 120);
 
+    // Process 2 Cycle 3 (Floating start after Process 1)
+    assert_eq!(execs_2[1].start_ms, 320);
+    assert_eq!(execs_2[1].duration_ms, 50);
+    assert_eq!(execs_2[1].cycle_offset_ms, 20); // 20ms offset within cycle 3
+
     // 0ms: P1 starts (1).
     // 120ms: P1 ends, P2 starts (1).
     // 170ms: P2 ends (0).
     // 200ms: P1 starts (1).
-    // 300ms: End of simulation (1).
-    assert_eq!(result.metrics.len(), 5);
+    // 320ms: P1 ends, P2 starts (1).
+    // 370ms: P2 ends (0).
+    // 400ms: End of simulation (0).
+    assert_eq!(result.metrics.len(), 7);
     assert_eq!(result.metrics[0].time_ms, 0);
     assert_eq!(result.metrics[0].running_count, 1);
     assert_eq!(result.metrics[1].time_ms, 120);
@@ -111,8 +118,12 @@ fn test_simulate_plan_dependencies() {
     assert_eq!(result.metrics[2].running_count, 0);
     assert_eq!(result.metrics[3].time_ms, 200);
     assert_eq!(result.metrics[3].running_count, 1);
-    assert_eq!(result.metrics[4].time_ms, 300);
+    assert_eq!(result.metrics[4].time_ms, 320);
     assert_eq!(result.metrics[4].running_count, 1);
+    assert_eq!(result.metrics[5].time_ms, 370);
+    assert_eq!(result.metrics[5].running_count, 0);
+    assert_eq!(result.metrics[6].time_ms, 400);
+    assert_eq!(result.metrics[6].running_count, 0);
 }
 
 #[test]
@@ -128,11 +139,11 @@ fn test_simulate_plan_offset() {
 
     let result = simulate_plan(config).unwrap();
 
-    // Max cycle is 2, so it will simulate cycle 0, 1, 2. (max_cycle + 1)
+    // Max cycle is 2, so it will simulate cycle 0, 1, 2, 3. (max_cycle * 2)
     // Process 1 runs at cycle 0 and cycle 2. (2 times)
-    // Process 2 runs at cycle 1. (1 time)
-    // Total executions: 3
-    assert_eq!(result.executions.len(), 3);
+    // Process 2 runs at cycle 1 and cycle 3. (2 times)
+    // Total executions: 4
+    assert_eq!(result.executions.len(), 4);
 
     // Filter executions by CID
     let mut execs_1: Vec<_> = result.executions.iter().filter(|e| e.cid == 1).collect();
@@ -141,7 +152,7 @@ fn test_simulate_plan_offset() {
     execs_2.sort_by_key(|e| e.start_ms);
 
     assert_eq!(execs_1.len(), 2);
-    assert_eq!(execs_2.len(), 1);
+    assert_eq!(execs_2.len(), 2);
 
     // Process 1 Cycle 0
     assert_eq!(execs_1[0].start_ms, 0);
@@ -155,14 +166,20 @@ fn test_simulate_plan_offset() {
     assert_eq!(execs_1[1].start_ms, 200);
     assert_eq!(execs_1[1].duration_ms, 10);
 
+    // Process 2 Cycle 3
+    assert_eq!(execs_2[1].start_ms, 300);
+    assert_eq!(execs_2[1].duration_ms, 10);
+
     // 0ms: P1 starts (1).
     // 10ms: P1 ends (0).
     // 100ms: P2 starts (1).
     // 110ms: P2 ends (0).
     // 200ms: P1 starts (1).
     // 210ms: P1 ends (0).
-    // 300ms: End of simulation (0).
-    assert_eq!(result.metrics.len(), 7);
+    // 300ms: P2 starts (1).
+    // 310ms: P2 ends (0).
+    // 400ms: End of simulation (0).
+    assert_eq!(result.metrics.len(), 9);
     assert_eq!(result.metrics[0].time_ms, 0);
     assert_eq!(result.metrics[0].running_count, 1);
     assert_eq!(result.metrics[1].time_ms, 10);
@@ -176,7 +193,11 @@ fn test_simulate_plan_offset() {
     assert_eq!(result.metrics[5].time_ms, 210);
     assert_eq!(result.metrics[5].running_count, 0);
     assert_eq!(result.metrics[6].time_ms, 300);
-    assert_eq!(result.metrics[6].running_count, 0);
+    assert_eq!(result.metrics[6].running_count, 1);
+    assert_eq!(result.metrics[7].time_ms, 310);
+    assert_eq!(result.metrics[7].running_count, 0);
+    assert_eq!(result.metrics[8].time_ms, 400);
+    assert_eq!(result.metrics[8].running_count, 0);
 }
 
 #[test]
@@ -192,11 +213,11 @@ fn test_simulate_plan_concurrent_metrics() {
 
     let result = simulate_plan(config).unwrap();
 
-    // Max cycle is 2, so it will simulate cycle 0, 1, 2. (max_cycle + 1)
+    // Max cycle is 2, so it will simulate cycle 0, 1, 2, 3. (max_cycle * 2)
     // Process 1 runs at cycle 0 and cycle 2. (2 times)
-    // Process 2 runs at cycle 1. (1 time)
-    // Total executions: 3
-    assert_eq!(result.executions.len(), 3);
+    // Process 2 runs at cycle 1 and cycle 3. (2 times)
+    // Total executions: 4
+    assert_eq!(result.executions.len(), 4);
 
     // Filter executions by CID
     let mut execs_1: Vec<_> = result.executions.iter().filter(|e| e.cid == 1).collect();
@@ -205,7 +226,7 @@ fn test_simulate_plan_concurrent_metrics() {
     execs_2.sort_by_key(|e| e.start_ms);
 
     assert_eq!(execs_1.len(), 2);
-    assert_eq!(execs_2.len(), 1);
+    assert_eq!(execs_2.len(), 2);
 
     // Process 1 Cycle 0
     assert_eq!(execs_1[0].start_ms, 0);
@@ -219,13 +240,20 @@ fn test_simulate_plan_concurrent_metrics() {
     assert_eq!(execs_1[1].start_ms, 200);
     assert_eq!(execs_1[1].duration_ms, 150);
 
+    // Process 2 Cycle 3
+    assert_eq!(execs_2[1].start_ms, 300);
+    assert_eq!(execs_2[1].duration_ms, 30);
+
     // 0ms: P1 starts (1).
     // 100ms: P2 starts (2).
     // 130ms: P2 ends (1).
     // 150ms: P1 ends (0).
     // 200ms: P1 starts (1).
-    // 300ms: End of simulation (1).
-    assert_eq!(result.metrics.len(), 6);
+    // 300ms: P2 starts (2).
+    // 330ms: P2 ends (1).
+    // 350ms: P1 ends (0).
+    // 400ms: End of simulation (0).
+    assert_eq!(result.metrics.len(), 9);
     assert_eq!(result.metrics[0].time_ms, 0);
     assert_eq!(result.metrics[0].running_count, 1);
     assert_eq!(result.metrics[1].time_ms, 100);
@@ -237,7 +265,13 @@ fn test_simulate_plan_concurrent_metrics() {
     assert_eq!(result.metrics[4].time_ms, 200);
     assert_eq!(result.metrics[4].running_count, 1);
     assert_eq!(result.metrics[5].time_ms, 300);
-    assert_eq!(result.metrics[5].running_count, 1);
+    assert_eq!(result.metrics[5].running_count, 2);
+    assert_eq!(result.metrics[6].time_ms, 330);
+    assert_eq!(result.metrics[6].running_count, 1);
+    assert_eq!(result.metrics[7].time_ms, 350);
+    assert_eq!(result.metrics[7].running_count, 0);
+    assert_eq!(result.metrics[8].time_ms, 400);
+    assert_eq!(result.metrics[8].running_count, 0);
 }
 
 #[test]
@@ -280,10 +314,10 @@ fn test_simulate_plan_status_overrun_and_recovery() {
     let _ = env_logger::builder().is_test(true).try_init();
 
     // P1: Cycle 1, Duration 150ms (Causes Overrun every cycle)
-    // P99: Cycle 3 (Extends simulation range to Cycle 4 to see recovery at Cycle 2)
+    // P99: Cycle 2 (Extends simulation range to Cycle 4 to see recovery at Cycle 2)
     let config = create_config(vec![
         ClientConfig::new(1, 1, 0, vec![], 150).unwrap(),
-        ClientConfig::new(99, 3, 0, vec![], 10).unwrap(),
+        ClientConfig::new(99, 2, 0, vec![], 10).unwrap(),
     ]);
 
     let result = simulate_plan(config).unwrap();
