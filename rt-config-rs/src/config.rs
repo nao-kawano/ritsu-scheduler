@@ -98,6 +98,15 @@ impl ClientConfig {
     }
 }
 
+/* -------------------------------------------------------------------------- */
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum VisitState {
+    Visiting,
+    Visited,
+    HasCycle,
+}
+
 /// Derived execution rules for a client process.
 #[derive(Clone, Debug)]
 pub struct ClientRule {
@@ -166,10 +175,118 @@ impl SchedulerConfig {
             }
         }
 
+        // Circular Dependency Check (Same Cycle & Offset)
+        let mut visit_states: HashMap<u16, VisitState> = HashMap::new();
+        for client in &self.client_configs {
+            if !visit_states.contains_key(&client.client_id) {
+                let mut path = Vec::new();
+                self.detect_cycle(
+                    client.client_id,
+                    &configs,
+                    &mut visit_states,
+                    &mut path,
+                    &mut errors,
+                );
+            }
+        }
+
         if errors.is_empty() {
             Ok(())
         } else {
             Err(errors)
+        }
+    }
+
+    /// Recursively detect circular dependencies within the same Cycle and CycleOffset.
+    fn detect_cycle(
+        &self,
+        cid: u16,
+        configs: &HashMap<u16, &ClientConfig>,
+        states: &mut HashMap<u16, VisitState>,
+        path: &mut Vec<u16>,
+        errors: &mut HashMap<u16, Vec<String>>,
+    ) -> bool {
+        states.insert(cid, VisitState::Visiting);
+        path.push(cid);
+
+        let mut found_cycle = false;
+        if let Some(config) = configs.get(&cid) {
+            for &dep_id in &config.depends {
+                let dep_config = match configs.get(&dep_id) {
+                    Some(c) => c,
+                    None => continue,
+                };
+
+                // Cycles only occur within the same Cycle and CycleOffset (floating dependencies).
+                if dep_config.cycle != config.cycle
+                    || dep_config.cycle_offset != config.cycle_offset
+                {
+                    continue;
+                }
+
+                match states.get(&dep_id) {
+                    Some(VisitState::Visiting) => {
+                        self.report_cycle(dep_id, path, states, errors);
+                        found_cycle = true;
+                    }
+                    Some(VisitState::HasCycle) => {
+                        found_cycle = true;
+                    }
+                    Some(VisitState::Visited) => {
+                        // OK.
+                    }
+                    None => {
+                        // Recursive search.
+                        if self.detect_cycle(dep_id, configs, states, path, errors) {
+                            found_cycle = true;
+                        }
+                    }
+                }
+            }
+        }
+
+        path.pop();
+        states.insert(
+            cid,
+            if found_cycle {
+                VisitState::HasCycle
+            } else {
+                VisitState::Visited
+            },
+        );
+        found_cycle
+    }
+
+    /// Generate and report a circular dependency error message for all nodes in the detected cycle.
+    fn report_cycle(
+        &self,
+        target_id: u16,
+        path: &[u16],
+        states: &mut HashMap<u16, VisitState>,
+        errors: &mut HashMap<u16, Vec<String>>,
+    ) {
+        let pos = match path.iter().position(|&x| x == target_id) {
+            Some(p) => p,
+            None => return,
+        };
+
+        let cycle_path = &path[pos..];
+        let mut msg = "Circular dependency detected: ".to_string();
+        for (i, &node) in cycle_path.iter().enumerate() {
+            if i > 0 {
+                msg.push_str(" -> ");
+            }
+            msg.push_str(&format!("{:03}", node));
+        }
+        msg.push_str(&format!(" -> {:03}", target_id));
+
+        // Mark all nodes in the cycle and report the error.
+        for &node in cycle_path {
+            let node_errs = errors.entry(node).or_default();
+            if !node_errs.contains(&msg) {
+                node_errs.push(msg.clone());
+            }
+            states.insert(node, VisitState::HasCycle);
         }
     }
 

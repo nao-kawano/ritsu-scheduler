@@ -25,22 +25,24 @@ fn test_client_config_validation() {
     assert!(ClientConfig::new(1, 2, 0, vec![10, 10], 0).is_err());
 }
 
+fn create_config(client_configs: Vec<ClientConfig>) -> SchedulerConfig {
+    SchedulerConfig {
+        server_config: ServerConfig {
+            port: 8080,
+            cycle_time_ms: 100,
+            stats_interval_cycle: 0,
+        },
+        client_configs,
+    }
+}
+
 #[test]
 fn test_get_client_rules_valid() {
-    let server_config = ServerConfig {
-        port: 8080,
-        cycle_time_ms: 100,
-        stats_interval_cycle: 0,
-    };
-    let client_configs = vec![
+    let scheduler_config = create_config(vec![
         ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
         ClientConfig::new(1, 2, 0, vec![0], 0).unwrap(), // Floating (same offset)
         ClientConfig::new(2, 2, 1, vec![1], 0).unwrap(), // Non-floating (different offset)
-    ];
-    let scheduler_config = SchedulerConfig {
-        server_config,
-        client_configs,
-    };
+    ]);
 
     let rules = scheduler_config.get_client_rules();
     assert_eq!(rules.len(), 3);
@@ -51,12 +53,7 @@ fn test_get_client_rules_valid() {
 
 #[test]
 fn test_get_client_rules_invalid_all_errors() {
-    let server_config = ServerConfig {
-        port: 8080,
-        cycle_time_ms: 100,
-        stats_interval_cycle: 0,
-    };
-    let client_configs = vec![
+    let scheduler_config = create_config(vec![
         ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
         ClientConfig::new(1, 3, 0, vec![0], 0).unwrap(), // Error: Different cycle
         ClientConfig::new(2, 2, 0, vec![0], 0).unwrap(), // Valid
@@ -64,12 +61,7 @@ fn test_get_client_rules_invalid_all_errors() {
         ClientConfig::new(4, 2, 0, vec![2], 0).unwrap(), // Valid
         ClientConfig::new(5, 2, 0, vec![6], 0).unwrap(), // Error: CID 6 has future offset
         ClientConfig::new(6, 2, 1, vec![], 0).unwrap(),
-    ];
-
-    let scheduler_config = SchedulerConfig {
-        server_config,
-        client_configs,
-    };
+    ]);
 
     let result = scheduler_config.validate();
     assert!(result.is_err());
@@ -102,19 +94,10 @@ fn test_get_client_rules_invalid_all_errors() {
 
 #[test]
 fn test_get_client_rules_duplicate_cid() {
-    let server_config = ServerConfig {
-        port: 8080,
-        cycle_time_ms: 100,
-        stats_interval_cycle: 0,
-    };
-    let client_configs = vec![
+    let scheduler_config = create_config(vec![
         ClientConfig::new(10, 2, 0, vec![], 0).unwrap(),
         ClientConfig::new(10, 2, 0, vec![], 0).unwrap(),
-    ];
-    let scheduler_config = SchedulerConfig {
-        server_config,
-        client_configs,
-    };
+    ]);
 
     let result = scheduler_config.validate();
     assert!(result.is_err());
@@ -127,5 +110,128 @@ fn test_get_client_rules_duplicate_cid() {
             .unwrap()
             .iter()
             .any(|e| e.contains("Duplicate client ID"))
+    );
+}
+
+#[test]
+fn test_circular_mutual_dependency() {
+    let scheduler_config = create_config(vec![
+        // Healthy Tree (X -> Y)
+        ClientConfig::new(100, 1, 0, vec![], 0).unwrap(),
+        ClientConfig::new(101, 1, 0, vec![100], 0).unwrap(),
+        // Mutual dependency (A <-> B)
+        ClientConfig::new(10, 1, 0, vec![11], 0).unwrap(),
+        ClientConfig::new(11, 1, 0, vec![10], 0).unwrap(),
+    ]);
+
+    let errors = scheduler_config
+        .validate()
+        .err()
+        .expect("Should find errors");
+
+    // Healthy processes must NOT have errors
+    assert!(!errors.contains_key(&100));
+    assert!(!errors.contains_key(&101));
+
+    // Broken processes must have circular error
+    let expected_msg = "Circular dependency detected: 010 -> 011 -> 010";
+    assert!(
+        errors
+            .get(&10)
+            .unwrap()
+            .iter()
+            .any(|e| e.contains(expected_msg))
+    );
+    assert!(
+        errors
+            .get(&11)
+            .unwrap()
+            .iter()
+            .any(|e| e.contains(expected_msg))
+    );
+}
+
+#[test]
+fn test_circular_whole_loop() {
+    let scheduler_config = create_config(vec![
+        // Healthy Tree (X -> Y)
+        ClientConfig::new(100, 1, 0, vec![], 0).unwrap(),
+        ClientConfig::new(101, 1, 0, vec![100], 0).unwrap(),
+        // Whole loop (A -> C -> B -> A)
+        ClientConfig::new(20, 1, 0, vec![22], 0).unwrap(),
+        ClientConfig::new(21, 1, 0, vec![20], 0).unwrap(),
+        ClientConfig::new(22, 1, 0, vec![21], 0).unwrap(),
+    ]);
+
+    let errors = scheduler_config
+        .validate()
+        .err()
+        .expect("Should find errors");
+
+    // Healthy processes must NOT have errors
+    assert!(!errors.contains_key(&100));
+    assert!(!errors.contains_key(&101));
+
+    let expected_msg = "Circular dependency detected: 020 -> 022 -> 021 -> 020";
+    assert!(
+        errors
+            .get(&20)
+            .unwrap()
+            .iter()
+            .any(|e| e.contains(expected_msg))
+    );
+    assert!(
+        errors
+            .get(&21)
+            .unwrap()
+            .iter()
+            .any(|e| e.contains(expected_msg))
+    );
+    assert!(
+        errors
+            .get(&22)
+            .unwrap()
+            .iter()
+            .any(|e| e.contains(expected_msg))
+    );
+}
+
+#[test]
+fn test_circular_mid_path_loop() {
+    let scheduler_config = create_config(vec![
+        // Healthy Tree (X -> Y)
+        ClientConfig::new(100, 1, 0, vec![], 0).unwrap(),
+        ClientConfig::new(101, 1, 0, vec![100], 0).unwrap(),
+        // Mid-path loop (A -> B <-> C)
+        ClientConfig::new(30, 1, 0, vec![], 0).unwrap(), // healthy start
+        ClientConfig::new(31, 1, 0, vec![30, 32], 0).unwrap(), // depends on A AND C
+        ClientConfig::new(32, 1, 0, vec![31], 0).unwrap(), // depends on B
+    ]);
+
+    let errors = scheduler_config
+        .validate()
+        .err()
+        .expect("Should find errors");
+
+    // Healthy processes must NOT have errors
+    assert!(!errors.contains_key(&100));
+    assert!(!errors.contains_key(&101));
+    assert!(!errors.contains_key(&30));
+
+    // Broken processes must have circular error
+    let expected_msg = "Circular dependency detected: 031 -> 032 -> 031";
+    assert!(
+        errors
+            .get(&31)
+            .unwrap()
+            .iter()
+            .any(|e| e.contains(expected_msg))
+    );
+    assert!(
+        errors
+            .get(&32)
+            .unwrap()
+            .iter()
+            .any(|e| e.contains(expected_msg))
     );
 }
