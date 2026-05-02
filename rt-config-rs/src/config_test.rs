@@ -42,7 +42,7 @@ fn test_get_client_rules_valid() {
         client_configs,
     };
 
-    let rules = scheduler_config.get_client_rules().unwrap();
+    let rules = scheduler_config.get_client_rules();
     assert_eq!(rules.len(), 3);
     assert_eq!(rules.get(&0).unwrap().is_floating, false);
     assert_eq!(rules.get(&1).unwrap().is_floating, true);
@@ -71,7 +71,7 @@ fn test_get_client_rules_invalid_all_errors() {
         client_configs,
     };
 
-    let result = scheduler_config.get_client_rules();
+    let result = scheduler_config.validate();
     assert!(result.is_err());
     let errors = result.err().unwrap();
 
@@ -116,14 +116,16 @@ fn test_get_client_rules_duplicate_cid() {
         client_configs,
     };
 
-    let result = scheduler_config.get_client_rules();
+    let result = scheduler_config.validate();
     assert!(result.is_err());
     let errors = result.err().unwrap();
 
     assert_eq!(errors.len(), 1);
-    assert!(errors
-        .get(&10)
-        .unwrap()
-        .iter()
-        .any(|e| e.contains("Duplicate client ID")));
+    assert!(
+        errors
+            .get(&10)
+            .unwrap()
+            .iter()
+            .any(|e| e.contains("Duplicate client ID"))
+    );
 }

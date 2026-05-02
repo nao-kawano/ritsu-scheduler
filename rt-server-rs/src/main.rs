@@ -161,18 +161,18 @@ fn main() {
     // load configuration from file.
     let config = load_config("./config.toml");
 
-    // validate configuration and derive execution rules.
-    let rules = match config.get_client_rules() {
-        Ok(rules) => rules,
-        Err(errors) => {
-            for (cid, errs) in errors {
-                for err in errs {
-                    error!("[ClientConfig CID:{:03}] {}", cid, err);
-                }
+    // validate configuration.
+    if let Err(errors) = config.validate() {
+        for (cid, errs) in errors {
+            for err in errs {
+                error!("[ClientConfig CID:{:03}] {}", cid, err);
             }
-            panic!("Configuration validation failed. Please check your config.toml");
         }
-    };
+        panic!("Configuration validation failed. Please check your config.toml");
+    }
+
+    // derive execution rules.
+    let rules = config.get_client_rules();
 
     // setup channel between modules.
     let (tx, rx): (mpsc::Sender<Event>, mpsc::Receiver<Event>) = mpsc::channel();

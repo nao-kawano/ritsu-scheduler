@@ -36,7 +36,7 @@ fn test_manager_context_new() {
         server_config,
         client_configs,
     };
-    let rules = scheduler_config.get_client_rules().unwrap();
+    let rules = scheduler_config.get_client_rules();
 
     // When
     let context = ManagerContext::new(scheduler_config.client_configs, rules, 0);
@@ -64,7 +64,7 @@ fn test_manager_context_set_state() {
         server_config,
         client_configs,
     };
-    let rules = scheduler_config.get_client_rules().unwrap();
+    let rules = scheduler_config.get_client_rules();
     let mut context = ManagerContext::new(scheduler_config.client_configs, rules, 0);
 
     // When

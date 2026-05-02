@@ -284,12 +284,12 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
     }
 
     // Static validation: Check rules and collect errors.
-    let rules = match config.get_client_rules() {
-        Ok(r) => r,
-        Err(errs) => {
-            return Ok(SimulationResult::error(errs));
-        }
-    };
+    if let Err(errs) = config.validate() {
+        return Ok(SimulationResult::error(errs));
+    }
+
+    // Derive execution rules.
+    let rules = config.get_client_rules();
 
     // Build entries for scheduler and triggers.
     let mut entries = HashMap::new();

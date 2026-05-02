@@ -58,7 +58,10 @@ impl ClientConfig {
                 errs.push(format!("Depends CID:{:03} is too large", depend));
             }
             if *depend == self.client_id {
-                errs.push(format!("Self-dependency is not allowed (CID:{:03})", depend));
+                errs.push(format!(
+                    "Self-dependency is not allowed (CID:{:03})",
+                    depend
+                ));
             }
             if !seen_depends.insert(*depend) {
                 errs.push(format!("Duplicate dependency CID:{:03}", depend));
@@ -110,14 +113,14 @@ pub struct SchedulerConfig {
 }
 
 impl SchedulerConfig {
-    /// Validate all client configurations and derive execution rules.
-    /// Returns a map of rules indexed by Client ID, or a map of error messages per Client ID.
-    pub fn get_client_rules(&self) -> Result<HashMap<u16, ClientRule>, HashMap<u16, Vec<String>>> {
+    /// Validate all client configurations.
+    /// Returns Ok(()) if all configurations are valid, or a map of error messages per Client ID.
+    pub fn validate(&self) -> Result<(), HashMap<u16, Vec<String>>> {
         let mut errors: HashMap<u16, Vec<String>> = HashMap::new();
-        let mut rules = HashMap::with_capacity(self.client_configs.len());
 
-        // Create a lookup map for faster access and check for duplicate Client IDs.
-        let mut configs: HashMap<u16, &ClientConfig> = HashMap::with_capacity(self.client_configs.len());
+        // Check for duplicate Client IDs and create a lookup map.
+        let mut configs: HashMap<u16, &ClientConfig> =
+            HashMap::with_capacity(self.client_configs.len());
         for client in &self.client_configs {
             if configs.insert(client.client_id, client).is_some() {
                 errors
@@ -127,8 +130,8 @@ impl SchedulerConfig {
             }
         }
 
+        // Validate each client's dependencies and individual settings.
         for client in &self.client_configs {
-            let mut is_floating = false;
             let mut client_errors = client.validate();
 
             for depend_id in &client.depends {
@@ -148,11 +151,6 @@ impl SchedulerConfig {
                                 dep_config.client_id, dep_config.cycle_offset, client.cycle_offset
                             ));
                         }
-                        // If the dependent process has the same cycle and cycle offset,
-                        // this process starts immediately after the dependent process completes.
-                        if dep_config.cycle_offset == client.cycle_offset {
-                            is_floating = true;
-                        }
                     }
                     None => {
                         client_errors.push(format!(
@@ -166,6 +164,39 @@ impl SchedulerConfig {
             if !client_errors.is_empty() {
                 errors.insert(client.client_id, client_errors);
             }
+        }
+
+        if errors.is_empty() {
+            Ok(())
+        } else {
+            Err(errors)
+        }
+    }
+
+    /// Derive execution rules for all client configurations.
+    /// This should be called after successful validation.
+    pub fn get_client_rules(&self) -> HashMap<u16, ClientRule> {
+        let mut rules = HashMap::with_capacity(self.client_configs.len());
+
+        // Create a lookup map.
+        let configs: HashMap<u16, &ClientConfig> = self
+            .client_configs
+            .iter()
+            .map(|c| (c.client_id, c))
+            .collect();
+
+        for client in &self.client_configs {
+            let mut is_floating = false;
+
+            for depend_id in &client.depends {
+                if let Some(dep_config) = configs.get(depend_id) {
+                    // If the dependent process has the same cycle and cycle offset,
+                    // this process starts immediately after the dependent process completes.
+                    if dep_config.cycle_offset == client.cycle_offset {
+                        is_floating = true;
+                    }
+                }
+            }
 
             rules.insert(
                 client.client_id,
@@ -176,10 +207,6 @@ impl SchedulerConfig {
             );
         }
 
-        if errors.is_empty() {
-            Ok(rules)
-        } else {
-            Err(errors)
-        }
+        rules
     }
 }

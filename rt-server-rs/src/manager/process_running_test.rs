@@ -24,7 +24,7 @@ fn create_context_scenarios() -> ManagerContext {
         server_config,
         client_configs,
     };
-    let rules = scheduler_config.get_client_rules().unwrap();
+    let rules = scheduler_config.get_client_rules();
 
     let mut ctx = ManagerContext::new(scheduler_config.client_configs, rules, 0);
 
