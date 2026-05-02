@@ -17,6 +17,12 @@ fn test_client_config_validation() {
 
     // Invalid depends.
     assert!(ClientConfig::new(1, 2, 0, vec![CLIENT_ID_MAX + 1], 0).is_err());
+
+    // Self-dependency.
+    assert!(ClientConfig::new(1, 2, 0, vec![1], 0).is_err());
+
+    // Duplicate dependency.
+    assert!(ClientConfig::new(1, 2, 0, vec![10, 10], 0).is_err());
 }
 
 #[test]
@@ -92,4 +98,32 @@ fn test_get_client_rules_invalid_all_errors() {
             .iter()
             .any(|e| e.contains("larger cycle_offset"))
     );
+}
+
+#[test]
+fn test_get_client_rules_duplicate_cid() {
+    let server_config = ServerConfig {
+        port: 8080,
+        cycle_time_ms: 100,
+        stats_interval_cycle: 0,
+    };
+    let client_configs = vec![
+        ClientConfig::new(10, 2, 0, vec![], 0).unwrap(),
+        ClientConfig::new(10, 2, 0, vec![], 0).unwrap(),
+    ];
+    let scheduler_config = SchedulerConfig {
+        server_config,
+        client_configs,
+    };
+
+    let result = scheduler_config.get_client_rules();
+    assert!(result.is_err());
+    let errors = result.err().unwrap();
+
+    assert_eq!(errors.len(), 1);
+    assert!(errors
+        .get(&10)
+        .unwrap()
+        .iter()
+        .any(|e| e.contains("Duplicate client ID")));
 }

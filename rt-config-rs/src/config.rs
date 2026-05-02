@@ -4,7 +4,7 @@
 
 use rt_message::CLIENT_ID_MAX;
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 #[cfg(test)]
 #[path = "config_test.rs"]
@@ -52,9 +52,16 @@ impl ClientConfig {
             ));
         }
         // Validate depends.
+        let mut seen_depends = HashSet::new();
         for depend in &self.depends {
             if *depend > CLIENT_ID_MAX {
                 errs.push(format!("Depends CID:{:03} is too large", depend));
+            }
+            if *depend == self.client_id {
+                errs.push(format!("Self-dependency is not allowed (CID:{:03})", depend));
+            }
+            if !seen_depends.insert(*depend) {
+                errs.push(format!("Duplicate dependency CID:{:03}", depend));
             }
         }
         errs
@@ -109,12 +116,16 @@ impl SchedulerConfig {
         let mut errors: HashMap<u16, Vec<String>> = HashMap::new();
         let mut rules = HashMap::with_capacity(self.client_configs.len());
 
-        // Create a lookup map for faster access.
-        let configs: HashMap<u16, &ClientConfig> = self
-            .client_configs
-            .iter()
-            .map(|c| (c.client_id, c))
-            .collect();
+        // Create a lookup map for faster access and check for duplicate Client IDs.
+        let mut configs: HashMap<u16, &ClientConfig> = HashMap::with_capacity(self.client_configs.len());
+        for client in &self.client_configs {
+            if configs.insert(client.client_id, client).is_some() {
+                errors
+                    .entry(client.client_id)
+                    .or_default()
+                    .push(format!("Duplicate client ID {:03}", client.client_id));
+            }
+        }
 
         for client in &self.client_configs {
             let mut is_floating = false;
