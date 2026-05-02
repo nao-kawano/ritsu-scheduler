@@ -14,10 +14,6 @@ const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 const ROW_HEIGHT = 84;   // Fixed height of each process row (px)
 const RECT_HEIGHT = 36;  // Height of the execution bar (px)
 
-const getErrors = (cid: number) => {
-  return configErrors.value[cid] || [];
-};
-
 // --- Viewport and Scrolling ---
 const headerScrollEl = ref<HTMLElement | null>(null);
 const contentScrollEl = ref<HTMLElement | null>(null);
@@ -34,6 +30,26 @@ defineExpose({
   headerScrollEl,
   contentScrollEl
 });
+
+// --- Validation and Error Helpers ---
+
+const getErrors = (cid: number) => {
+  return configErrors.value[cid] || [];
+};
+
+/**
+ * Limit and format configuration errors for display in the timeline.
+ * Ensures that errors do not overflow the row height by capping at 4 lines.
+ */
+const getDisplayErrors = (cid: number) => {
+  const allErrors = getErrors(cid);
+  if (allErrors.length <= 4) {
+    return allErrors.map(text => ({ text: `• ${text}`, isSummary: false }));
+  }
+  const display = allErrors.slice(0, 3).map(text => ({ text: `• ${text}`, isSummary: false }));
+  display.push({ text: `+ ${allErrors.length - 3} more errors...`, isSummary: true });
+  return display;
+};
 
 // --- Data Filtering ---
 
@@ -220,9 +236,10 @@ const handleExecClick = (exec: PlannedExecution) => {
           <g v-for="(client, index) in config.client_configs" :key="'err-' + client.client_id">
             <template v-if="getErrors(client.client_id).length > 0">
               <rect x="0" :y="index * ROW_HEIGHT" :width="totalWidth" :height="ROW_HEIGHT" class="error-row-bg" />
-              <text v-for="(err, i) in getErrors(client.client_id)" :key="i" x="12"
-                :y="index * ROW_HEIGHT + 24 + (i * 18)" class="error-text-msg">
-                • {{ err }}
+              <text v-for="(errObj, i) in getDisplayErrors(client.client_id)" :key="i" x="12"
+                :y="index * ROW_HEIGHT + 20 + (i * 16)" class="error-text-msg"
+                :class="{ 'is-summary': errObj.isSummary }">
+                {{ errObj.text }}
               </text>
             </template>
           </g>
@@ -386,6 +403,10 @@ const handleExecClick = (exec: PlannedExecution) => {
 .error-text-msg {
   fill: #cf1322;
   font-size: 11px;
+}
+
+.error-text-msg.is-summary {
+  font-weight: bold;
 }
 
 /* ==========================================================================
