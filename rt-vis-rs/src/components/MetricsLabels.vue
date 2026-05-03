@@ -1,9 +1,12 @@
 <script setup lang="ts">
-// Metrics Labels (Static for now)
+import { useAppState } from '../composables/useAppState';
+
+// --- State and Composables ---
+const { config } = useAppState();
 </script>
 
 <template>
-  <div class="metrics-labels-pane">
+  <div class="metrics-labels-pane" :key="config.sessionId">
     <div class="pane-header">Metrics Labels</div>
     <div class="metrics-labels">
       <div class="metric-label">Concurrent Processes</div>

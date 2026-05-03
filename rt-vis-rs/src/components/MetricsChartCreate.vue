@@ -5,7 +5,7 @@ import { useTimeScale } from '../composables/useTimeScale';
 import { useCreateModeLayout } from '../composables/useCreateModeLayout';
 
 // --- State and Composables ---
-const { plannedMetrics } = useAppState();
+const { config, plannedMetrics } = useAppState();
 const { cycleTimeMs, getPos } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
@@ -77,7 +77,7 @@ const areaPath = computed(() => {
 </script>
 
 <template>
-  <main class="metrics-pane">
+  <main class="metrics-pane" :key="config.sessionId">
     <!-- Time Header (Cycle and ms markers, synced across panes) -->
     <div class="metrics-header hide-scrollbar" ref="headerScrollEl">
       <div class="time-axis" :style="{ width: totalWidth + 'px' }">

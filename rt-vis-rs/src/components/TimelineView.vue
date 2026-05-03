@@ -2,8 +2,10 @@
 import { ref } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
+// --- State and Composables ---
 const { config } = useAppState();
 
+// --- Viewport and Scrolling ---
 const headerScrollEl = ref<HTMLElement | null>(null);
 const contentScrollEl = ref<HTMLElement | null>(null);
 
@@ -22,7 +24,7 @@ defineExpose({
 </script>
 
 <template>
-  <main class="timeline-pane">
+  <main class="timeline-pane" :key="config.sessionId">
     <div class="timeline-header hide-scrollbar" ref="headerScrollEl">
       <div class="time-axis">
         <div v-for="n in 50" :key="n" class="time-tick">{{ (n - 1) * 5 }}ms</div>
@@ -30,8 +32,8 @@ defineExpose({
     </div>
     <div class="scroll-area timeline-scroll" ref="contentScrollEl" @scroll="onScroll">
       <div class="timeline-container">
-        <div v-for="client in config.client_configs" :key="client.client_id" class="timeline-row">
-          <div class="plan-preview">Timeline Row for CID {{ client.client_id }}</div>
+        <div v-for="clientWrap in config.client_configs" :key="clientWrap.configId" class="timeline-row">
+          <div class="plan-preview">Timeline Row for CID {{ clientWrap.data.client_id }}</div>
         </div>
         <div class="timeline-row add-btn-placeholder"></div>
       </div>

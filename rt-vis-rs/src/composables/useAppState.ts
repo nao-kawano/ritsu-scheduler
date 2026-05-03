@@ -1,13 +1,46 @@
 import { ref, reactive, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import type { SchedulerConfig, AppMode, ClientConfig } from "../types/config";
+import type { AppMode, SchedulerConfig, ClientConfig, SchedulerConfigUI, ClientConfigUI } from "../types/config";
 import type { PlannedExecution, PlannedMetricPoint, SimulationResult } from "../types/simulation";
+
+// --- Global ID Counters ---
+let nextSessionId = 1;
+let nextConfigId = 1;
+
+// --- ID Management Helpers ---
+
+/**
+ * Wrap raw SchedulerConfig into UI-friendly structure with unique IDs.
+ */
+const wrapConfig = (raw: SchedulerConfig): SchedulerConfigUI => {
+  const sessionId = nextSessionId++;
+  nextConfigId = 1; // Reset config ID for new session
+
+  return {
+    sessionId,
+    server_config: { ...raw.server_config },
+    client_configs: raw.client_configs.map(c => ({
+      configId: nextConfigId++,
+      data: { ...c }
+    }))
+  };
+};
+
+/**
+ * Unwrap UI-friendly structure back to raw SchedulerConfig for Rust backend.
+ */
+const unwrapConfig = (ui: SchedulerConfigUI): SchedulerConfig => {
+  return {
+    server_config: { ...ui.server_config },
+    client_configs: ui.client_configs.map(c => ({ ...c.data }))
+  };
+};
 
 // --- Singleton App State ---
 const mode = ref<AppMode>('Create');
 const editingClient = ref<ClientConfig | null>(null);
-const originalClientId = ref<number | null>(null);
+const editingConfigId = ref<number | null>(null);
 const editingDependsStr = ref<string>("");
 const isConfirmingDelete = ref<boolean>(false);
 const currentConfigPath = ref<string>("../../rt-server-rs/config.toml");
@@ -29,7 +62,8 @@ const simulatePlan = () => {
   if (simulateTimeout) clearTimeout(simulateTimeout);
   simulateTimeout = setTimeout(async () => {
     try {
-      const result = await invoke<SimulationResult>("simulate_plan", { config: config });
+      const rawConfig = unwrapConfig(config);
+      const result = await invoke<SimulationResult>("simulate_plan", { config: rawConfig });
       plannedExecutions.value = result.executions;
       plannedMetrics.value = result.metrics;
       configErrors.value = result.configErrors;
@@ -45,8 +79,8 @@ const simulatePlan = () => {
   }, 100); // 100ms debounce
 };
 
-// --- Sample Data ---
-const config = reactive<SchedulerConfig>({
+// --- Initial Sample Data ---
+const initialRaw: SchedulerConfig = {
   server_config: {
     port: 7878,
     cycle_time_ms: 50,
@@ -57,7 +91,9 @@ const config = reactive<SchedulerConfig>({
     { client_id: 11, cycle: 2, cycle_offset: 0, depends: [10], expected_duration_ms: 20 },
     { client_id: 20, cycle: 2, cycle_offset: 1, depends: [], expected_duration_ms: 40 },
   ]
-});
+};
+
+const config = reactive<SchedulerConfigUI>(wrapConfig(initialRaw));
 
 // Automatically trigger simulation whenever the reactive config object changes.
 watch(config, () => {
@@ -75,17 +111,26 @@ const loadConfig = async () => {
       filters: [{ name: 'TOML Configuration', extensions: ['toml'] }],
       defaultPath: currentConfigPath.value
     });
-
     if (selectedPath === null) {
       return; // User cancelled
     }
 
+    // Clear the current simulated data to avoid mixing it with the newly loaded data.
+    plannedExecutions.value = [];
+    plannedMetrics.value = [];
+    configErrors.value = {};
+    simulationError.value = null;
+
+    // Load configuration.
     currentConfigPath.value = selectedPath as string;
     const loaded = await invoke<SchedulerConfig>("load_config", { path: currentConfigPath.value });
 
-    // Sync reactive config with loaded data
-    config.server_config = loaded.server_config;
-    config.client_configs = loaded.client_configs;
+    // Sync reactive config with wrapped data
+    const wrapped = wrapConfig(loaded);
+    config.sessionId = wrapped.sessionId;
+    config.server_config = wrapped.server_config;
+    config.client_configs = wrapped.client_configs;
+
     console.log("Config loaded successfully.");
     alert(`Config loaded successfully!\nPath: ${currentConfigPath.value}`);
   } catch (e) {
@@ -108,8 +153,9 @@ const saveConfig = async () => {
 
     currentConfigPath.value = selectedPath as string;
 
-    console.log("Saving config...", JSON.stringify(config, null, 2));
-    await invoke("save_config", { path: currentConfigPath.value, config: config });
+    const rawConfig = unwrapConfig(config);
+    console.log("Saving config...", JSON.stringify(rawConfig, null, 2));
+    await invoke("save_config", { path: currentConfigPath.value, config: rawConfig });
     console.log("Config saved successfully.");
     alert(`Config saved successfully!\nPath: ${currentConfigPath.value}`);
   } catch (e) {
@@ -120,25 +166,26 @@ const saveConfig = async () => {
 
 // --- Process Editing Actions ---
 
-const openEdit = (client: ClientConfig) => {
+const openEdit = (clientWrap: ClientConfigUI) => {
   // Create a deep copy for editing to allow cancellation.
-  editingClient.value = JSON.parse(JSON.stringify(client));
-  originalClientId.value = client.client_id;
-  editingDependsStr.value = client.depends.join(', ');
+  editingClient.value = JSON.parse(JSON.stringify(clientWrap.data));
+  editingConfigId.value = clientWrap.configId;
+  editingDependsStr.value = clientWrap.data.depends.join(', ');
   isConfirmingDelete.value = false;
 };
 
 const closeEdit = (save: boolean) => {
-  if (save && editingClient.value && originalClientId.value !== null) {
+  if (save && editingClient.value && editingConfigId.value !== null) {
     const newId = editingClient.value.client_id;
+    const targetConfigId = editingConfigId.value;
 
     // Validate CID uniqueness if it has been changed.
-    if (newId !== originalClientId.value) {
-      const exists = config.client_configs.some(c => c.client_id === newId);
-      if (exists) {
-        alert(`CID ${newId} already exists! Please choose a unique ID.`);
-        return;
-      }
+    const exists = config.client_configs.some(c =>
+      c.configId !== targetConfigId && c.data.client_id === newId
+    );
+    if (exists) {
+      alert(`CID ${newId} already exists! Please choose a unique ID.`);
+      return;
     }
 
     // Parse comma-separated string back to array of numbers.
@@ -148,27 +195,30 @@ const closeEdit = (save: boolean) => {
       .filter(n => !isNaN(n));
 
     // Update the main config array.
-    const idx = config.client_configs.findIndex(c => c.client_id === originalClientId.value);
+    const idx = config.client_configs.findIndex(c => c.configId === targetConfigId);
     if (idx !== -1) {
-      config.client_configs[idx] = editingClient.value;
+      config.client_configs[idx].data = editingClient.value;
     }
   }
 
   // Reset editing state.
   editingClient.value = null;
-  originalClientId.value = null;
+  editingConfigId.value = null;
   editingDependsStr.value = "";
   isConfirmingDelete.value = false;
 };
 
 const addProcess = () => {
-  const newId = Math.max(0, ...config.client_configs.map(c => c.client_id)) + 1;
+  const newId = Math.max(0, ...config.client_configs.map(c => c.data.client_id)) + 1;
   config.client_configs.push({
-    client_id: newId,
-    cycle: 1,
-    cycle_offset: 0,
-    depends: [],
-    expected_duration_ms: 10
+    configId: nextConfigId++,
+    data: {
+      client_id: newId,
+      cycle: 1,
+      cycle_offset: 0,
+      depends: [],
+      expected_duration_ms: 10
+    }
   });
 };
 
@@ -177,25 +227,28 @@ const resetDeleteConfirm = () => {
 };
 
 const deleteProcess = async () => {
-  if (originalClientId.value !== null) {
+  if (editingConfigId.value !== null) {
     if (!isConfirmingDelete.value) {
       isConfirmingDelete.value = true;
       return;
     }
 
-    const cid = originalClientId.value;
+    const targetConfigId = editingConfigId.value;
+    const targetCid = editingClient.value?.client_id;
 
     // 1. Remove the target process itself
-    config.client_configs = config.client_configs.filter(c => c.client_id !== cid);
+    config.client_configs = config.client_configs.filter(c => c.configId !== targetConfigId);
 
     // 2. Cleanup stale dependencies: Remove the deleted CID from all other processes' depends lists
-    config.client_configs.forEach(c => {
-      c.depends = c.depends.filter(depId => depId !== cid);
-    });
+    if (targetCid !== undefined) {
+      config.client_configs.forEach(c => {
+        c.data.depends = c.data.depends.filter(depId => depId !== targetCid);
+      });
+    }
 
     // Close the popup after deletion without saving
     editingClient.value = null;
-    originalClientId.value = null;
+    editingConfigId.value = null;
     editingDependsStr.value = "";
     isConfirmingDelete.value = false;
   }
@@ -208,7 +261,7 @@ export function useAppState() {
   return {
     mode,
     editingClient,
-    originalClientId,
+    editingConfigId,
     editingDependsStr,
     isConfirmingDelete,
     config,

@@ -1,6 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue';
+import { useAppState } from '../composables/useAppState';
 
+// --- State and Composables ---
+const { config } = useAppState();
+
+// --- Viewport and Scrolling ---
 const headerScrollEl = ref<HTMLElement | null>(null);
 const contentScrollEl = ref<HTMLElement | null>(null);
 
@@ -19,7 +24,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="metrics-content-pane">
+  <div class="metrics-content-pane" :key="config.sessionId">
     <div class="timeline-header hide-scrollbar" ref="headerScrollEl">
       <div class="time-axis">
         <div v-for="n in 50" :key="n" class="time-tick">{{ (n - 1) * 5 }}ms</div>

@@ -2,12 +2,11 @@
 import { ref } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
+// --- State and Composables ---
 const { config, configErrors, openEdit, addProcess } = useAppState();
-const scrollEl = ref<HTMLElement | null>(null);
 
-const getErrors = (cid: number) => {
-  return configErrors.value[cid] || [];
-};
+// --- Viewport and Scrolling ---
+const scrollEl = ref<HTMLElement | null>(null);
 
 const emit = defineEmits<{
   (e: 'scroll', event: Event): void
@@ -17,28 +16,33 @@ const onScroll = (e: Event) => {
   emit('scroll', e);
 };
 
+// --- Validation and Error Helpers ---
+const getErrors = (cid: number) => {
+  return configErrors.value[cid] || [];
+};
+
 defineExpose({ scrollEl });
 </script>
 
 <template>
-  <aside class="process-list-pane">
+  <aside class="process-list-pane" :key="config.sessionId">
     <div class="pane-header">Processes</div>
     <div class="scroll-area process-list-scroll hide-scrollbar" ref="scrollEl" @scroll="onScroll">
       <div class="process-list-container">
-        <div v-for="client in config.client_configs" :key="client.client_id" class="process-row-wrapper">
-          <div class="process-card" :class="{ 'has-error': getErrors(client.client_id).length > 0 }"
-            @click="openEdit(client)" :title="getErrors(client.client_id).join('\n')">
+        <div v-for="clientWrap in config.client_configs" :key="clientWrap.configId" class="process-row-wrapper">
+          <div class="process-card" :class="{ 'has-error': getErrors(clientWrap.data.client_id).length > 0 }"
+            @click="openEdit(clientWrap)" :title="getErrors(clientWrap.data.client_id).join('\n')">
             <div class="card-header">
               <div class="cid">
-                CID: {{ String(client.client_id).padStart(3, '0') }}
-                <span v-if="getErrors(client.client_id).length > 0" class="error-icon">⚠️</span>
+                CID: {{ String(clientWrap.data.client_id).padStart(3, '0') }}
+                <span v-if="getErrors(clientWrap.data.client_id).length > 0" class="error-icon">⚠️</span>
               </div>
             </div>
             <div class="meta-block">
-              <div class="details">C: {{ client.cycle }}, O: {{ client.cycle_offset }}, D: {{
-                client.expected_duration_ms }}ms</div>
-              <div class="depends" :class="{ 'no-deps': client.depends.length === 0 }">Deps: {{
-                client.depends.length > 0 ? client.depends.join(', ') : '-' }}</div>
+              <div class="details">C: {{ clientWrap.data.cycle }}, O: {{ clientWrap.data.cycle_offset }}, D: {{
+                clientWrap.data.expected_duration_ms }}ms</div>
+              <div class="depends" :class="{ 'no-deps': clientWrap.data.depends.length === 0 }">Deps: {{
+                clientWrap.data.depends.length > 0 ? clientWrap.data.depends.join(', ') : '-' }}</div>
             </div>
           </div>
         </div>

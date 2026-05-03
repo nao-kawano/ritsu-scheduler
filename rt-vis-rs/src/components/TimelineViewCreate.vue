@@ -59,7 +59,7 @@ const getDisplayErrors = (cid: number) => {
  * debounce period after a process deletion or CID change.
  */
 const activeExecutions = computed(() => {
-  const existingCids = new Set(config.client_configs.map(c => c.client_id));
+  const existingCids = new Set(config.client_configs.map(c => c.data.client_id));
   return plannedExecutions.value.filter(e => existingCids.has(e.cid));
 });
 
@@ -113,7 +113,7 @@ const highlightedIds = computed(() => {
  * Aligns the bar to the vertical center of its corresponding row.
  */
 const getY = (cid: number) => {
-  const index = config.client_configs.findIndex(c => c.client_id === cid);
+  const index = config.client_configs.findIndex(c => c.data.client_id === cid);
   if (index === -1) return -1000; // Position off-screen if process is not found
   return (index * ROW_HEIGHT) + (ROW_HEIGHT / 2) - (RECT_HEIGHT / 2);
 };
@@ -171,15 +171,15 @@ const dependencyArrows = computed(() => {
  * Handle clicking on an execution bar to open its process configuration.
  */
 const handleExecClick = (exec: PlannedExecution) => {
-  const client = config.client_configs.find(c => c.client_id === exec.cid);
-  if (client) {
-    openEdit(client);
+  const clientWrap = config.client_configs.find(c => c.data.client_id === exec.cid);
+  if (clientWrap) {
+    openEdit(clientWrap);
   }
 };
 </script>
 
 <template>
-  <main class="timeline-pane">
+  <main class="timeline-pane" :key="config.sessionId">
     <!-- Time Header (Cycle and ms markers, synced across panes) -->
     <div class="timeline-header hide-scrollbar" ref="headerScrollEl">
       <div class="time-axis" :style="{ width: totalWidth + 'px' }">
@@ -197,8 +197,8 @@ const handleExecClick = (exec: PlannedExecution) => {
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
       }">
         <!-- Row Backgrounds for structural alignment -->
-        <div v-for="client in config.client_configs" :key="client.client_id" class="timeline-row"
-          :class="{ 'has-warning': warningCids.has(client.client_id) }"></div>
+        <div v-for="clientWrap in config.client_configs" :key="clientWrap.configId" class="timeline-row"
+          :class="{ 'has-warning': warningCids.has(clientWrap.data.client_id) }"></div>
         <div class="timeline-row add-btn-placeholder"></div>
 
         <!-- SVG Layer for dynamic content (Arrows and Bars) -->
@@ -233,10 +233,10 @@ const handleExecClick = (exec: PlannedExecution) => {
           </g>
 
           <!-- Static Configuration Errors -->
-          <g v-for="(client, index) in config.client_configs" :key="'err-' + client.client_id">
-            <template v-if="getErrors(client.client_id).length > 0">
+          <g v-for="(clientWrap, index) in config.client_configs" :key="'err-' + clientWrap.configId">
+            <template v-if="getErrors(clientWrap.data.client_id).length > 0">
               <rect x="0" :y="index * ROW_HEIGHT" :width="totalWidth" :height="ROW_HEIGHT" class="error-row-bg" />
-              <text v-for="(errObj, i) in getDisplayErrors(client.client_id)" :key="i" x="12"
+              <text v-for="(errObj, i) in getDisplayErrors(clientWrap.data.client_id)" :key="i" x="12"
                 :y="index * ROW_HEIGHT + 20 + (i * 16)" class="error-text-msg"
                 :class="{ 'is-summary': errObj.isSummary }">
                 {{ errObj.text }}

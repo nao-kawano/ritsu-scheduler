@@ -17,7 +17,7 @@ export function useCreateModeLayout() {
    */
   const totalCycles = computed(() => {
     if (!config.client_configs || config.client_configs.length === 0) return 2;
-    const maxCycle = Math.max(...config.client_configs.map(c => c.cycle));
+    const maxCycle = Math.max(...config.client_configs.map(c => c.data.cycle));
     return maxCycle * 2;
   });
 

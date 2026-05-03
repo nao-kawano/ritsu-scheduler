@@ -22,4 +22,17 @@ export interface SchedulerConfig {
   client_configs: ClientConfig[];
 }
 
+// -- Wrapped configuration for Vue instance management.
+
+export interface ClientConfigUI {
+  configId: number;
+  data: ClientConfig;
+}
+
+export interface SchedulerConfigUI {
+  sessionId: number;
+  server_config: ServerConfig;
+  client_configs: ClientConfigUI[];
+}
+
 export type AppMode = 'Create' | 'Analyze';
