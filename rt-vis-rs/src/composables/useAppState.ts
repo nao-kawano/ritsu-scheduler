@@ -47,10 +47,10 @@ const isConfirmingDelete = ref<boolean>(false);
 const currentConfigPath = ref<string>("../../rt-server-rs/config.toml");
 
 // --- Simulation State ---
-const plannedExecutions = ref<PlannedExecution[]>([]);
-const plannedMetrics = ref<PlannedMetricPoint[]>([]);
-const configErrors = ref<Record<number, string[]>>({});
-const simulationError = ref<string | null>(null);
+const planned_executions = ref<PlannedExecution[]>([]);
+const planned_metrics = ref<PlannedMetricPoint[]>([]);
+const config_errors = ref<Record<number, string[]>>({});
+const simulation_error = ref<string | null>(null);
 
 let simulateTimeout: ReturnType<typeof setTimeout> | null = null;
 
@@ -65,17 +65,17 @@ const simulatePlan = () => {
     try {
       const rawConfig = unwrapConfig(config);
       const result = await invoke<SimulationResult>("simulate_plan", { config: rawConfig });
-      plannedExecutions.value = result.executions;
-      plannedMetrics.value = result.metrics;
-      configErrors.value = result.configErrors;
-      simulationError.value = null;
+      planned_executions.value = result.executions;
+      planned_metrics.value = result.metrics;
+      config_errors.value = result.config_errors;
+      simulation_error.value = null;
     } catch (e) {
       console.error("Simulation failed:", e);
-      simulationError.value = String(e);
+      simulation_error.value = String(e);
       // Clear simulation results on failure to maintain UI consistency.
-      plannedExecutions.value = [];
-      plannedMetrics.value = [];
-      configErrors.value = {};
+      planned_executions.value = [];
+      planned_metrics.value = [];
+      config_errors.value = {};
     }
   }, 100); // 100ms debounce
 };
@@ -117,10 +117,10 @@ const loadConfig = async () => {
     }
 
     // Clear the current simulated data to avoid mixing it with the newly loaded data.
-    plannedExecutions.value = [];
-    plannedMetrics.value = [];
-    configErrors.value = {};
-    simulationError.value = null;
+    planned_executions.value = [];
+    planned_metrics.value = [];
+    config_errors.value = {};
+    simulation_error.value = null;
 
     // Load configuration.
     currentConfigPath.value = selectedPath as string;
@@ -266,10 +266,10 @@ export function useAppState() {
     editingDependsStr,
     isConfirmingDelete,
     config,
-    plannedExecutions,
-    plannedMetrics,
-    configErrors,
-    simulationError,
+    planned_executions,
+    planned_metrics,
+    config_errors,
+    simulation_error,
     loadConfig,
     saveConfig,
     openEdit,

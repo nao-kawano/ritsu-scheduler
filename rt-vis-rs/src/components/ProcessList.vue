@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
 // --- State and Composables ---
-const { config, configErrors, openEdit, addProcess } = useAppState();
+const { config, config_errors, openEdit, addProcess } = useAppState();
 
 // --- Viewport and Scrolling ---
 const scrollEl = ref<HTMLElement | null>(null);
@@ -18,7 +18,7 @@ const onScroll = (e: Event) => {
 
 // --- Validation and Error Helpers ---
 const getErrors = (cid: number) => {
-  return configErrors.value[cid] || [];
+  return config_errors.value[cid] || [];
 };
 
 defineExpose({ scrollEl });

@@ -23,7 +23,7 @@ const MIN_DURATION_MS: u32 = 5;
 /* -------------------------------------------------------------------------- */
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub enum ExecutionStatus {
     Normal,
     Overrun,
@@ -31,7 +31,7 @@ pub enum ExecutionStatus {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct PlannedExecution {
     pub instance_id: u32,
     pub cid: u16,
@@ -44,14 +44,14 @@ pub struct PlannedExecution {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct PlannedMetricPoint {
     pub time_ms: u32,
     pub running_count: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
+#[serde(rename_all = "snake_case")]
 pub struct SimulationResult {
     pub executions: Vec<PlannedExecution>,
     pub metrics: Vec<PlannedMetricPoint>,

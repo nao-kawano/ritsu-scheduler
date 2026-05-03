@@ -6,7 +6,7 @@ import { useCreateModeLayout } from '../composables/useCreateModeLayout';
 import type { PlannedExecution } from '../types/simulation';
 
 // --- State and Composables ---
-const { config, plannedExecutions, configErrors, openEdit } = useAppState();
+const { config, planned_executions, config_errors, openEdit } = useAppState();
 const { cycleTimeMs, getPos } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
@@ -34,7 +34,7 @@ defineExpose({
 // --- Validation and Error Helpers ---
 
 const getErrors = (cid: number) => {
-  return configErrors.value[cid] || [];
+  return config_errors.value[cid] || [];
 };
 
 /**
@@ -60,7 +60,7 @@ const getDisplayErrors = (cid: number) => {
  */
 const activeExecutions = computed(() => {
   const existingCids = new Set(config.client_configs.map(c => c.data.client_id));
-  return plannedExecutions.value.filter(e => existingCids.has(e.cid));
+  return planned_executions.value.filter(e => existingCids.has(e.cid));
 });
 
 /**
@@ -78,27 +78,27 @@ const warningCids = computed(() => {
 });
 
 // --- Highlighting Logic ---
-const hoveredInstanceId = ref<number | null>(null);
+const hovered_instance_id = ref<number | null>(null);
 
 /**
  * Identify all execution instances related to the currently hovered instance.
  * Includes the instance itself, its immediate ancestors (depends), and immediate descendants.
  */
 const highlightedIds = computed(() => {
-  if (hoveredInstanceId.value === null) return new Set<number>();
+  if (hovered_instance_id.value === null) return new Set<number>();
 
-  const ids = new Set<number>([hoveredInstanceId.value]);
+  const ids = new Set<number>([hovered_instance_id.value]);
   // Use activeExecutions to ensure we don't highlight stale/deleted data
-  const target = activeExecutions.value.find(e => e.instanceId === hoveredInstanceId.value);
+  const target = activeExecutions.value.find(e => e.instance_id === hovered_instance_id.value);
 
   if (target) {
     // 1. Add Parents (Ancestors) - instances this one depends on.
-    target.dependsInstanceIds.forEach(id => ids.add(id));
+    target.depends_instance_ids.forEach(id => ids.add(id));
 
     // 2. Add Children (Descendants) - instances that depend on this one.
     activeExecutions.value.forEach(e => {
-      if (e.dependsInstanceIds.includes(hoveredInstanceId.value!)) {
-        ids.add(e.instanceId);
+      if (e.depends_instance_ids.includes(hovered_instance_id.value!)) {
+        ids.add(e.instance_id);
       }
     });
   }
@@ -134,16 +134,16 @@ const svgHeight = computed(() => {
 const dependencyArrows = computed(() => {
   const arrows = [];
   // Use activeExecutions to ensure arrows are only drawn for visible bars
-  const execMap = new Map(activeExecutions.value.map(e => [e.instanceId, e]));
+  const execMap = new Map(activeExecutions.value.map(e => [e.instance_id, e]));
 
   for (const exec of activeExecutions.value) {
-    const toX = getPos(exec.startMs);
+    const toX = getPos(exec.start_ms);
     const toY = getY(exec.cid) + RECT_HEIGHT / 2;
 
-    for (const depId of exec.dependsInstanceIds) {
+    for (const depId of exec.depends_instance_ids) {
       const depExec = execMap.get(depId);
       if (depExec) {
-        const fromX = getPos(depExec.startMs + depExec.durationMs);
+        const fromX = getPos(depExec.start_ms + depExec.duration_ms);
         const fromY = getY(depExec.cid) + RECT_HEIGHT / 2;
 
         // Calculate horizontal control point offset based on distance to avoid "flat" curves on short gaps.
@@ -154,9 +154,9 @@ const dependencyArrows = computed(() => {
         const path = `M ${fromX},${fromY} C ${fromX + cpOffset},${fromY} ${toX - cpOffset},${toY} ${toX},${toY}`;
 
         arrows.push({
-          id: `${depId}-${exec.instanceId}`,
+          id: `${depId}-${exec.instance_id}`,
           fromId: depId,
-          toId: exec.instanceId,
+          toId: exec.instance_id,
           path
         });
       }
@@ -211,20 +211,20 @@ const handleExecClick = (exec: PlannedExecution) => {
 
           <!-- Dependency Arrows -->
           <path v-for="arrow in dependencyArrows" :key="arrow.id" :d="arrow.path" class="arrow-path" :class="{
-            'is-highlighted': hoveredInstanceId !== null && (arrow.fromId === hoveredInstanceId || arrow.toId === hoveredInstanceId),
-            'is-dimmed': hoveredInstanceId !== null && !(arrow.fromId === hoveredInstanceId || arrow.toId === hoveredInstanceId)
+            'is-highlighted': hovered_instance_id !== null && (arrow.fromId === hovered_instance_id || arrow.toId === hovered_instance_id),
+            'is-dimmed': hovered_instance_id !== null && !(arrow.fromId === hovered_instance_id || arrow.toId === hovered_instance_id)
           }" marker-end="url(#arrowhead)" />
 
           <!-- Execution Bars Grouped by Instance -->
-          <g v-for="exec in activeExecutions" :key="exec.instanceId"
-            :transform="`translate(${getPos(exec.startMs)}, ${getY(exec.cid)})`" class="exec-group" :class="{
-              'is-highlighted': highlightedIds.has(exec.instanceId),
-              'is-dimmed': hoveredInstanceId !== null && !highlightedIds.has(exec.instanceId),
+          <g v-for="exec in activeExecutions" :key="exec.instance_id"
+            :transform="`translate(${getPos(exec.start_ms)}, ${getY(exec.cid)})`" class="exec-group" :class="{
+              'is-highlighted': highlightedIds.has(exec.instance_id),
+              'is-dimmed': hovered_instance_id !== null && !highlightedIds.has(exec.instance_id),
               'is-overrun': exec.status === 'overrun',
               'is-skip': exec.status === 'skip'
-            }" @mouseenter="hoveredInstanceId = exec.instanceId" @mouseleave="hoveredInstanceId = null"
+            }" @mouseenter="hovered_instance_id = exec.instance_id" @mouseleave="hovered_instance_id = null"
             @click="handleExecClick(exec)">
-            <rect :width="getPos(exec.durationMs)" :height="RECT_HEIGHT" rx="6" class="exec-rect" />
+            <rect :width="getPos(exec.duration_ms)" :height="RECT_HEIGHT" rx="6" class="exec-rect" />
             <text x="8" :y="RECT_HEIGHT / 2 + 4" font-size="11" font-weight="bold" class="exec-label">
               {{ String(exec.cid).padStart(3, '0') }}
               {{ exec.status === 'overrun' ? ' (Overrun)' : '' }}

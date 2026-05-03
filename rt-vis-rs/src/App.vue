@@ -17,7 +17,7 @@ import MetricsChartCreate from "./components/MetricsChartCreate.vue";
 
 const {
   mode,
-  simulationError,
+  simulation_error,
   editingClient,
   editingDependsStr,
   closeEdit,
@@ -28,7 +28,7 @@ const {
 
 // Derived state for common components
 const currentErrorMessage = computed(() => {
-  if (mode.value === 'Create') return simulationError.value;
+  if (mode.value === 'Create') return simulation_error.value;
   return null;
 });
 

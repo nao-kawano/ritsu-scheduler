@@ -5,7 +5,7 @@ import { useTimeScale } from '../composables/useTimeScale';
 import { useCreateModeLayout } from '../composables/useCreateModeLayout';
 
 // --- State and Composables ---
-const { config, plannedMetrics } = useAppState();
+const { config, planned_metrics } = useAppState();
 const { cycleTimeMs, getPos } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
@@ -37,23 +37,23 @@ const METRICS_HEIGHT = 84; // Height of each metric chart row (px) - Matching RO
  * instantaneous changes in the number of running processes.
  */
 const areaPath = computed(() => {
-  if (plannedMetrics.value.length === 0) return '';
+  if (planned_metrics.value.length === 0) return '';
 
   // Find maximum count for normalization (Y-scaling)
-  const counts = plannedMetrics.value.map(m => m.runningCount);
+  const counts = planned_metrics.value.map(m => m.running_count);
   let maxCount = counts.length > 0 ? Math.max(...counts) : 1;
   if (maxCount === 0) maxCount = 1;
 
   // Start path from bottom-left corner
   let path = `M 0,${METRICS_HEIGHT}`;
 
-  for (let i = 0; i < plannedMetrics.value.length; i++) {
-    const current = plannedMetrics.value[i];
-    const x = getPos(current.timeMs);
+  for (let i = 0; i < planned_metrics.value.length; i++) {
+    const current = planned_metrics.value[i];
+    const x = getPos(current.time_ms);
 
     // Calculate Y coordinate (inverted for SVG coordinates)
     // Leaves a small top margin (10px) for visual comfort.
-    const y = METRICS_HEIGHT - (current.runningCount / maxCount) * (METRICS_HEIGHT - 10);
+    const y = METRICS_HEIGHT - (current.running_count / maxCount) * (METRICS_HEIGHT - 10);
 
     if (i === 0) {
       // First point: move to ground, then up to the value
@@ -62,14 +62,14 @@ const areaPath = computed(() => {
       // Step Chart Logic:
       // 1. Draw horizontal line from previous X to current X (holding previous value)
       // 2. Draw vertical line at current X to the new value
-      const prev = plannedMetrics.value[i - 1];
-      const prevY = METRICS_HEIGHT - (prev.runningCount / maxCount) * (METRICS_HEIGHT - 10);
+      const prev = planned_metrics.value[i - 1];
+      const prevY = METRICS_HEIGHT - (prev.running_count / maxCount) * (METRICS_HEIGHT - 10);
       path += ` L ${x},${prevY} L ${x},${y}`;
     }
   }
 
   // Close the area by dropping to the ground line and closing back to start
-  const lastX = getPos(plannedMetrics.value[plannedMetrics.value.length - 1].timeMs);
+  const lastX = getPos(planned_metrics.value[planned_metrics.value.length - 1].time_ms);
   path += ` L ${lastX},${METRICS_HEIGHT} Z`;
 
   return path;
@@ -95,8 +95,8 @@ const areaPath = computed(() => {
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
       }">
         <!-- Row 1: Concurrent Processes Area Chart -->
-        <div class="metrics-row" :class="{ 'info-row': plannedMetrics.length === 0 }">
-          <svg v-if="plannedMetrics.length > 0" class="metrics-svg" :width="totalWidth" :height="METRICS_HEIGHT">
+        <div class="metrics-row" :class="{ 'info-row': planned_metrics.length === 0 }">
+          <svg v-if="planned_metrics.length > 0" class="metrics-svg" :width="totalWidth" :height="METRICS_HEIGHT">
             <path :d="areaPath" class="planned-processes-path" />
           </svg>
           <div v-else class="placeholder-text">No simulation data available</div>
