@@ -1,7 +1,8 @@
 import { ref, reactive, watch } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { open, save } from "@tauri-apps/plugin-dialog";
-import type { AppMode, SchedulerConfig, ClientConfig, SchedulerConfigUI, ClientConfigUI } from "../types/config";
+import type { AppMode } from "../types/app"
+import type { SchedulerConfig, ClientConfig, SchedulerConfigUI, ClientConfigUI } from "../types/config";
 import type { PlannedExecution, PlannedMetricPoint, SimulationResult } from "../types/simulation";
 
 // --- Global ID Counters ---

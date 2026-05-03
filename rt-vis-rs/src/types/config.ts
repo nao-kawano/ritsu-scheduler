@@ -34,5 +34,3 @@ export interface SchedulerConfigUI {
   server_config: ServerConfig;
   client_configs: ClientConfigUI[];
 }
-
-export type AppMode = 'Create' | 'Analyze';
