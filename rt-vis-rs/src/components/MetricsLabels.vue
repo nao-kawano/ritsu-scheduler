@@ -17,11 +17,13 @@ const { config } = useAppState();
 
 <style scoped>
 .metrics-labels-pane {
-  border-right: 1px solid var(--border-color);
   background-color: var(--pane-bg);
-  height: 100%;
+  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
 }
 
 .pane-header {

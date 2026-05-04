@@ -10,26 +10,29 @@ const { config, planned_executions, config_errors, openEdit } = useAppState();
 const { cycleTimeMs, getPos } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
-// --- Layout Constants ---
-const ROW_HEIGHT = 84;   // Fixed height of each process row (px)
-const RECT_HEIGHT = 36;  // Height of the execution bar (px)
-
-// --- Viewport and Scrolling ---
-const headerScrollEl = ref<HTMLElement | null>(null);
-const contentScrollEl = ref<HTMLElement | null>(null);
+// -----------------------------------------------------------------------------
+// Props and Emits
 
 const emit = defineEmits<{
   (e: 'scroll', event: Event): void
 }>();
 
+// -----------------------------------------------------------------------------
+// State, Computed, and Logic
+
+// --- Layout Constants ---
+
+const ROW_HEIGHT = 84;   // Fixed height of each process row (px)
+const RECT_HEIGHT = 36;  // Height of the execution bar (px)
+
+// --- Viewport and Scrolling ---
+
+const headerScrollEl = ref<HTMLElement | null>(null);
+const contentScrollEl = ref<HTMLElement | null>(null);
+
 const onScroll = (e: Event) => {
   emit('scroll', e);
 };
-
-defineExpose({
-  headerScrollEl,
-  contentScrollEl
-});
 
 // --- Validation and Error Helpers ---
 
@@ -78,18 +81,19 @@ const warningCids = computed(() => {
 });
 
 // --- Highlighting Logic ---
-const hovered_instance_id = ref<number | null>(null);
+
+const hoveredInstanceId = ref<number | null>(null);
 
 /**
  * Identify all execution instances related to the currently hovered instance.
  * Includes the instance itself, its immediate ancestors (depends), and immediate descendants.
  */
 const highlightedIds = computed(() => {
-  if (hovered_instance_id.value === null) return new Set<number>();
+  if (hoveredInstanceId.value === null) return new Set<number>();
 
-  const ids = new Set<number>([hovered_instance_id.value]);
+  const ids = new Set<number>([hoveredInstanceId.value]);
   // Use activeExecutions to ensure we don't highlight stale/deleted data
-  const target = activeExecutions.value.find(e => e.instance_id === hovered_instance_id.value);
+  const target = activeExecutions.value.find(e => e.instance_id === hoveredInstanceId.value);
 
   if (target) {
     // 1. Add Parents (Ancestors) - instances this one depends on.
@@ -97,7 +101,7 @@ const highlightedIds = computed(() => {
 
     // 2. Add Children (Descendants) - instances that depend on this one.
     activeExecutions.value.forEach(e => {
-      if (e.depends_instance_ids.includes(hovered_instance_id.value!)) {
+      if (e.depends_instance_ids.includes(hoveredInstanceId.value!)) {
         ids.add(e.instance_id);
       }
     });
@@ -112,7 +116,7 @@ const highlightedIds = computed(() => {
  * Calculate the vertical Y coordinate for a specific Client ID.
  * Aligns the bar to the vertical center of its corresponding row.
  */
-const getY = (cid: number) => {
+const getBarY = (cid: number) => {
   const index = config.client_configs.findIndex(c => c.data.client_id === cid);
   if (index === -1) return -1000; // Position off-screen if process is not found
   return (index * ROW_HEIGHT) + (ROW_HEIGHT / 2) - (RECT_HEIGHT / 2);
@@ -122,7 +126,7 @@ const getY = (cid: number) => {
  * Calculate the total height required for the SVG overlay.
  */
 const svgHeight = computed(() => {
-  return config.client_configs.length * ROW_HEIGHT + ROW_HEIGHT;
+  return config.client_configs.length * ROW_HEIGHT;
 });
 
 // --- Path Generation ---
@@ -138,13 +142,13 @@ const dependencyArrows = computed(() => {
 
   for (const exec of activeExecutions.value) {
     const toX = getPos(exec.start_ms);
-    const toY = getY(exec.cid) + RECT_HEIGHT / 2;
+    const toY = getBarY(exec.cid) + RECT_HEIGHT / 2;
 
     for (const depId of exec.depends_instance_ids) {
       const depExec = execMap.get(depId);
       if (depExec) {
         const fromX = getPos(depExec.start_ms + depExec.duration_ms);
-        const fromY = getY(depExec.cid) + RECT_HEIGHT / 2;
+        const fromY = getBarY(depExec.cid) + RECT_HEIGHT / 2;
 
         // Calculate horizontal control point offset based on distance to avoid "flat" curves on short gaps.
         const dx = Math.abs(toX - fromX);
@@ -165,7 +169,7 @@ const dependencyArrows = computed(() => {
   return arrows;
 });
 
-// --- Event Handlers ---
+// --- Edit Process ---
 
 /**
  * Handle clicking on an execution bar to open its process configuration.
@@ -176,6 +180,14 @@ const handleExecClick = (exec: PlannedExecution) => {
     openEdit(clientWrap);
   }
 };
+
+// -----------------------------------------------------------------------------
+// Expose
+
+defineExpose({
+  headerScrollEl,
+  contentScrollEl
+});
 </script>
 
 <template>
@@ -192,7 +204,7 @@ const handleExecClick = (exec: PlannedExecution) => {
 
     <!-- Scrollable Content Area -->
     <div class="scroll-area timeline-scroll sb-hide-h" ref="contentScrollEl" @scroll="onScroll">
-      <div class="timeline-container" :style="{
+      <div class="timeline-content" :style="{
         width: totalWidth + 'px',
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
       }">
@@ -211,18 +223,18 @@ const handleExecClick = (exec: PlannedExecution) => {
 
           <!-- Dependency Arrows -->
           <path v-for="arrow in dependencyArrows" :key="arrow.id" :d="arrow.path" class="arrow-path" :class="{
-            'is-highlighted': hovered_instance_id !== null && (arrow.fromId === hovered_instance_id || arrow.toId === hovered_instance_id),
-            'is-dimmed': hovered_instance_id !== null && !(arrow.fromId === hovered_instance_id || arrow.toId === hovered_instance_id)
+            'is-highlighted': hoveredInstanceId !== null && (arrow.fromId === hoveredInstanceId || arrow.toId === hoveredInstanceId),
+            'is-dimmed': hoveredInstanceId !== null && !(arrow.fromId === hoveredInstanceId || arrow.toId === hoveredInstanceId)
           }" marker-end="url(#arrowhead)" />
 
           <!-- Execution Bars Grouped by Instance -->
           <g v-for="exec in activeExecutions" :key="exec.instance_id"
-            :transform="`translate(${getPos(exec.start_ms)}, ${getY(exec.cid)})`" class="exec-group" :class="{
+            :transform="`translate(${getPos(exec.start_ms)}, ${getBarY(exec.cid)})`" class="exec-group" :class="{
               'is-highlighted': highlightedIds.has(exec.instance_id),
-              'is-dimmed': hovered_instance_id !== null && !highlightedIds.has(exec.instance_id),
+              'is-dimmed': hoveredInstanceId !== null && !highlightedIds.has(exec.instance_id),
               'is-overrun': exec.status === 'overrun',
               'is-skip': exec.status === 'skip'
-            }" @mouseenter="hovered_instance_id = exec.instance_id" @mouseleave="hovered_instance_id = null"
+            }" @mouseenter="hoveredInstanceId = exec.instance_id" @mouseleave="hoveredInstanceId = null"
             @click="handleExecClick(exec)">
             <rect :width="getPos(exec.duration_ms)" :height="RECT_HEIGHT" rx="6" class="exec-rect" />
             <text x="8" :y="RECT_HEIGHT / 2 + 4" font-size="11" font-weight="bold" class="exec-label">
@@ -251,17 +263,17 @@ const handleExecClick = (exec: PlannedExecution) => {
 
 <style scoped>
 /* ==========================================================================
-   1. Layout and Containers
+   Layout and Containers
    ========================================================================== */
 
 .timeline-pane {
   display: flex;
   flex-direction: column;
-  background-color: var(--pane-bg);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   height: 100%;
+  background-color: var(--pane-bg);
 }
 
 /* --- Header Section --- */
@@ -284,9 +296,9 @@ const handleExecClick = (exec: PlannedExecution) => {
   padding: 0 0.5rem;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   justify-content: center;
   font-size: 0.7rem;
-  flex-shrink: 0;
 }
 
 .cycle-label {
@@ -313,7 +325,7 @@ const handleExecClick = (exec: PlannedExecution) => {
   height: 100%;
 }
 
-.timeline-container {
+.timeline-content {
   position: relative;
   min-height: 100%;
   /* Visual grid synchronization using CSS linear-gradients */
@@ -333,15 +345,15 @@ const handleExecClick = (exec: PlannedExecution) => {
 }
 
 /* ==========================================================================
-   2. SVG Overlay Components
+   SVG Overlay Components
    ========================================================================== */
 
 .timeline-svg {
   position: absolute;
   top: 0;
   left: 0;
-  pointer-events: none;
   /* Let scroll events pass through to container */
+  pointer-events: none;
 }
 
 /* --- Execution Bars (Nodes) --- */
@@ -409,7 +421,7 @@ const handleExecClick = (exec: PlannedExecution) => {
 }
 
 /* ==========================================================================
-   3. Interaction and Highlighting States
+   Interaction and Highlighting States
    ========================================================================== */
 
 /* --- Hover State --- */

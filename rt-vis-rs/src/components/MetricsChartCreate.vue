@@ -9,25 +9,28 @@ const { config, planned_metrics } = useAppState();
 const { cycleTimeMs, getPos } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
-// --- Viewport and Scrolling ---
-const headerScrollEl = ref<HTMLElement | null>(null);
-const contentScrollEl = ref<HTMLElement | null>(null);
+// -----------------------------------------------------------------------------
+// Props and Emits
 
 const emit = defineEmits<{
   (e: 'scroll', event: Event): void
 }>();
 
+// -----------------------------------------------------------------------------
+// State, Computed, and Logic
+
+// --- Layout Constants ---
+
+const METRICS_HEIGHT = 84; // Height of each metric chart row (px) - Matching ROW_HEIGHT in Timeline
+
+// --- Viewport and Scrolling ---
+
+const headerScrollEl = ref<HTMLElement | null>(null);
+const contentScrollEl = ref<HTMLElement | null>(null);
+
 const onScroll = (e: Event) => {
   emit('scroll', e);
 };
-
-defineExpose({
-  headerScrollEl,
-  contentScrollEl
-});
-
-// --- Chart Constants ---
-const METRICS_HEIGHT = 84; // Height of each metric chart row (px) - Matching ROW_HEIGHT in Timeline
 
 // --- Path Generation ---
 
@@ -74,12 +77,20 @@ const areaPath = computed(() => {
 
   return path;
 });
+
+// -----------------------------------------------------------------------------
+// Expose
+
+defineExpose({
+  headerScrollEl,
+  contentScrollEl
+});
 </script>
 
 <template>
   <main class="metrics-pane" :key="config.sessionId">
     <!-- Time Header (Cycle and ms markers, synced across panes) -->
-    <div class="metrics-header sb-hide-all sb-pad-v" ref="headerScrollEl">
+    <div class="timeline-header sb-hide-all sb-pad-v" ref="headerScrollEl">
       <div class="time-axis" :style="{ width: totalWidth + 'px' }">
         <div v-for="n in totalCycles" :key="n" class="time-tick" :style="{ width: gridInfo.majorPx + 'px' }">
           <span class="cycle-label">Cycle {{ n - 1 }}</span>
@@ -90,7 +101,7 @@ const areaPath = computed(() => {
 
     <!-- Scrollable Content Area -->
     <div class="scroll-area metrics-scroll sb-hide-v sb-pad-v" ref="contentScrollEl" @scroll="onScroll">
-      <div class="metrics-container sb-pad-v" :style="{
+      <div class="metrics-content" :style="{
         width: totalWidth + 'px',
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
       }">
@@ -113,21 +124,21 @@ const areaPath = computed(() => {
 
 <style scoped>
 /* ==========================================================================
-   1. Layout and Containers
+   Layout and Containers
    ========================================================================== */
 
 .metrics-pane {
   display: flex;
   flex-direction: column;
-  background-color: var(--pane-bg);
   min-width: 0;
   min-height: 0;
   overflow: hidden;
   height: 100%;
+  background-color: var(--pane-bg);
 }
 
 /* --- Header Section --- */
-.metrics-header {
+.timeline-header {
   height: var(--header-row-height);
   overflow: hidden;
   flex-shrink: 0;
@@ -146,9 +157,9 @@ const areaPath = computed(() => {
   padding: 0 0.5rem;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
   justify-content: center;
   font-size: 0.7rem;
-  flex-shrink: 0;
 }
 
 .cycle-label {
@@ -175,7 +186,8 @@ const areaPath = computed(() => {
   height: 100%;
 }
 
-.metrics-container {
+.metrics-content {
+  position: relative;
   min-height: 100%;
   /* Visual grid synchronization using CSS linear-gradients */
   background-image:
@@ -184,29 +196,28 @@ const areaPath = computed(() => {
   background-position: -1px 0, -1px 0;
 }
 
-/* Base row for metric charts (no padding to allow full-width SVG alignment) */
+/* Base row for metric charts */
 .metrics-row {
   height: var(--row-height);
   border-bottom: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  position: relative;
-  padding: 0;
 }
 
 /* Row specialized for textual information or placeholders */
 .info-row {
+  display: flex;
+  align-items: center;
   padding: 0 1rem;
 }
 
 /* ==========================================================================
-   2. SVG Chart Components
+   SVG Chart Components
    ========================================================================== */
 
 .metrics-svg {
   position: absolute;
   top: 0;
   left: 0;
+  /* Let scroll events pass through to container */
   pointer-events: none;
 }
 
@@ -221,7 +232,7 @@ const areaPath = computed(() => {
 }
 
 /* ==========================================================================
-   3. Informational UI
+   Informational UI
    ========================================================================== */
 
 .placeholder-text {

@@ -2,8 +2,20 @@
 import { ref } from 'vue';
 import { useTimeScale } from '../composables/useTimeScale';
 
+// --- State and Composables ---
 const { pxPerCycle, zoomPercent, minZoom, maxZoom, zoom, resetZoom } = useTimeScale();
+
+// -----------------------------------------------------------------------------
+// Props and Emits
+
+// -----------------------------------------------------------------------------
+// State, Computed, and Logic
+
 const isExpanded = ref(false);
+
+// -----------------------------------------------------------------------------
+// Expose
+
 </script>
 
 <template>

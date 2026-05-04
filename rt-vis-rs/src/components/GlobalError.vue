@@ -3,9 +3,20 @@
  * GlobalError Component
  * Provides a floating notification for displaying error messages.
  */
+
+// -----------------------------------------------------------------------------
+// Props and Emits
+
 defineProps<{
   message: string | null;
 }>();
+
+// -----------------------------------------------------------------------------
+// State, Computed, and Logic
+
+// -----------------------------------------------------------------------------
+// Expose
+
 </script>
 
 <template>

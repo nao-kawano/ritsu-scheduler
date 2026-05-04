@@ -5,21 +5,29 @@ import { useAppState } from '../composables/useAppState';
 // --- State and Composables ---
 const { config, config_errors, openEdit, addProcess } = useAppState();
 
-// --- Viewport and Scrolling ---
-const scrollEl = ref<HTMLElement | null>(null);
+// -----------------------------------------------------------------------------
+// Props and Emits
 
 const emit = defineEmits<{
   (e: 'scroll', event: Event): void
 }>();
+
+// --- Viewport and Scrolling ---
+
+const scrollEl = ref<HTMLElement | null>(null);
 
 const onScroll = (e: Event) => {
   emit('scroll', e);
 };
 
 // --- Validation and Error Helpers ---
+
 const getErrors = (cid: number) => {
   return config_errors.value[cid] || [];
 };
+
+// -----------------------------------------------------------------------------
+// Expose
 
 defineExpose({ scrollEl });
 </script>
@@ -28,7 +36,7 @@ defineExpose({ scrollEl });
   <aside class="process-list-pane" :key="config.sessionId">
     <div class="pane-header">Processes</div>
     <div class="scroll-area process-list-scroll sb-hide-all" ref="scrollEl" @scroll="onScroll">
-      <div class="process-list-container">
+      <div class="process-list-content">
         <div v-for="clientWrap in config.client_configs" :key="clientWrap.configId" class="process-row-wrapper">
           <div class="process-card" :class="{ 'has-error': getErrors(clientWrap.data.client_id).length > 0 }"
             @click="openEdit(clientWrap)" :title="getErrors(clientWrap.data.client_id).join('\n')">

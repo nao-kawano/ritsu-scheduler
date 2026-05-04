@@ -2,6 +2,16 @@
 import { useAppState } from '../composables/useAppState';
 
 const { mode, config, loadConfig, saveConfig } = useAppState();
+
+// -----------------------------------------------------------------------------
+// Props and Emits
+
+// -----------------------------------------------------------------------------
+// State, Computed, and Logic
+
+// -----------------------------------------------------------------------------
+// Expose
+
 </script>
 
 <template>
