@@ -119,9 +119,6 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   --header-row-height: 36px;
   --sb-size: 16px;
 
-  --tick-width: 100px;
-  --total-ticks: 50;
-
   --bg-color: #f0f2f5;
   --pane-bg: #ffffff;
   --border-color: #dcdfe6;
