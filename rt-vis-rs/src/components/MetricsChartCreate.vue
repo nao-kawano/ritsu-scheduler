@@ -79,7 +79,7 @@ const areaPath = computed(() => {
 <template>
   <main class="metrics-pane" :key="config.sessionId">
     <!-- Time Header (Cycle and ms markers, synced across panes) -->
-    <div class="metrics-header hide-scrollbar" ref="headerScrollEl">
+    <div class="metrics-header sb-hide-all sb-pad-v" ref="headerScrollEl">
       <div class="time-axis" :style="{ width: totalWidth + 'px' }">
         <div v-for="n in totalCycles" :key="n" class="time-tick" :style="{ width: gridInfo.majorPx + 'px' }">
           <span class="cycle-label">Cycle {{ n - 1 }}</span>
@@ -89,8 +89,8 @@ const areaPath = computed(() => {
     </div>
 
     <!-- Scrollable Content Area -->
-    <div class="scroll-area metrics-scroll" ref="contentScrollEl" @scroll="onScroll">
-      <div class="metrics-container" :style="{
+    <div class="scroll-area metrics-scroll sb-hide-v sb-pad-v" ref="contentScrollEl" @scroll="onScroll">
+      <div class="metrics-container sb-pad-v" :style="{
         width: totalWidth + 'px',
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
       }">
@@ -177,8 +177,6 @@ const areaPath = computed(() => {
 
 .metrics-container {
   min-height: 100%;
-  /* Accommodate horizontal scrollbar height to prevent obscuring Jitter chart */
-  padding-bottom: 20px;
   /* Visual grid synchronization using CSS linear-gradients */
   background-image:
     linear-gradient(90deg, rgba(128, 128, 128, 0.3) 1px, transparent 1px),

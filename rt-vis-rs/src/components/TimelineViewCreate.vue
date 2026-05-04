@@ -181,7 +181,7 @@ const handleExecClick = (exec: PlannedExecution) => {
 <template>
   <main class="timeline-pane" :key="config.sessionId">
     <!-- Time Header (Cycle and ms markers, synced across panes) -->
-    <div class="timeline-header hide-scrollbar" ref="headerScrollEl">
+    <div class="timeline-header sb-hide-all sb-pad-v" ref="headerScrollEl">
       <div class="time-axis" :style="{ width: totalWidth + 'px' }">
         <div v-for="n in totalCycles" :key="n" class="time-tick" :style="{ width: gridInfo.majorPx + 'px' }">
           <span class="cycle-label">Cycle {{ n - 1 }}</span>
@@ -191,7 +191,7 @@ const handleExecClick = (exec: PlannedExecution) => {
     </div>
 
     <!-- Scrollable Content Area -->
-    <div class="scroll-area timeline-scroll" ref="contentScrollEl" @scroll="onScroll">
+    <div class="scroll-area timeline-scroll sb-hide-h" ref="contentScrollEl" @scroll="onScroll">
       <div class="timeline-container" :style="{
         width: totalWidth + 'px',
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
@@ -268,7 +268,6 @@ const handleExecClick = (exec: PlannedExecution) => {
 .timeline-header {
   height: var(--header-row-height);
   overflow: hidden;
-  padding-right: 10px;
   flex-shrink: 0;
   border-bottom: 1px solid var(--border-color);
   background: rgba(0, 0, 0, 0.02);
@@ -309,7 +308,7 @@ const handleExecClick = (exec: PlannedExecution) => {
 
 .timeline-scroll {
   overflow-y: scroll;
-  overflow-x: hidden;
+  overflow-x: scroll;
   width: 100%;
   height: 100%;
 }

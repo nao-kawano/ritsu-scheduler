@@ -25,12 +25,12 @@ defineExpose({
 
 <template>
   <div class="metrics-content-pane" :key="config.sessionId">
-    <div class="timeline-header hide-scrollbar" ref="headerScrollEl">
+    <div class="timeline-header sb-hide-all sb-pad-v" ref="headerScrollEl">
       <div class="time-axis">
         <div v-for="n in 50" :key="n" class="time-tick">{{ (n - 1) * 5 }}ms</div>
       </div>
     </div>
-    <div class="metrics-chart-scroll" ref="contentScrollEl" @scroll="onScroll">
+    <div class="scroll-area metrics-chart-scroll sb-hide-v sb-pad-v" ref="contentScrollEl" @scroll="onScroll">
       <div class="metrics-timeline">
         <div class="placeholder">Metrics Graph Area (Synced with Timeline)</div>
       </div>
@@ -76,11 +76,17 @@ defineExpose({
   flex-shrink: 0;
 }
 
-.metrics-chart-scroll {
+.scroll-area {
   flex: 1;
+  min-height: 0;
+  min-width: 0;
+}
+
+.metrics-chart-scroll {
   overflow-x: scroll;
   overflow-y: hidden;
-  padding-right: 10px;
+  width: 100%;
+  height: 100%;
 }
 
 .metrics-timeline {

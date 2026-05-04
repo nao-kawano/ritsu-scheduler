@@ -27,7 +27,7 @@ defineExpose({ scrollEl });
 <template>
   <aside class="process-list-pane" :key="config.sessionId">
     <div class="pane-header">Processes</div>
-    <div class="scroll-area process-list-scroll hide-scrollbar" ref="scrollEl" @scroll="onScroll">
+    <div class="scroll-area process-list-scroll sb-hide-all" ref="scrollEl" @scroll="onScroll">
       <div class="process-list-container">
         <div v-for="clientWrap in config.client_configs" :key="clientWrap.configId" class="process-row-wrapper">
           <div class="process-card" :class="{ 'has-error': getErrors(clientWrap.data.client_id).length > 0 }"

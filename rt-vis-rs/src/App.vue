@@ -117,6 +117,8 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   --left-width: 250px;
   --row-height: 84px;
   --header-row-height: 36px;
+  --sb-size: 16px;
+
   --tick-width: 100px;
   --total-ticks: 50;
 
@@ -152,14 +154,50 @@ html {
   overflow: hidden;
 }
 
-/* Hide scrollbar classes globally used */
-.hide-scrollbar::-webkit-scrollbar {
+/* Scrollbar Utility Classes */
+
+/* Set fixed size for all scrollbars globally within the app */
+::-webkit-scrollbar {
+  width: var(--sb-size);
+  height: var(--sb-size);
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border: 4px solid transparent;
+  background-clip: content-box;
+}
+
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.05);
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+  }
+}
+
+/* Utilities to hide scrollbars and remove their gutter space */
+.sb-hide-all::-webkit-scrollbar {
   display: none;
 }
 
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
+.sb-hide-h::-webkit-scrollbar:horizontal {
+  display: none;
+}
+
+.sb-hide-v::-webkit-scrollbar:vertical {
+  display: none;
+}
+
+/* Utility to compensate for a missing vertical scrollbar gutter */
+.sb-pad-v {
+  padding-right: var(--sb-size) !important;
 }
 </style>
 

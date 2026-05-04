@@ -25,12 +25,12 @@ defineExpose({
 
 <template>
   <main class="timeline-pane" :key="config.sessionId">
-    <div class="timeline-header hide-scrollbar" ref="headerScrollEl">
+    <div class="timeline-header sb-hide-all sb-pad-v" ref="headerScrollEl">
       <div class="time-axis">
         <div v-for="n in 50" :key="n" class="time-tick">{{ (n - 1) * 5 }}ms</div>
       </div>
     </div>
-    <div class="scroll-area timeline-scroll" ref="contentScrollEl" @scroll="onScroll">
+    <div class="scroll-area timeline-scroll sb-hide-h" ref="contentScrollEl" @scroll="onScroll">
       <div class="timeline-container">
         <div v-for="clientWrap in config.client_configs" :key="clientWrap.configId" class="timeline-row">
           <div class="plan-preview">Timeline Row for CID {{ clientWrap.data.client_id }}</div>
@@ -69,7 +69,7 @@ defineExpose({
 
 .timeline-scroll {
   overflow-y: scroll;
-  overflow-x: hidden;
+  overflow-x: scroll;
   width: 100%;
   height: 100%;
 }
