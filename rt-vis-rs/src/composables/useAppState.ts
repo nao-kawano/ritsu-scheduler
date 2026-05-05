@@ -40,10 +40,7 @@ const unwrapConfig = (ui: SchedulerConfigUI): SchedulerConfig => {
 
 // --- Singleton App State ---
 const mode = ref<AppMode>('Create');
-const editingClient = ref<ClientConfig | null>(null);
-const editingConfigId = ref<number | null>(null);
-const editingDependsStr = ref<string>("");
-const isConfirmingDelete = ref<boolean>(false);
+const selectedClientWrap = ref<ClientConfigUI | null>(null);
 const currentConfigPath = ref<string>("../../rt-server-rs/config.toml");
 
 // --- Simulation State ---
@@ -165,57 +162,17 @@ const saveConfig = async () => {
   }
 };
 
-// --- Process Editing Actions ---
+// --- Process Management Actions ---
 
 const openEdit = (clientWrap: ClientConfigUI) => {
-  // Create a deep copy for editing to allow cancellation.
-  editingClient.value = JSON.parse(JSON.stringify(clientWrap.data));
-  editingConfigId.value = clientWrap.configId;
-  editingDependsStr.value = clientWrap.data.depends.join(', ');
-  isConfirmingDelete.value = false;
+  selectedClientWrap.value = clientWrap;
 };
 
-const closeEdit = (save: boolean) => {
-  if (save && editingClient.value && editingConfigId.value !== null) {
-    const c = editingClient.value;
-    // Safety guard: Ensure required fields are not null (from empty numeric inputs)
-    if (c.client_id === null || c.cycle === null || c.cycle_offset === null || c.expected_duration_ms === null) {
-      return;
-    }
-
-    const newId = c.client_id;
-    const targetConfigId = editingConfigId.value;
-
-    // Validate CID uniqueness if it has been changed.
-    const exists = config.client_configs.some(c =>
-      c.configId !== targetConfigId && c.data.client_id === newId
-    );
-    if (exists) {
-      alert(`CID ${newId} already exists! Please choose a unique ID.`);
-      return;
-    }
-
-    // Parse comma-separated string back to array of numbers.
-    editingClient.value.depends = editingDependsStr.value
-      .split(',')
-      .map(s => parseInt(s.trim()))
-      .filter(n => !isNaN(n));
-
-    // Update the main config array.
-    const idx = config.client_configs.findIndex(c => c.configId === targetConfigId);
-    if (idx !== -1) {
-      config.client_configs[idx].data = editingClient.value;
-    }
-  }
-
-  // Reset editing state.
-  editingClient.value = null;
-  editingConfigId.value = null;
-  editingDependsStr.value = "";
-  isConfirmingDelete.value = false;
+const closeEdit = () => {
+  selectedClientWrap.value = null;
 };
 
-const addProcess = () => {
+const addClient = () => {
   const newId = Math.max(0, ...config.client_configs.map(c => c.data.client_id)) + 1;
   config.client_configs.push({
     configId: nextConfigId++,
@@ -230,36 +187,38 @@ const addProcess = () => {
   });
 };
 
-const resetDeleteConfirm = () => {
-  isConfirmingDelete.value = false;
+const updateClient = (configId: number, newData: ClientConfig): boolean => {
+  // Validate CID uniqueness if it has been changed.
+  const exists = config.client_configs.some(c =>
+    c.configId !== configId && c.data.client_id === newData.client_id
+  );
+  if (exists) {
+    alert(`CID ${newData.client_id} already exists! Please choose a unique ID.`);
+    return false;
+  }
+
+  // Update the main config array.
+  const idx = config.client_configs.findIndex(c => c.configId === configId);
+  if (idx !== -1) {
+    config.client_configs[idx].data = JSON.parse(JSON.stringify(newData)); // Deep copy to SSOT
+    return true;
+  }
+  return false;
 };
 
-const deleteProcess = async () => {
-  if (editingConfigId.value !== null) {
-    if (!isConfirmingDelete.value) {
-      isConfirmingDelete.value = true;
-      return;
-    }
+const deleteClient = (configId: number) => {
+  const idx = config.client_configs.findIndex(c => c.configId === configId);
+  if (idx === -1) return;
 
-    const targetConfigId = editingConfigId.value;
-    const targetCid = editingClient.value?.client_id;
+  const targetCid = config.client_configs[idx].data.client_id;
 
-    // 1. Remove the target process itself
-    config.client_configs = config.client_configs.filter(c => c.configId !== targetConfigId);
+  // 1. Remove the target process itself
+  config.client_configs.splice(idx, 1);
 
-    // 2. Cleanup stale dependencies: Remove the deleted CID from all other processes' depends lists
-    if (targetCid !== undefined) {
-      config.client_configs.forEach(c => {
-        c.data.depends = c.data.depends.filter(depId => depId !== targetCid);
-      });
-    }
-
-    // Close the popup after deletion without saving
-    editingClient.value = null;
-    editingConfigId.value = null;
-    editingDependsStr.value = "";
-    isConfirmingDelete.value = false;
-  }
+  // 2. Cleanup stale dependencies: Remove the deleted CID from all other processes' depends lists
+  config.client_configs.forEach(c => {
+    c.data.depends = c.data.depends.filter(depId => depId !== targetCid);
+  });
 };
 
 /**
@@ -268,10 +227,7 @@ const deleteProcess = async () => {
 export function useAppState() {
   return {
     mode,
-    editingClient,
-    editingConfigId,
-    editingDependsStr,
-    isConfirmingDelete,
+    selectedClientWrap,
     config,
     planned_executions,
     planned_metrics,
@@ -281,8 +237,8 @@ export function useAppState() {
     saveConfig,
     openEdit,
     closeEdit,
-    addProcess,
-    deleteProcess,
-    resetDeleteConfirm
+    addClient,
+    updateClient,
+    deleteClient
   };
 }

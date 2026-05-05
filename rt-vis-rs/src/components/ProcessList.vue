@@ -3,7 +3,7 @@ import { ref } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
 // --- State and Composables ---
-const { config, config_errors, openEdit, addProcess } = useAppState();
+const { config, config_errors, openEdit, addClient } = useAppState();
 
 // -----------------------------------------------------------------------------
 // Props and Emits
@@ -57,7 +57,7 @@ defineExpose({ scrollEl });
           </div>
         </div>
         <div class="process-row-wrapper add-btn-row">
-          <button class="add-btn" @click="addProcess">+ Add Process</button>
+          <button class="add-btn" @click="addClient">+ Add Process</button>
         </div>
       </div>
     </div>

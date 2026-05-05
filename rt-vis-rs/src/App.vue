@@ -8,6 +8,7 @@ import ProcessList from "./components/ProcessList.vue";
 import MetricsLabels from "./components/MetricsLabels.vue";
 import ZoomControl from "./components/ZoomControl.vue";
 import GlobalError from "./components/GlobalError.vue";
+import EditPopup from "./components/EditPopup.vue";
 
 // Mode-specific components
 import TimelineViewGeneric from "./components/TimelineView.vue";
@@ -18,12 +19,7 @@ import MetricsChartCreate from "./components/MetricsChartCreate.vue";
 const {
   mode,
   simulation_error,
-  editingClient,
-  editingDependsStr,
-  closeEdit,
-  deleteProcess,
-  isConfirmingDelete,
-  resetDeleteConfirm,
+  selectedClientWrap,
 } = useAppState();
 
 // Derived state for common components
@@ -81,32 +77,8 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
         @scroll="onMetricsScroll" />
     </footer>
 
-    <!-- Edit Popup -->
-    <div v-if="editingClient" class="overlay" @click.self="closeEdit(false)">
-      <form class="popup" @submit.prevent="closeEdit(true)">
-        <h3>Edit Process: CID {{ String(editingClient.client_id).padStart(3, '0') }}</h3>
-        <div class="form-grid">
-          <label>Name</label><input type="text" v-model="editingClient.display_name" maxlength="20"
-            @input="editingClient.display_name = editingClient.display_name.replace(/[^a-zA-Z0-9_-]/g, '')"
-            placeholder="e.g. Camera" />
-          <label>CID</label><input type="number" v-model="editingClient.client_id" min="0" required />
-          <label>Cycle</label><input type="number" v-model="editingClient.cycle" min="1" required />
-          <label>Offset</label><input type="number" v-model="editingClient.cycle_offset" min="0" required />
-          <label>Duration (ms)</label><input type="number" v-model="editingClient.expected_duration_ms" min="0"
-            required />
-          <label>Depends</label><input type="text" v-model="editingDependsStr" placeholder="e.g. 10, 20" />
-        </div>
-        <div class="popup-actions">
-          <button type="button" class="danger" :class="{ confirming: isConfirmingDelete }" @click="deleteProcess"
-            @mouseleave="resetDeleteConfirm">
-            {{ isConfirmingDelete ? 'Confirm Delete' : 'Delete' }}
-          </button>
-          <div style="flex: 1"></div>
-          <button type="button" @click="closeEdit(false)">Cancel</button>
-          <button type="submit" class="primary">Apply</button>
-        </div>
-      </form>
-    </div>
+    <!-- Edit Popup (Conditional) -->
+    <EditPopup v-if="selectedClientWrap" />
   </div>
 </template>
 
@@ -243,106 +215,5 @@ html {
   background-color: var(--pane-bg);
   border-top: 2px solid var(--border-color);
   height: var(--bottom-height);
-}
-
-/* Edit Popup Styles */
-.overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
-}
-
-.popup {
-  background: var(--pane-bg);
-  padding: 2rem;
-  border-radius: 12px;
-  width: 400px;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
-}
-
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 2fr;
-  gap: 1rem;
-  align-items: center;
-  margin-top: 1.5rem;
-}
-
-.form-grid input {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-color);
-  color: var(--text-main);
-  font-weight: 500;
-  font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-.form-grid input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(57, 108, 216, 0.2);
-}
-
-.form-grid input:invalid {
-  border-color: #f44336;
-  box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.2);
-}
-
-.popup-actions {
-  margin-top: 2rem;
-  display: flex;
-  justify-content: flex-end;
-  align-items: center;
-  gap: 1rem;
-}
-
-.popup-actions button {
-  background: transparent;
-  color: var(--text-main);
-  border: 1px solid var(--border-color);
-  padding: 0 1.2rem;
-  height: 38px;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
-}
-
-.popup-actions button:hover {
-  background: var(--border-color);
-}
-
-button.primary {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-  /* padding and height inherited from .popup-actions button */
-}
-
-button.danger {
-  color: #f44336;
-  border-color: #f44336;
-}
-
-button.danger:hover {
-  background: rgba(244, 67, 54, 0.1);
-}
-
-button.danger.confirming {
-  background: #f44336;
-  color: white;
-  border-color: #f44336;
-  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
-  transform: scale(1.05);
 }
 </style>
