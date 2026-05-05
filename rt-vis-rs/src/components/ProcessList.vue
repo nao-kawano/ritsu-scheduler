@@ -43,7 +43,9 @@ defineExpose({ scrollEl });
             <div class="card-header">
               <div class="cid">
                 CID: {{ String(clientWrap.data.client_id).padStart(3, '0') }}
-                <span v-if="getErrors(clientWrap.data.client_id).length > 0" class="error-icon">⚠️</span>
+                <span v-if="clientWrap.data.display_name" class="display-name">
+                  ({{ clientWrap.data.display_name }})
+                </span>
               </div>
             </div>
             <div class="meta-block">
@@ -142,11 +144,17 @@ defineExpose({ scrollEl });
 
 .process-card .cid {
   font-weight: bold;
-  font-size: 1.05rem;
+  font-size: 1.0rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  width: 100%;
 }
 
-.error-icon {
-  font-size: 0.9rem;
+.display-name {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  font-weight: normal;
   margin-left: 4px;
 }
 
@@ -163,7 +171,7 @@ defineExpose({ scrollEl });
 }
 
 .process-card .depends {
-  font-size: 0.7rem;
+  font-size: 0.75rem;
   color: var(--accent-color);
   font-weight: bold;
 }

@@ -29,6 +29,14 @@ Per client configuration below:
   - Each client has a unique ID (string of 3-digit decimal with leading zero).
   - This ID is used to identify the client in the scheduler.
 
+### Display Name
+
+- Specifies a human-readable name for this process.
+  - This value is used by visualization tools (like Ritsu Vis) to make it easier to identify processes.
+  - It does not affect the actual execution of the process in the scheduler.
+  - **Maximum length is 20 characters** to ensure proper display in the UI.
+  - If not specified, it defaults to an empty string.
+
 ### Cycle
 
 - Specifies how often to run the process within a cycle (e.g., every cycle, every other cycle).

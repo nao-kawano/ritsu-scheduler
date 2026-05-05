@@ -238,9 +238,8 @@ defineExpose({
             @click="handleExecClick(exec)">
             <rect :width="getPos(exec.duration_ms)" :height="RECT_HEIGHT" rx="6" class="exec-rect" />
             <text x="8" :y="RECT_HEIGHT / 2 + 4" font-size="11" font-weight="bold" class="exec-label">
-              {{ String(exec.cid).padStart(3, '0') }}
-              {{ exec.status === 'overrun' ? ' (Overrun)' : '' }}
-              {{ exec.status === 'skip' ? ' (Skip)' : '' }}
+              {{ exec.status === 'overrun' ? 'Overrun' : '' }}
+              {{ exec.status === 'skip' ? 'Skip' : '' }}
             </text>
           </g>
 

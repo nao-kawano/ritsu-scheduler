@@ -11,6 +11,7 @@ export interface ServerConfig {
 
 export interface ClientConfig {
   client_id: number;
+  display_name: string;
   cycle: number;
   cycle_offset: number;
   depends: number[];

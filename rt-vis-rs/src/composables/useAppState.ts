@@ -88,9 +88,9 @@ const initialRaw: SchedulerConfig = {
     stats_interval_cycle: 40
   },
   client_configs: [
-    { client_id: 10, cycle: 2, cycle_offset: 0, depends: [], expected_duration_ms: 15 },
-    { client_id: 11, cycle: 2, cycle_offset: 0, depends: [10], expected_duration_ms: 20 },
-    { client_id: 20, cycle: 2, cycle_offset: 1, depends: [], expected_duration_ms: 40 },
+    { client_id: 10, display_name: "Camera", cycle: 2, cycle_offset: 0, depends: [], expected_duration_ms: 15 },
+    { client_id: 11, display_name: "Preprocess", cycle: 2, cycle_offset: 0, depends: [10], expected_duration_ms: 20 },
+    { client_id: 20, display_name: "MainProcess", cycle: 2, cycle_offset: 1, depends: [], expected_duration_ms: 40 },
   ]
 };
 
@@ -215,6 +215,7 @@ const addProcess = () => {
     configId: nextConfigId++,
     data: {
       client_id: newId,
+      display_name: "",
       cycle: 1,
       cycle_offset: 0,
       depends: [],

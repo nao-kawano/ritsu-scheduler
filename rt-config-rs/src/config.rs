@@ -25,6 +25,8 @@ pub struct ServerConfig {
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ClientConfig {
     pub client_id: u16,
+    #[serde(default)]
+    pub display_name: String,
     pub cycle: u8,
     pub cycle_offset: u8,
     pub depends: Vec<u16>,
@@ -78,8 +80,28 @@ impl ClientConfig {
         depends: Vec<u16>,
         expected_duration_ms: u32,
     ) -> Result<Self, String> {
+        Self::new_with_display_name(
+            client_id,
+            "".to_string(),
+            cycle,
+            cycle_offset,
+            depends,
+            expected_duration_ms,
+        )
+    }
+
+    /// Create a new ClientConfig with a display name and basic validation.
+    pub fn new_with_display_name(
+        client_id: u16,
+        display_name: String,
+        cycle: u8,
+        cycle_offset: u8,
+        depends: Vec<u16>,
+        expected_duration_ms: u32,
+    ) -> Result<Self, String> {
         let config = Self {
             client_id,
+            display_name,
             cycle,
             cycle_offset,
             depends,

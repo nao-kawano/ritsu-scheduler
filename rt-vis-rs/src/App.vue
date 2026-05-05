@@ -86,12 +86,14 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
       <div class="popup">
         <h3>Edit Process: CID {{ String(editingClient.client_id).padStart(3, '0') }}</h3>
         <div class="form-grid">
+          <label>Name</label><input type="text" v-model="editingClient.display_name" maxlength="20"
+            @input="editingClient.display_name = editingClient.display_name.replace(/[^a-zA-Z0-9_-]/g, '')"
+            placeholder="e.g. Camera" />
           <label>CID</label><input type="number" v-model="editingClient.client_id" min="0" />
           <label>Cycle</label><input type="number" v-model="editingClient.cycle" min="1" />
           <label>Offset</label><input type="number" v-model="editingClient.cycle_offset" min="0" />
           <label>Duration (ms)</label><input type="number" v-model="editingClient.expected_duration_ms" min="0" />
-          <label>Depends (CSV)</label>
-          <input type="text" v-model="editingDependsStr" />
+          <label>Depends</label><input type="text" v-model="editingDependsStr" placeholder="e.g. 10, 20" />
         </div>
         <div class="popup-actions">
           <button class="danger" :class="{ confirming: isConfirmingDelete }" @click="deleteProcess"
@@ -114,7 +116,7 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
 :root {
   --top-height: 100px;
   --bottom-height: 220px;
-  --left-width: 250px;
+  --left-width: 280px;
   --row-height: 84px;
   --header-row-height: 36px;
   --sb-size: 16px;

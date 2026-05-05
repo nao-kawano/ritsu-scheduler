@@ -25,6 +25,13 @@ fn test_client_config_validation() {
     assert!(ClientConfig::new(1, 2, 0, vec![10, 10], 0).is_err());
 }
 
+#[test]
+fn test_client_config_new_with_display_name() {
+    let name = "Test Process".to_string();
+    let config = ClientConfig::new_with_display_name(1, name.clone(), 2, 0, vec![], 10).unwrap();
+    assert_eq!(config.display_name, name);
+}
+
 fn create_config(client_configs: Vec<ClientConfig>) -> SchedulerConfig {
     SchedulerConfig {
         server_config: ServerConfig {
