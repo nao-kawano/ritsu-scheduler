@@ -177,7 +177,13 @@ const openEdit = (clientWrap: ClientConfigUI) => {
 
 const closeEdit = (save: boolean) => {
   if (save && editingClient.value && editingConfigId.value !== null) {
-    const newId = editingClient.value.client_id;
+    const c = editingClient.value;
+    // Safety guard: Ensure required fields are not null (from empty numeric inputs)
+    if (c.client_id === null || c.cycle === null || c.cycle_offset === null || c.expected_duration_ms === null) {
+      return;
+    }
+
+    const newId = c.client_id;
     const targetConfigId = editingConfigId.value;
 
     // Validate CID uniqueness if it has been changed.

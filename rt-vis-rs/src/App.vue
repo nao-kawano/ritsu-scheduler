@@ -83,28 +83,29 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
 
     <!-- Edit Popup -->
     <div v-if="editingClient" class="overlay" @click.self="closeEdit(false)">
-      <div class="popup">
+      <form class="popup" @submit.prevent="closeEdit(true)">
         <h3>Edit Process: CID {{ String(editingClient.client_id).padStart(3, '0') }}</h3>
         <div class="form-grid">
           <label>Name</label><input type="text" v-model="editingClient.display_name" maxlength="20"
             @input="editingClient.display_name = editingClient.display_name.replace(/[^a-zA-Z0-9_-]/g, '')"
             placeholder="e.g. Camera" />
-          <label>CID</label><input type="number" v-model="editingClient.client_id" min="0" />
-          <label>Cycle</label><input type="number" v-model="editingClient.cycle" min="1" />
-          <label>Offset</label><input type="number" v-model="editingClient.cycle_offset" min="0" />
-          <label>Duration (ms)</label><input type="number" v-model="editingClient.expected_duration_ms" min="0" />
+          <label>CID</label><input type="number" v-model="editingClient.client_id" min="0" required />
+          <label>Cycle</label><input type="number" v-model="editingClient.cycle" min="1" required />
+          <label>Offset</label><input type="number" v-model="editingClient.cycle_offset" min="0" required />
+          <label>Duration (ms)</label><input type="number" v-model="editingClient.expected_duration_ms" min="0"
+            required />
           <label>Depends</label><input type="text" v-model="editingDependsStr" placeholder="e.g. 10, 20" />
         </div>
         <div class="popup-actions">
-          <button class="danger" :class="{ confirming: isConfirmingDelete }" @click="deleteProcess"
+          <button type="button" class="danger" :class="{ confirming: isConfirmingDelete }" @click="deleteProcess"
             @mouseleave="resetDeleteConfirm">
             {{ isConfirmingDelete ? 'Confirm Delete' : 'Delete' }}
           </button>
           <div style="flex: 1"></div>
-          <button @click="closeEdit(false)">Cancel</button>
-          <button class="primary" @click="closeEdit(true)">Apply</button>
+          <button type="button" @click="closeEdit(false)">Cancel</button>
+          <button type="submit" class="primary">Apply</button>
         </div>
-      </div>
+      </form>
     </div>
   </div>
 </template>
@@ -283,6 +284,18 @@ html {
   color: var(--text-main);
   font-weight: 500;
   font-family: inherit;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.form-grid input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(57, 108, 216, 0.2);
+}
+
+.form-grid input:invalid {
+  border-color: #f44336;
+  box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.2);
 }
 
 .popup-actions {
