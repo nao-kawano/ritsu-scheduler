@@ -41,7 +41,7 @@ const unwrapConfig = (ui: SchedulerConfigUI): SchedulerConfig => {
 // --- Singleton App State ---
 const mode = ref<AppMode>('Create');
 const selectedClientWrap = ref<ClientConfigUI | null>(null);
-const currentConfigPath = ref<string>("../../rt-server-rs/config.toml");
+const currentConfigPath = ref<string>("");
 
 // --- Simulation State ---
 const planned_executions = ref<PlannedExecution[]>([]);
@@ -101,6 +101,37 @@ watch(config, () => {
 }, { deep: true, immediate: true });
 
 // --- Configuration Management Actions ---
+
+const newConfig = () => {
+  // Clear simulation data to ensure a clean state for the new configuration.
+  planned_executions.value = [];
+  planned_metrics.value = [];
+  config_errors.value = {};
+  simulation_error.value = null;
+
+  // Reset file path to indicate this is a new, unsaved configuration.
+  currentConfigPath.value = "";
+
+  // Reset configuration to a clean, default state.
+  const blankConfig: SchedulerConfig = {
+    server_config: {
+      port: 7878,
+      cycle_time_ms: 50,
+      stats_interval_cycle: 0 // Disabled by default
+    },
+    client_configs: [] // Start with an empty list
+  };
+
+  const wrapped = wrapConfig(blankConfig);
+  config.sessionId = wrapped.sessionId;
+  config.server_config = wrapped.server_config;
+  config.client_configs = wrapped.client_configs;
+
+  // Ensure any open edit dialogs are closed to prevent inconsistent UI state.
+  closeEdit();
+
+  console.log("New config initialized.");
+};
 
 const loadConfig = async () => {
   try {
@@ -233,6 +264,7 @@ export function useAppState() {
     planned_metrics,
     config_errors,
     simulation_error,
+    newConfig,
     loadConfig,
     saveConfig,
     openEdit,

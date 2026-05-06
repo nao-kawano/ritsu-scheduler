@@ -1,13 +1,29 @@
 <script setup lang="ts">
+import { ref } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
-const { mode, config, loadConfig, saveConfig } = useAppState();
+const { mode, config, newConfig, loadConfig, saveConfig } = useAppState();
 
 // -----------------------------------------------------------------------------
 // Props and Emits
 
 // -----------------------------------------------------------------------------
 // State, Computed, and Logic
+
+const isConfirmingNew = ref(false);
+
+const onNew = () => {
+  if (!isConfirmingNew.value) {
+    isConfirmingNew.value = true;
+    return;
+  }
+  newConfig();
+  isConfirmingNew.value = false;
+};
+
+const resetNewConfirm = () => {
+  isConfirmingNew.value = false;
+};
 
 // -----------------------------------------------------------------------------
 // Expose
@@ -44,6 +60,9 @@ const { mode, config, loadConfig, saveConfig } = useAppState();
       </div>
       <div class="actions">
         <div class="config-actions-label">Config:</div>
+        <button class="secondary" :class="{ danger: isConfirmingNew }" @click="onNew" @mouseleave="resetNewConfirm">
+          {{ isConfirmingNew ? 'Confirm New' : 'New' }}
+        </button>
         <button class="secondary" @click="loadConfig">Load</button>
         <button class="primary" @click="saveConfig">Save</button>
       </div>
@@ -153,10 +172,12 @@ const { mode, config, loadConfig, saveConfig } = useAppState();
 
 .actions button {
   border: none;
-  padding: 0.6rem 1.2rem;
+  padding: 0 1.2rem;
+  height: 38px;
   border-radius: 6px;
   font-weight: bold;
   cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
 }
 
 .actions button.primary {
@@ -168,5 +189,26 @@ const { mode, config, loadConfig, saveConfig } = useAppState();
   background: var(--bg-color);
   color: var(--text-main);
   border: 1px solid var(--border-color);
+}
+
+/* 2-step confirmation and danger styles */
+.actions button.secondary.danger {
+  color: #f44336;
+  border-color: #f44336;
+}
+
+.actions button.secondary.danger:hover {
+  background: rgba(244, 67, 54, 0.1);
+}
+
+.actions button.secondary.danger:active {
+  transform: scale(0.98);
+}
+
+.actions button.danger {
+  background: #f44336;
+  color: white;
+  border-color: #f44336;
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
 }
 </style>
