@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue';
+import { ref, reactive, watch } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
 const { mode, config, newConfig, loadConfig, saveConfig } = useAppState();
@@ -9,6 +9,43 @@ const { mode, config, newConfig, loadConfig, saveConfig } = useAppState();
 
 // -----------------------------------------------------------------------------
 // State, Computed, and Logic
+
+/**
+ * Local drafting buffer for server configuration.
+ * Using a separate buffer allows us to perform "Boundary Validation" before 
+ * updating the global Source of Truth (SSOT). This prevents invalid intermediate
+ * states (like empty strings during typing) from triggering simulation errors.
+ */
+const localServerConfig = reactive({ ...config.server_config });
+
+/**
+ * Watch local changes and sync to global state ONLY if the values are valid.
+ * This ensures the global state remains clean and can be trusted by compute logic.
+ */
+watch(localServerConfig, (newVal) => {
+  // 1. Port Validation (1024 - 65535)
+  if (typeof newVal.port === 'number' && newVal.port >= 1024 && newVal.port <= 65535) {
+    config.server_config.port = newVal.port;
+  }
+  // 2. Cycle Validation (>= 1ms)
+  if (typeof newVal.cycle_time_ms === 'number' && newVal.cycle_time_ms >= 1) {
+    config.server_config.cycle_time_ms = newVal.cycle_time_ms;
+  }
+  // 3. Stats Interval Validation (>= 0 cycles)
+  const stats = newVal.stats_interval_cycle ?? 0;
+  if (typeof stats === 'number' && stats >= 0) {
+    config.server_config.stats_interval_cycle = stats;
+  }
+}, { deep: true });
+
+/**
+ * Watch global state changes (e.g., from Load Config or New Config)
+ * and sync them back to the local buffer.
+ */
+watch(() => config.server_config, (newVal) => {
+  // Object.assign provides a clean way to update all reactive properties at once.
+  Object.assign(localServerConfig, newVal);
+}, { deep: true });
 
 const isConfirmingNew = ref(false);
 
@@ -43,18 +80,18 @@ const resetNewConfirm = () => {
       <div class="server-info-inputs">
         <div class="input-group">
           <label>Port</label>
-          <input type="number" v-model="config.server_config.port" />
+          <input type="number" v-model.number="localServerConfig.port" min="1024" max="65535" required />
         </div>
         <div class="input-group">
           <label>Cycle(ms)</label>
-          <input type="number" v-model="config.server_config.cycle_time_ms" />
+          <input type="number" v-model.number="localServerConfig.cycle_time_ms" min="1" required />
         </div>
         <div class="input-group">
           <label>Stats Interval(cycles)</label>
-          <input type="number" v-model="config.server_config.stats_interval_cycle" />
+          <input type="number" v-model.number="localServerConfig.stats_interval_cycle" min="0" required />
           <span class="calc-hint"
-            v-if="config.server_config.stats_interval_cycle && config.server_config.cycle_time_ms">
-            (= {{ config.server_config.stats_interval_cycle * config.server_config.cycle_time_ms }} ms)
+            v-if="localServerConfig.stats_interval_cycle && localServerConfig.cycle_time_ms">
+            (= {{ localServerConfig.stats_interval_cycle * localServerConfig.cycle_time_ms }} ms)
           </span>
         </div>
       </div>
@@ -126,6 +163,20 @@ const resetNewConfirm = () => {
   background: var(--bg-color);
   color: var(--text-main);
   font-weight: bold;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Focused state for high-signal feedback */
+.input-group input:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(57, 108, 216, 0.2);
+}
+
+/* HTML5 Validation Feedback (via required/min/max attributes) */
+.input-group input:invalid {
+  border-color: #f44336;
+  box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.2);
 }
 
 .calc-hint {
