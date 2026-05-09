@@ -120,34 +120,35 @@ const resetDeleteConfirm = () => {
       <h3>Edit Process: CID {{ String(draft.client_id).padStart(3, '0') }}</h3>
       <form @submit.prevent="onApply">
         <div class="dialog-body">
-          <label>Name</label>
+          <label class="rt-input-label">Name</label>
           <input type="text" v-model="draft.display_name" maxlength="20" autofocus
-            @input="draft.display_name = draft.display_name.replace(/[^a-zA-Z0-9_-]/g, '')" placeholder="e.g. Camera" />
+            @input="draft.display_name = draft.display_name.replace(/[^a-zA-Z0-9_-]/g, '')" placeholder="e.g. Camera"
+            class="rt-input" />
 
-          <label>CID</label>
-          <input type="number" v-model="draft.client_id" min="0" required />
+          <label class="rt-input-label">CID</label>
+          <input type="number" v-model="draft.client_id" min="0" required class="rt-input" />
 
-          <label>Cycle</label>
-          <input type="number" v-model="draft.cycle" min="1" required />
+          <label class="rt-input-label">Cycle</label>
+          <input type="number" v-model="draft.cycle" min="1" required class="rt-input" />
 
-          <label>Offset</label>
-          <input type="number" v-model="draft.cycle_offset" min="0" required />
+          <label class="rt-input-label">Offset</label>
+          <input type="number" v-model="draft.cycle_offset" min="0" required class="rt-input" />
 
-          <label>Duration (ms)</label>
-          <input type="number" v-model="draft.expected_duration_ms" min="0" required />
+          <label class="rt-input-label">Duration (ms)</label>
+          <input type="number" v-model="draft.expected_duration_ms" min="0" required class="rt-input" />
 
-          <label>Depends</label>
-          <input type="text" v-model="dependsStr" placeholder="e.g. 10, 20" />
+          <label class="rt-input-label">Depends</label>
+          <input type="text" v-model="dependsStr" placeholder="e.g. 10, 20" class="rt-input" />
         </div>
 
         <div class="dialog-footer">
-          <button type="button" class="danger" :class="{ confirming: isConfirmingDelete }" @click="onDelete"
+          <button type="button" class="rt-btn rt-btn-danger" :class="{ active: isConfirmingDelete }" @click="onDelete"
             @mouseleave="resetDeleteConfirm">
             {{ isConfirmingDelete ? 'Confirm Delete' : 'Delete' }}
           </button>
           <div style="flex: 1"></div>
-          <button type="button" @click="onCancel">Cancel</button>
-          <button type="submit" class="primary">Apply</button>
+          <button type="button" class="rt-btn rt-btn-secondary" @click="onCancel">Cancel</button>
+          <button type="submit" class="rt-btn rt-btn-primary">Apply</button>
         </div>
       </form>
     </div>
@@ -161,19 +162,17 @@ const resetDeleteConfirm = () => {
 
 /**
  * Standard <dialog> reset.
- * We use a nested .dialog-content for styling to control padding reliably.
  */
 .popup-dialog {
   border: none;
   padding: 0;
-  border-radius: 12px;
+  border-radius: var(--rt-radius-l);
   background: transparent;
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--rt-shadow-pop);
 }
 
 /**
  * The ::backdrop provides the Dim/Overlay effect.
- * Managed automatically by the browser when showModal() is called.
  */
 .popup-dialog::backdrop {
   background: rgba(0, 0, 0, 0.5);
@@ -182,13 +181,15 @@ const resetDeleteConfirm = () => {
 .dialog-content {
   background: var(--pane-bg);
   padding: 2rem;
-  width: 400px;
+  width: 440px;
   color: var(--text-main);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
 }
 
 .dialog-content h3 {
   margin-top: 0;
+  margin-bottom: 1.5rem;
+  color: var(--primary-color);
+  font-size: var(--rt-font-l);
 }
 
 /* ==========================================================================
@@ -197,35 +198,9 @@ const resetDeleteConfirm = () => {
 
 .dialog-body {
   display: grid;
-  grid-template-columns: 1fr 2fr;
+  grid-template-columns: 100px 1fr;
   gap: 1rem;
   align-items: center;
-  margin-top: 1.5rem;
-}
-
-.dialog-body input {
-  width: 100%;
-  padding: 8px 12px;
-  border-radius: 4px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-color);
-  color: var(--text-main);
-  font-weight: 500;
-  font-family: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-/* Focused state for high-signal feedback */
-.dialog-body input:focus {
-  outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(57, 108, 216, 0.2);
-}
-
-/* HTML5 Validation Feedback (via required/min attributes) */
-.dialog-body input:invalid {
-  border-color: #f44336;
-  box-shadow: 0 0 0 3px rgba(244, 67, 54, 0.2);
 }
 
 /* ==========================================================================
@@ -238,47 +213,5 @@ const resetDeleteConfirm = () => {
   justify-content: flex-end;
   align-items: center;
   gap: 1rem;
-}
-
-.dialog-footer button {
-  background: transparent;
-  color: var(--text-main);
-  border: 1px solid var(--border-color);
-  padding: 0 1.2rem;
-  height: 38px;
-  border-radius: 6px;
-  font-weight: bold;
-  cursor: pointer;
-  transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, transform 0.2s;
-}
-
-.dialog-footer button:hover {
-  background: var(--border-color);
-}
-
-/* --- Contextual Button Styles --- */
-
-button.primary {
-  background: var(--primary-color);
-  color: white;
-  border: none;
-}
-
-button.danger {
-  color: #f44336;
-  border-color: #f44336;
-}
-
-button.danger:hover {
-  background: rgba(244, 67, 54, 0.1);
-}
-
-/* 2-step confirmation active state */
-button.danger.confirming {
-  background: #f44336;
-  color: white;
-  border-color: #f44336;
-  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.3);
-  transform: scale(1.05);
 }
 </style>

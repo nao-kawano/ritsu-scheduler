@@ -17,42 +17,43 @@ const { config } = useAppState();
 
 <style scoped>
 .metrics-labels-pane {
-  background-color: var(--pane-bg);
-  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
   height: 100%;
+  border-right: var(--rt-border-main);
+  background-color: var(--pane-bg);
 }
 
 .pane-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
   height: var(--header-row-height);
   padding: 0 1rem;
-  display: flex;
-  align-items: center;
+  border-bottom: var(--rt-border-main);
+  background: var(--rt-bg-header);
+  font-size: var(--rt-font-xs);
   font-weight: bold;
-  font-size: 0.75rem;
   color: var(--text-dim);
   text-transform: uppercase;
-  border-bottom: 1px solid var(--border-color);
-  background: rgba(0, 0, 0, 0.02);
-  flex-shrink: 0;
 }
 
 .metrics-labels {
-  flex: 1;
   display: flex;
+  flex: 1;
   flex-direction: column;
 }
 
 .metric-label {
   /* Matching ROW_HEIGHT and METRICS_HEIGHT for UI consistency */
-  height: var(--row-height);
   display: flex;
   align-items: center;
+  height: var(--row-height);
   padding: 0 1rem;
-  font-size: 0.75rem;
+  border-bottom: var(--rt-border-main);
+  font-size: var(--rt-font-xs);
   color: var(--text-dim);
 }
 </style>

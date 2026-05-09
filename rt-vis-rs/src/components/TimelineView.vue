@@ -77,20 +77,20 @@ defineExpose({
 .timeline-pane {
   display: flex;
   flex-direction: column;
-  background-color: var(--pane-bg);
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
   height: 100%;
+  overflow: hidden;
+  background-color: var(--pane-bg);
 }
 
 /* --- Header Section --- */
 .timeline-header {
+  flex-shrink: 0;
   height: var(--header-row-height);
   overflow: hidden;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border-color);
-  background: rgba(0, 0, 0, 0.02);
+  border-bottom: var(--rt-border-main);
+  background: var(--rt-bg-header);
 }
 
 .time-axis {
@@ -99,14 +99,14 @@ defineExpose({
 }
 
 .time-tick {
-  height: 100%;
-  border-right: 1px solid var(--border-color);
-  padding: 0 0.5rem;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  font-size: 0.7rem;
   flex-shrink: 0;
+  justify-content: center;
+  height: 100%;
+  padding: 0 0.5rem;
+  border-right: var(--rt-border-main);
+  font-size: var(--rt-font-xs);
 }
 
 .cycle-label {
@@ -115,22 +115,23 @@ defineExpose({
 }
 
 .time-label {
+  font-size: var(--rt-font-xs);
   color: var(--text-dim);
-  font-size: 0.65rem;
+  opacity: 0.8;
 }
 
 /* --- Content Section --- */
 .scroll-area {
   flex: 1;
-  min-height: 0;
   min-width: 0;
+  min-height: 0;
 }
 
 .timeline-scroll {
-  overflow-y: scroll;
-  overflow-x: scroll;
   width: 100%;
   height: 100%;
+  overflow-x: scroll;
+  overflow-y: scroll;
 }
 
 .timeline-content {
@@ -138,18 +139,17 @@ defineExpose({
   min-height: 100%;
   /* Visual grid synchronization using CSS linear-gradients */
   background-image:
-    linear-gradient(90deg, rgba(128, 128, 128, 0.3) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(128, 128, 128, 0.1) 1px, transparent 1px);
+    linear-gradient(90deg, var(--rt-grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rt-grid-minor) 1px, transparent 1px);
   background-position: -1px 0, -1px 0;
 }
 
 .timeline-row {
-  height: var(--row-height);
-  border-bottom: 1px solid var(--border-color);
-
   display: flex;
   align-items: center;
+  height: var(--row-height);
   padding: 0 1rem;
+  border-bottom: var(--rt-border-main);
 }
 
 /* ==========================================================================
@@ -157,7 +157,7 @@ defineExpose({
    ========================================================================== */
 
 .plan-preview {
-  font-size: 0.75rem;
+  font-size: var(--rt-font-xs);
   color: var(--text-dim);
   opacity: 0.4;
 }

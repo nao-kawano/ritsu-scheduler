@@ -222,22 +222,22 @@ defineExpose({
           </defs>
 
           <!-- Dependency Arrows -->
-          <path v-for="arrow in dependencyArrows" :key="arrow.id" :d="arrow.path" class="arrow-path" :class="{
-            'is-highlighted': hoveredInstanceId !== null && (arrow.fromId === hoveredInstanceId || arrow.toId === hoveredInstanceId),
-            'is-dimmed': hoveredInstanceId !== null && !(arrow.fromId === hoveredInstanceId || arrow.toId === hoveredInstanceId)
+          <path v-for="arrow in dependencyArrows" :key="arrow.id" :d="arrow.path" class="rt-exec-arrow" :class="{
+            'rt-exec-highlight': hoveredInstanceId !== null && (arrow.fromId === hoveredInstanceId || arrow.toId === hoveredInstanceId),
+            'rt-exec-dimmed': hoveredInstanceId !== null && !(arrow.fromId === hoveredInstanceId || arrow.toId === hoveredInstanceId)
           }" marker-end="url(#arrowhead)" />
 
           <!-- Execution Bars Grouped by Instance -->
           <g v-for="exec in activeExecutions" :key="exec.instance_id"
-            :transform="`translate(${getPos(exec.start_ms)}, ${getBarY(exec.cid)})`" class="exec-group" :class="{
-              'is-highlighted': highlightedIds.has(exec.instance_id),
-              'is-dimmed': hoveredInstanceId !== null && !highlightedIds.has(exec.instance_id),
-              'is-overrun': exec.status === 'overrun',
-              'is-skip': exec.status === 'skip'
+            :transform="`translate(${getPos(exec.start_ms)}, ${getBarY(exec.cid)})`" class="rt-exec-bar" :class="{
+              'rt-exec-highlight': highlightedIds.has(exec.instance_id),
+              'rt-exec-dimmed': hoveredInstanceId !== null && !highlightedIds.has(exec.instance_id),
+              'rt-exec-overrun': exec.status === 'overrun',
+              'rt-exec-skip': exec.status === 'skip'
             }" @mouseenter="hoveredInstanceId = exec.instance_id" @mouseleave="hoveredInstanceId = null"
             @click="handleExecClick(exec)">
-            <rect :width="getPos(exec.duration_ms)" :height="RECT_HEIGHT" rx="6" class="exec-rect" />
-            <text x="8" :y="RECT_HEIGHT / 2 + 4" font-size="11" font-weight="bold" class="exec-label">
+            <rect :width="getPos(exec.duration_ms)" :height="RECT_HEIGHT" rx="6" class="rt-exec-bar-rect" />
+            <text x="8" :y="RECT_HEIGHT / 2 + 4" font-weight="bold" class="rt-exec-bar-label">
               {{ exec.status === 'overrun' ? 'Overrun' : '' }}
               {{ exec.status === 'skip' ? 'Skip' : '' }}
             </text>
@@ -270,18 +270,18 @@ defineExpose({
   flex-direction: column;
   min-width: 0;
   min-height: 0;
-  overflow: hidden;
   height: 100%;
+  overflow: hidden;
   background-color: var(--pane-bg);
 }
 
 /* --- Header Section --- */
 .timeline-header {
+  flex-shrink: 0;
   height: var(--header-row-height);
   overflow: hidden;
-  flex-shrink: 0;
-  border-bottom: 1px solid var(--border-color);
-  background: rgba(0, 0, 0, 0.02);
+  border-bottom: var(--rt-border-main);
+  background: var(--rt-bg-header);
 }
 
 .time-axis {
@@ -290,14 +290,14 @@ defineExpose({
 }
 
 .time-tick {
-  height: 100%;
-  border-right: 1px solid var(--border-color);
-  padding: 0 0.5rem;
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
   justify-content: center;
-  font-size: 0.7rem;
+  height: 100%;
+  padding: 0 0.5rem;
+  border-right: var(--rt-border-main);
+  font-size: var(--rt-font-xs);
 }
 
 .cycle-label {
@@ -306,22 +306,23 @@ defineExpose({
 }
 
 .time-label {
+  font-size: var(--rt-font-xs);
   color: var(--text-dim);
-  font-size: 0.65rem;
+  opacity: 0.8;
 }
 
 /* --- Content Section --- */
 .scroll-area {
   flex: 1;
-  min-height: 0;
   min-width: 0;
+  min-height: 0;
 }
 
 .timeline-scroll {
-  overflow-y: scroll;
-  overflow-x: scroll;
   width: 100%;
   height: 100%;
+  overflow-x: scroll;
+  overflow-y: scroll;
 }
 
 .timeline-content {
@@ -329,18 +330,18 @@ defineExpose({
   min-height: 100%;
   /* Visual grid synchronization using CSS linear-gradients */
   background-image:
-    linear-gradient(90deg, rgba(128, 128, 128, 0.3) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(128, 128, 128, 0.1) 1px, transparent 1px);
+    linear-gradient(90deg, var(--rt-grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--rt-grid-minor) 1px, transparent 1px);
   background-position: -1px 0, -1px 0;
 }
 
 .timeline-row {
   height: var(--row-height);
-  border-bottom: 1px solid var(--border-color);
+  border-bottom: var(--rt-border-main);
 }
 
 .timeline-row.has-warning {
-  background-color: rgba(255, 200, 0, 0.12);
+  background-color: rgba(255, 200, 0, 0.1);
 }
 
 /* ==========================================================================
@@ -355,108 +356,19 @@ defineExpose({
   pointer-events: none;
 }
 
-/* --- Execution Bars (Nodes) --- */
-.exec-group {
-  cursor: pointer;
-  pointer-events: auto;
-  /* Re-enable for interactions */
-  transition: opacity 0.2s;
-}
-
-.exec-rect {
-  fill: var(--primary-color);
-  stroke: var(--border-color);
-  stroke-width: 1;
-  transition: fill 0.2s, stroke 0.2s, stroke-width 0.2s;
-}
-
-.exec-label {
-  fill: white;
-  pointer-events: none;
-  user-select: none;
-}
-
-/* --- Execution Status States (Overrun / Skip) --- */
-.exec-group.is-overrun .exec-rect {
-  /* Deep red for overrun by default */
-  fill: #a61d24;
-}
-
-.exec-group.is-skip .exec-rect {
-  /* Slight fill to improve visibility against grid */
-  fill: rgba(255, 255, 255, 0.5);
-  stroke: var(--text-dim);
-  stroke-width: 2;
-  stroke-dasharray: 4 4;
-}
-
-.exec-group.is-skip .exec-label {
-  fill: var(--text-dim);
-}
-
-/* --- Dependency Arrows (Edges) --- */
-.arrow-path {
-  fill: none;
-  stroke: var(--accent-color);
-  stroke-width: 2;
-  opacity: 0.6;
-  transition: opacity 0.2s, stroke 0.2s, stroke-width 0.2s;
-}
-
 /* --- Error Overlays --- */
 .error-row-bg {
-  fill: rgba(255, 77, 79, 0.08);
   stroke: rgba(255, 77, 79, 0.2);
   stroke-width: 1;
+  fill: rgba(255, 77, 79, 0.08);
 }
 
 .error-text-msg {
   fill: #cf1322;
-  font-size: 11px;
+  font-size: var(--rt-font-xs);
 }
 
 .error-text-msg.is-summary {
   font-weight: bold;
-}
-
-/* ==========================================================================
-   Interaction and Highlighting States
-   ========================================================================== */
-
-/* --- Hover State --- */
-.exec-group:hover .exec-rect {
-  fill: var(--accent-color);
-}
-
-/* --- Active/Highlighted State --- */
-.exec-group.is-highlighted {
-  z-index: 10;
-}
-
-.is-highlighted .exec-rect {
-  fill: var(--accent-color);
-  stroke: #fff;
-  stroke-width: 2;
-  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
-}
-
-.is-highlighted.is-overrun .exec-rect {
-  fill: #ff4d4f;
-}
-
-.is-highlighted.is-skip .exec-rect {
-  /* Opaque white to clear grid interference */
-  fill: rgba(255, 255, 255, 0.9);
-}
-
-.arrow-path.is-highlighted {
-  stroke: var(--accent-color);
-  stroke-width: 3;
-  opacity: 1;
-}
-
-/* --- Dimmed State (Inactive during hover) --- */
-.is-dimmed {
-  opacity: 0.25 !important;
 }
 </style>

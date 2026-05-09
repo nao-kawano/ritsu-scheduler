@@ -66,60 +66,60 @@ defineExpose({ scrollEl });
 
 <style scoped>
 .process-list-pane {
-  background-color: var(--pane-bg);
-  border-right: 1px solid var(--border-color);
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
   height: 100%;
+  border-right: var(--rt-border-main);
+  background-color: var(--pane-bg);
 }
 
 .pane-header {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
   height: var(--header-row-height);
   padding: 0 1rem;
-  display: flex;
-  align-items: center;
+  border-bottom: var(--rt-border-main);
+  background: var(--rt-bg-header);
+  font-size: var(--rt-font-xs);
   font-weight: bold;
-  font-size: 0.75rem;
   color: var(--text-dim);
   text-transform: uppercase;
-  border-bottom: 1px solid var(--border-color);
-  background: rgba(0, 0, 0, 0.02);
-  flex-shrink: 0;
 }
 
 .scroll-area {
   flex: 1;
-  min-height: 0;
   min-width: 0;
+  min-height: 0;
 }
 
 .process-list-scroll {
-  overflow-y: scroll;
   overflow-x: hidden;
+  overflow-y: scroll;
 }
 
 .process-row-wrapper {
-  height: var(--row-height);
-  padding: 0.4rem 0.75rem;
-  border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
+  height: var(--row-height);
+  padding: 0.4rem 0.75rem;
+  border-bottom: var(--rt-border-main);
 }
 
 .process-card {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   width: 100%;
   height: 100%;
   padding: 0.4rem 0.75rem;
   border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--rt-radius-m);
   background-color: var(--pane-bg);
   cursor: pointer;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  transition: all 0.2s;
+  transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 
 .process-card:hover {
@@ -129,7 +129,7 @@ defineExpose({ scrollEl });
 
 .process-card.has-error {
   border-color: #ff4d4f;
-  background-color: #fff1f0;
+  background-color: rgba(255, 77, 79, 0.05);
 }
 
 .process-card.has-error:hover {
@@ -138,58 +138,65 @@ defineExpose({ scrollEl });
 
 .card-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  justify-content: space-between;
 }
 
 .process-card .cid {
-  font-weight: bold;
-  font-size: 1.0rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
   width: 100%;
+  overflow: hidden;
+  font-size: var(--rt-font-l);
+  font-weight: bold;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .display-name {
-  font-size: 0.85rem;
-  color: var(--text-dim);
-  font-weight: normal;
   margin-left: 4px;
+  font-size: var(--rt-font-s);
+  font-weight: normal;
+  color: var(--text-dim);
 }
 
 .meta-block {
-  margin-top: 2px;
   display: flex;
   flex-direction: column;
   gap: 1px;
+  margin-top: 2px;
 }
 
 .process-card .details {
-  font-size: 0.75rem;
+  font-size: var(--rt-font-xs);
   color: var(--text-dim);
 }
 
 .process-card .depends {
-  font-size: 0.75rem;
-  color: var(--accent-color);
+  font-size: var(--rt-font-xs);
   font-weight: bold;
+  color: var(--accent-color);
 }
 
 .process-card .depends.no-deps {
-  color: var(--text-dim);
   font-weight: normal;
+  color: var(--text-dim);
 }
 
 .add-btn {
   width: 100%;
   height: 40px;
   border: 2px dashed var(--border-color);
-  border-radius: 8px;
+  border-radius: var(--rt-radius-m);
   background: transparent;
+  font-size: var(--rt-font-s);
+  font-weight: bold;
   color: var(--text-dim);
   cursor: pointer;
-  font-weight: bold;
-  font-size: 0.8rem;
+  transition: border-color 0.2s, color 0.2s, background-color 0.2s;
+}
+
+.add-btn:hover {
+  border-color: var(--primary-color);
+  background-color: rgba(57, 108, 216, 0.05);
+  color: var(--primary-color);
 }
 </style>

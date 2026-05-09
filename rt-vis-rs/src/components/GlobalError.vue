@@ -36,25 +36,25 @@ defineProps<{
   max-width: 400px;
   background-color: #ff4d4f;
   color: white;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  padding: var(--rt-spacing-s) var(--rt-spacing-m);
+  border-radius: var(--rt-radius-m);
+  box-shadow: var(--rt-shadow-pop);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--rt-spacing-xs);
   pointer-events: auto;
 }
 
 .error-title {
   font-weight: bold;
-  font-size: 0.9rem;
+  font-size: var(--rt-font-m);
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--rt-spacing-s);
 }
 
 .error-detail {
-  font-size: 0.8rem;
+  font-size: var(--rt-font-s);
   opacity: 0.9;
   word-break: break-all;
 }
@@ -62,7 +62,7 @@ defineProps<{
 /* --- Transition Effects --- */
 .fade-enter-active,
 .fade-leave-active {
-  transition: all 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease;
 }
 
 .fade-enter-from,

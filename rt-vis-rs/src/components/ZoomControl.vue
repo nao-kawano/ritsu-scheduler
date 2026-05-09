@@ -21,7 +21,7 @@ const isExpanded = ref(false);
 <template>
   <div class="zoom-control-container" :class="{ expanded: isExpanded }" @mouseenter="isExpanded = true"
     @mouseleave="isExpanded = false">
-    <button class="zoom-btn" @click="zoom('out')" title="Zoom Out">
+    <button class="rt-btn rt-btn-ghost zoom-btn-icon" @click="zoom('out')" title="Zoom Out">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3"
         stroke-linecap="round">
         <line x1="5" y1="12" x2="19" y2="12" />
@@ -35,7 +35,7 @@ const isExpanded = ref(false);
       </div>
     </div>
 
-    <button class="zoom-btn" @click="zoom('in')" title="Zoom In">
+    <button class="rt-btn rt-btn-ghost zoom-btn-icon" @click="zoom('in')" title="Zoom In">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3"
         stroke-linecap="round">
         <line x1="12" y1="5" x2="12" y2="19" />
@@ -50,10 +50,10 @@ const isExpanded = ref(false);
   display: flex;
   align-items: center;
   background-color: var(--pane-bg);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
+  border: var(--rt-border-main);
+  border-radius: var(--rt-radius-m);
   padding: 4px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  box-shadow: var(--rt-shadow-pop);
   user-select: none;
   overflow: hidden;
   /* Fixed height to prevent vertical jitter during expansion */
@@ -61,24 +61,11 @@ const isExpanded = ref(false);
   transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
-.zoom-btn {
+.zoom-btn-icon {
   width: 32px;
   height: 32px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: none;
-  border-radius: 6px;
-  color: var(--text-main);
-  cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
+  padding: 0;
   flex-shrink: 0;
-}
-
-.zoom-btn:hover {
-  background-color: var(--bg-color);
-  color: var(--primary-color);
 }
 
 .zoom-info {
@@ -92,13 +79,13 @@ const isExpanded = ref(false);
 }
 
 .zoom-text {
-  font-size: 0.8rem;
+  font-size: var(--rt-font-s);
   font-weight: 800;
   color: var(--text-main);
   font-variant-numeric: tabular-nums;
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--rt-radius-s);
   transition: background-color 0.2s, color 0.2s;
 }
 
@@ -115,17 +102,17 @@ const isExpanded = ref(false);
   align-items: center;
   margin-left: 0;
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
-  pointer-events: none;
   /* Disable mouse events when collapsed to stabilize hover */
+  pointer-events: none;
 }
 
 .zoom-control-container.expanded .slider-wrapper {
   width: 120px;
   opacity: 1;
-  margin-left: 8px;
-  margin-right: 8px;
-  pointer-events: auto;
+  margin-left: var(--rt-spacing-s);
+  margin-right: var(--rt-spacing-s);
   /* Enable mouse events when expanded */
+  pointer-events: auto;
 }
 
 .zoom-slider {
