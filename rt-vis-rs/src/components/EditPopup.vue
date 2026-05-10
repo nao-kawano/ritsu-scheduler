@@ -141,7 +141,7 @@ const resetDeleteConfirm = () => {
           <input type="text" v-model="dependsStr" placeholder="e.g. 10, 20" class="rt-input" />
         </div>
 
-        <div class="dialog-footer">
+        <div class="dialog-actions">
           <button type="button" class="rt-btn rt-btn-danger" :class="{ active: isConfirmingDelete }" @click="onDelete"
             @mouseleave="resetDeleteConfirm">
             {{ isConfirmingDelete ? 'Confirm Delete' : 'Delete' }}
@@ -164,11 +164,11 @@ const resetDeleteConfirm = () => {
  * Standard <dialog> reset.
  */
 .popup-dialog {
-  border: none;
   padding: 0;
-  border-radius: var(--rt-radius-l);
   background: transparent;
-  box-shadow: var(--rt-shadow-pop);
+  border: none;
+  border-radius: var(--rt-radius-l);
+  box-shadow: var(--rt-bshadow-pop);
 }
 
 /**
@@ -179,17 +179,17 @@ const resetDeleteConfirm = () => {
 }
 
 .dialog-content {
-  background: var(--pane-bg);
-  padding: 2rem;
   width: 440px;
-  color: var(--text-main);
+  padding: 2rem;
+  background: var(--rt-color-surface);
+  color: var(--rt-color-text);
 }
 
 .dialog-content h3 {
   margin-top: 0;
   margin-bottom: 1.5rem;
-  color: var(--primary-color);
   font-size: var(--rt-font-l);
+  color: var(--rt-color-primary);
 }
 
 /* ==========================================================================
@@ -199,19 +199,19 @@ const resetDeleteConfirm = () => {
 .dialog-body {
   display: grid;
   grid-template-columns: 100px 1fr;
-  gap: 1rem;
   align-items: center;
+  gap: 1rem;
 }
 
 /* ==========================================================================
    Action Footer
    ========================================================================== */
 
-.dialog-footer {
-  margin-top: 2rem;
+.dialog-actions {
   display: flex;
-  justify-content: flex-end;
   align-items: center;
+  justify-content: flex-end;
   gap: 1rem;
+  margin-top: 2rem;
 }
 </style>

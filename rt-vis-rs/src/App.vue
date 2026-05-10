@@ -22,6 +22,15 @@ const {
   selectedClientWrap,
 } = useAppState();
 
+// Theme management based on system preference
+const isDark = ref(window.matchMedia('(prefers-color-scheme: dark)').matches);
+const themeClass = computed(() => isDark.value ? 'dark' : 'light');
+
+// Listen for system theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  isDark.value = e.matches;
+});
+
 // Derived state for common components
 const currentErrorMessage = computed(() => {
   if (mode.value === 'Create') return simulation_error.value;
@@ -51,7 +60,7 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
 </script>
 
 <template>
-  <div class="app-container" :class="mode.toLowerCase()">
+  <div class="app-container" :class="[mode.toLowerCase(), themeClass]">
     <!-- Top Pane -->
     <TopControl />
 
@@ -83,28 +92,22 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
 </template>
 
 <style>
+@import "./assets/styles/light.css";
+@import "./assets/styles/dark.css";
+
 /* =========================================
    Global Styles & CSS Variables
    ========================================= */
 :root {
   /* Layout Dimensions */
   --top-height: 100px;
-  --bottom-height: 222px;
+  --bottom-height: 221px;
   --left-width: 280px;
   --row-height: 84px;
   --header-row-height: 36px;
   --sb-size: 16px;
 
-  /* Basic Colors */
-  --bg-color: #f0f2f5;
-  --pane-bg: #ffffff;
-  --border-color: #dcdfe6;
-  --primary-color: #396cd8;
-  --accent-color: #ff4081;
-  --text-main: #2c3e50;
-  --text-dim: #909399;
-
-  /* Design System Tokens */
+  /* Design System Tokens (General) */
   --rt-radius-s: 4px;
   --rt-radius-m: 8px;
   --rt-radius-l: 12px;
@@ -112,15 +115,6 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   --rt-spacing-xs: 4px;
   --rt-spacing-s: 8px;
   --rt-spacing-m: 16px;
-
-  --rt-shadow-pop: 0 4px 12px rgba(0, 0, 0, 0.15);
-  --rt-shadow-focus: 0 0 0 3px rgba(57, 108, 216, 0.3);
-
-  --rt-border-main: 1px solid var(--border-color);
-  --rt-bg-header: rgba(0, 0, 0, 0.02);
-
-  --rt-grid-major: rgba(128, 128, 128, 0.3);
-  --rt-grid-minor: rgba(128, 128, 128, 0.1);
 
   /* Typography Scale */
   --rt-font-xs: 0.7rem;
@@ -130,18 +124,52 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   --rt-font-brand: 1.4rem;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg-color: #121212;
-    --pane-bg: #1e1e1e;
-    --border-color: #333;
-    --text-main: #e0e0e0;
-    --text-dim: #888;
+/* --- Semantic Color Mapping (Binds M3 to RT) --- */
+.app-container {
+  /* Backgrounds */
+  --rt-color-bg: var(--md-sys-color-surface-container-low);
+  --rt-color-surface: var(--md-sys-color-surface-container-lowest);
+  --rt-color-surface-header: var(--md-sys-color-surface-container-high);
+  --rt-color-surface-input: var(--md-sys-color-surface-container-low);
 
-    --rt-bg-header: rgba(255, 255, 255, 0.03);
-    --rt-grid-major: rgba(255, 255, 255, 0.15);
-    --rt-grid-minor: rgba(255, 255, 255, 0.05);
-  }
+  /* Text */
+  --rt-color-text: var(--md-sys-color-on-surface);
+  --rt-color-text-dim: var(--md-sys-color-on-surface-variant);
+
+  /* Primary */
+  --rt-color-primary: var(--md-sys-color-primary);
+  --rt-color-on-primary: var(--md-sys-color-on-primary);
+
+  /* Secondary */
+  --rt-color-secondary: var(--md-sys-color-secondary);
+  --rt-color-on-secondary: var(--md-sys-color-on-secondary);
+
+  /* Accent (Tertiary in M3) */
+  --rt-color-accent: var(--md-sys-color-tertiary);
+  --rt-color-on-accent: var(--md-sys-color-on-tertiary);
+
+  /* Feedback */
+  --rt-color-error: var(--md-sys-color-error);
+  --rt-color-on-error: var(--md-sys-color-on-error);
+  --rt-color-error-container: var(--md-sys-color-error-container);
+  --rt-color-on-error-container: var(--md-sys-color-on-error-container);
+
+  --rt-color-warning-container: var(--md-extended-color-warning-color-container);
+  --rt-color-on-warning-container: var(--md-extended-color-warning-on-color-container);
+
+  /* Borders & Grid */
+  --rt-color-border: var(--md-sys-color-outline-variant);
+  --rt-color-outline: var(--md-sys-color-outline);
+
+  /* Derived Tokens */
+  --rt-border-main: 1px solid var(--rt-color-border);
+  --rt-dshadow-pop: 3px 3px 3px var(--md-sys-color-outline);
+  --rt-bshadow-pop: 3px 3px 3px 0px var(--md-sys-color-outline-variant);
+  --rt-bshadow-pop-error: 3px 3px 3px 0px var(--rt-color-error-container);
+  --rt-bshadow-focus: 0 0 3px 2px var(--md-sys-color-primary-fixed-dim);
+  --rt-bshadow-invalid: 0 0 3px 2px var(--rt-color-error-container);
+  --rt-grid-major: color-mix(in srgb, var(--rt-color-text) 30%, transparent);
+  --rt-grid-minor: color-mix(in srgb, var(--rt-color-text) 10%, transparent);
 }
 
 * {
@@ -155,10 +183,10 @@ html {
   margin: 0;
   padding: 0;
   overflow: hidden;
-  background-color: var(--bg-color);
+  background-color: var(--rt-color-bg);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: var(--rt-font-m);
-  color: var(--text-main);
+  color: var(--rt-color-text);
 }
 
 /* =========================================
@@ -183,60 +211,55 @@ html {
 }
 
 .rt-btn-primary {
-  background: var(--primary-color);
-  color: white;
+  background: var(--rt-color-primary);
+  color: var(--rt-color-on-primary);
 }
 
 .rt-btn-primary:hover {
-  box-shadow: 0 2px 8px rgba(57, 108, 216, 0.4);
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--rt-color-primary) 40%, transparent);
   filter: brightness(1.1);
 }
 
 .rt-btn-secondary {
-  border-color: var(--border-color);
-  background: var(--bg-color);
-  color: var(--text-main);
+  border-color: var(--rt-color-border);
+  background: var(--rt-color-bg);
+  color: var(--rt-color-text);
 }
 
 .rt-btn-secondary:hover {
-  border-color: var(--primary-color);
-  background: var(--pane-bg);
-  color: var(--primary-color);
+  border-color: var(--rt-color-primary);
+  background: var(--rt-color-surface);
+  color: var(--rt-color-primary);
 }
 
 .rt-btn-danger {
-  border-color: #ff4d4f;
+  border-color: var(--rt-color-error);
   background: transparent;
-  color: #ff4d4f;
+  color: var(--rt-color-error);
 }
 
 .rt-btn-danger:hover {
-  background: rgba(255, 77, 79, 0.1);
+  background: var(--rt-color-error-container);
+  color: var(--rt-color-on-error-container);
 }
 
 .rt-btn-danger.active {
-  border-color: #ff4d4f;
-  background: #ff4d4f;
-  box-shadow: 0 4px 12px rgba(255, 77, 79, 0.3);
-  color: white;
+  border-color: var(--rt-color-error);
+  background: var(--rt-color-error);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--rt-color-error) 30%, transparent);
+  color: var(--rt-color-on-error);
 }
 
 .rt-btn-ghost {
   padding: 0 var(--rt-spacing-s);
   border: none;
   background: transparent;
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
 }
 
 .rt-btn-ghost:hover {
-  background: rgba(0, 0, 0, 0.05);
-  color: var(--text-main);
-}
-
-@media (prefers-color-scheme: dark) {
-  .rt-btn-ghost:hover {
-    background: rgba(255, 255, 255, 0.1);
-  }
+  background: var(--rt-color-surface-header);
+  color: var(--rt-color-text);
 }
 
 /* --- Toggle Switch --- */
@@ -245,14 +268,8 @@ html {
   height: 34px;
   padding: 3px;
   border-radius: var(--rt-radius-m);
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--rt-color-surface-header);
   box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
-}
-
-@media (prefers-color-scheme: dark) {
-  .rt-toggle-container {
-    background: rgba(255, 255, 255, 0.05);
-  }
 }
 
 .rt-toggle-item {
@@ -264,43 +281,58 @@ html {
   background: transparent;
   font-size: var(--rt-font-m);
   font-weight: 600;
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
   cursor: pointer;
   transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
 }
 
 .rt-toggle-item:hover:not(.active) {
-  color: var(--text-main);
+  color: var(--rt-color-text);
 }
 
 .rt-toggle-item.active {
-  background: var(--pane-bg);
+  background: var(--rt-color-surface);
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-  color: var(--primary-color);
+  color: var(--rt-color-primary);
 }
 
 /* --- Form Inputs --- */
 .rt-input {
   height: 34px;
   padding: 0 12px;
-  border: 1px solid var(--border-color);
+  border: 1px solid var(--rt-color-border);
   border-radius: var(--rt-radius-s);
-  background: var(--bg-color);
+  background: var(--rt-color-surface-input);
   font-family: inherit;
   font-weight: 500;
-  color: var(--text-main);
+  color: var(--rt-color-text);
   transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+/* Explicitly set color-scheme based on our theme class to ensure OS/Browser UI matches */
+.app-container.light .rt-input {
+  color-scheme: light;
+}
+
+/* Explicitly set color-scheme based on our theme class to ensure OS/Browser UI matches */
+.app-container.dark .rt-input {
+  color-scheme: dark;
+}
+
+.rt-input::placeholder {
+  color: var(--rt-color-text-dim);
+  opacity: 0.6;
 }
 
 .rt-input:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: var(--rt-shadow-focus);
+  border-color: var(--rt-color-primary);
+  box-shadow: var(--rt-bshadow-focus);
 }
 
 .rt-input:invalid {
-  border-color: #ff4d4f;
-  box-shadow: 0 0 0 3px rgba(255, 77, 79, 0.2);
+  border-color: var(--rt-color-error);
+  box-shadow: var(--rt-bshadow-invalid);
 }
 
 .rt-input-group {
@@ -312,13 +344,13 @@ html {
 .rt-input-label {
   font-size: var(--rt-font-m);
   font-weight: bold;
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
 }
 
 .rt-input-hint {
   margin-left: var(--rt-spacing-xs);
   font-size: var(--rt-font-xs);
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
 }
 
 /* --- Execution Elements (Timeline) --- */
@@ -328,14 +360,14 @@ html {
 }
 
 .rt-exec-bar-rect {
-  stroke: var(--border-color);
+  stroke: var(--rt-color-border);
   stroke-width: 1;
-  fill: var(--primary-color);
-  transition: fill 0.2s, stroke 0.2s, stroke-width 0.2s, filter 0.2s;
+  fill: var(--rt-color-primary);
+  transition: filter 0.2s ease-out;
 }
 
 .rt-exec-bar-label {
-  fill: white;
+  fill: var(--rt-color-on-primary);
   font-size: var(--rt-font-xs);
   pointer-events: none;
   user-select: none;
@@ -343,47 +375,55 @@ html {
 
 /* Status: Overrun */
 .rt-exec-bar.rt-exec-overrun .rt-exec-bar-rect {
-  fill: #a61d24;
+  fill: var(--rt-color-error);
+}
+
+.rt-exec-bar.rt-exec-overrun .rt-exec-bar-label {
+  fill: var(--rt-color-on-error);
 }
 
 /* Status: Skip */
 .rt-exec-bar.rt-exec-skip .rt-exec-bar-rect {
-  stroke: var(--text-dim);
+  stroke: var(--rt-color-text-dim);
   stroke-width: 2;
   stroke-dasharray: 4 4;
-  fill: rgba(255, 255, 255, 0.5);
+  fill: color-mix(in srgb, var(--rt-color-surface) 20%, transparent);
 }
 
 .rt-exec-bar.rt-exec-skip .rt-exec-bar-label {
-  fill: var(--text-dim);
-}
-
-@media (prefers-color-scheme: dark) {
-  .rt-exec-bar.rt-exec-skip .rt-exec-bar-rect {
-    fill: rgba(255, 255, 255, 0.1);
-  }
+  fill: var(--rt-color-text-dim);
 }
 
 /* Dependency Arrows */
 .rt-exec-arrow {
-  stroke: var(--accent-color);
+  stroke: var(--rt-color-accent);
   stroke-width: 2;
   fill: none;
-  opacity: 0.5;
-  transition: stroke-width 0.2s, opacity 0.2s;
+  opacity: 1.0;
+  transition: stroke-width 0.2s, filter 0.2s ease-out;
 }
 
 .rt-exec-arrow.rt-exec-highlight {
   stroke-width: 3;
   opacity: 1;
+  filter: drop-shadow(var(--rt-dshadow-pop));
 }
 
 /* Interaction: Highlight */
 .rt-exec-bar.rt-exec-highlight .rt-exec-bar-rect,
 .rt-exec-bar:hover .rt-exec-bar-rect {
-  stroke: #fff;
+  stroke: var(--rt-color-surface);
   stroke-width: 2;
-  filter: drop-shadow(var(--rt-shadow-pop));
+  filter: drop-shadow(var(--rt-dshadow-pop));
+}
+
+.rt-exec-bar.rt-exec-skip.rt-exec-highlight .rt-exec-bar-rect,
+.rt-exec-bar.rt-exec-skip:hover .rt-exec-bar-rect {
+  /* Make fill opaque to block shadow bleed, but keep original dashed stroke color */
+  fill: var(--rt-color-surface);
+  stroke: var(--rt-color-text-dim);
+  stroke-width: 2;
+  filter: drop-shadow(var(--rt-dshadow-pop));
 }
 
 /* Interaction: Dimmed */
@@ -400,23 +440,19 @@ html {
 }
 
 ::-webkit-scrollbar-track {
-  background: rgba(0, 0, 0, 0.05);
+  background: var(--rt-color-surface-header);
 }
 
 ::-webkit-scrollbar-thumb {
-  border: 4px solid transparent;
-  background: rgba(0, 0, 0, 0.2);
+  border: 5px solid transparent;
+  background: var(--rt-color-outline);
   background-clip: content-box;
+  opacity: 0.5;
 }
 
-@media (prefers-color-scheme: dark) {
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.05);
-  }
-
-  ::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.2);
-  }
+::-webkit-scrollbar-thumb:hover {
+  background: var(--rt-color-primary);
+  background-clip: content-box;
 }
 
 /* Utilities to hide scrollbars and remove their gutter space */
@@ -448,8 +484,7 @@ html {
   width: 100vw;
   height: 100vh;
   overflow: hidden;
-  background-color: var(--bg-color);
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background-color: var(--rt-color-bg);
 }
 
 .process-section {
@@ -478,7 +513,7 @@ html {
   display: grid;
   grid-template-columns: var(--left-width) 1fr;
   height: var(--bottom-height);
-  border-top: 2px solid var(--border-color);
-  background-color: var(--pane-bg);
+  border-top: var(--rt-border-main);
+  background-color: var(--rt-color-surface);
 }
 </style>

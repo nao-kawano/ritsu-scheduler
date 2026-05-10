@@ -117,9 +117,8 @@ const resetNewConfirm = () => {
   display: flex;
   flex-direction: column;
   padding: 0 1.5rem;
+  background-color: var(--rt-color-surface);
   border-bottom: var(--rt-border-main);
-  background-color: var(--pane-bg);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
 .top-row,
@@ -138,7 +137,7 @@ const resetNewConfirm = () => {
 .brand {
   font-size: var(--rt-font-brand);
   font-weight: 800;
-  color: var(--primary-color);
+  color: var(--rt-color-primary);
 }
 
 .server-info-inputs {

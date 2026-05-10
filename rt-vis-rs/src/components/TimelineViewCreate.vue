@@ -209,15 +209,17 @@ defineExpose({
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
       }">
         <!-- Row Backgrounds for structural alignment -->
-        <div v-for="clientWrap in config.client_configs" :key="clientWrap.configId" class="timeline-row"
-          :class="{ 'has-warning': warningCids.has(clientWrap.data.client_id) }"></div>
+        <div v-for="clientWrap in config.client_configs" :key="clientWrap.configId" class="timeline-row" :class="{
+          'has-warning': warningCids.has(clientWrap.data.client_id),
+          'has-error': getErrors(clientWrap.data.client_id).length > 0
+        }"></div>
         <div class="timeline-row add-btn-placeholder"></div>
 
         <!-- SVG Layer for dynamic content (Arrows and Bars) -->
         <svg class="timeline-svg" :width="totalWidth" :height="svgHeight">
           <defs>
             <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
-              <polygon points="0 0, 6 3, 0 6" fill="var(--accent-color)" />
+              <polygon points="0 0, 6 3, 0 6" fill="var(--rt-color-accent)" />
             </marker>
           </defs>
 
@@ -246,7 +248,6 @@ defineExpose({
           <!-- Static Configuration Errors -->
           <g v-for="(clientWrap, index) in config.client_configs" :key="'err-' + clientWrap.configId">
             <template v-if="getErrors(clientWrap.data.client_id).length > 0">
-              <rect x="0" :y="index * ROW_HEIGHT" :width="totalWidth" :height="ROW_HEIGHT" class="error-row-bg" />
               <text v-for="(errObj, i) in getDisplayErrors(clientWrap.data.client_id)" :key="i" x="12"
                 :y="index * ROW_HEIGHT + 20 + (i * 16)" class="error-text-msg"
                 :class="{ 'is-summary': errObj.isSummary }">
@@ -271,17 +272,17 @@ defineExpose({
   min-width: 0;
   min-height: 0;
   height: 100%;
+  background-color: var(--rt-color-surface);
   overflow: hidden;
-  background-color: var(--pane-bg);
 }
 
 /* --- Header Section --- */
 .timeline-header {
   flex-shrink: 0;
   height: var(--header-row-height);
-  overflow: hidden;
+  background: var(--rt-color-surface-header);
   border-bottom: var(--rt-border-main);
-  background: var(--rt-bg-header);
+  overflow: hidden;
 }
 
 .time-axis {
@@ -302,12 +303,12 @@ defineExpose({
 
 .cycle-label {
   font-weight: bold;
-  color: var(--text-main);
+  color: var(--rt-color-text);
 }
 
 .time-label {
   font-size: var(--rt-font-xs);
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
   opacity: 0.8;
 }
 
@@ -341,7 +342,11 @@ defineExpose({
 }
 
 .timeline-row.has-warning {
-  background-color: rgba(255, 200, 0, 0.1);
+  background-color: color-mix(in srgb, var(--rt-color-warning-container) 40%, transparent);
+}
+
+.timeline-row.has-error {
+  background-color: color-mix(in srgb, var(--rt-color-error-container) 40%, transparent);
 }
 
 /* ==========================================================================
@@ -357,14 +362,8 @@ defineExpose({
 }
 
 /* --- Error Overlays --- */
-.error-row-bg {
-  stroke: rgba(255, 77, 79, 0.2);
-  stroke-width: 1;
-  fill: rgba(255, 77, 79, 0.08);
-}
-
 .error-text-msg {
-  fill: #cf1322;
+  fill: var(--rt-color-on-error-container);
   font-size: var(--rt-font-xs);
 }
 

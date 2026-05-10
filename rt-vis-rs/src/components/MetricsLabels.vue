@@ -22,8 +22,8 @@ const { config } = useAppState();
   min-width: 0;
   min-height: 0;
   height: 100%;
+  background-color: var(--rt-color-surface);
   border-right: var(--rt-border-main);
-  background-color: var(--pane-bg);
 }
 
 .pane-header {
@@ -32,11 +32,11 @@ const { config } = useAppState();
   align-items: center;
   height: var(--header-row-height);
   padding: 0 1rem;
+  background: var(--rt-color-surface-header);
   border-bottom: var(--rt-border-main);
-  background: var(--rt-bg-header);
   font-size: var(--rt-font-xs);
   font-weight: bold;
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
   text-transform: uppercase;
 }
 
@@ -54,6 +54,6 @@ const { config } = useAppState();
   padding: 0 1rem;
   border-bottom: var(--rt-border-main);
   font-size: var(--rt-font-xs);
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
 }
 </style>

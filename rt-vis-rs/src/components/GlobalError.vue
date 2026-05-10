@@ -33,24 +33,24 @@ defineProps<{
 
 <style scoped>
 .global-error-card {
-  max-width: 400px;
-  background-color: #ff4d4f;
-  color: white;
-  padding: var(--rt-spacing-s) var(--rt-spacing-m);
-  border-radius: var(--rt-radius-m);
-  box-shadow: var(--rt-shadow-pop);
   display: flex;
   flex-direction: column;
   gap: var(--rt-spacing-xs);
+  max-width: 400px;
+  padding: var(--rt-spacing-s) var(--rt-spacing-m);
+  background-color: var(--rt-color-error);
+  border-radius: var(--rt-radius-m);
+  box-shadow: var(--rt-bshadow-pop);
+  color: var(--rt-color-on-error);
   pointer-events: auto;
 }
 
 .error-title {
-  font-weight: bold;
-  font-size: var(--rt-font-m);
   display: flex;
   align-items: center;
   gap: var(--rt-spacing-s);
+  font-size: var(--rt-font-m);
+  font-weight: bold;
 }
 
 .error-detail {

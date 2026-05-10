@@ -48,7 +48,7 @@ defineExpose({ scrollEl });
                 </span>
               </div>
             </div>
-            <div class="meta-block">
+            <div class="card-meta">
               <div class="details">C: {{ clientWrap.data.cycle }}, O: {{ clientWrap.data.cycle_offset }}, D: {{
                 clientWrap.data.expected_duration_ms }}ms</div>
               <div class="depends" :class="{ 'no-deps': clientWrap.data.depends.length === 0 }">Deps: {{
@@ -72,7 +72,7 @@ defineExpose({ scrollEl });
   min-height: 0;
   height: 100%;
   border-right: var(--rt-border-main);
-  background-color: var(--pane-bg);
+  background-color: var(--rt-color-surface);
 }
 
 .pane-header {
@@ -82,10 +82,10 @@ defineExpose({ scrollEl });
   height: var(--header-row-height);
   padding: 0 1rem;
   border-bottom: var(--rt-border-main);
-  background: var(--rt-bg-header);
+  background: var(--rt-color-surface-header);
   font-size: var(--rt-font-xs);
   font-weight: bold;
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
   text-transform: uppercase;
 }
 
@@ -115,25 +115,16 @@ defineExpose({ scrollEl });
   width: 100%;
   height: 100%;
   padding: 0.4rem 0.75rem;
-  border: 1px solid var(--border-color);
+  background-color: var(--rt-color-surface);
+  border: 1px solid var(--rt-color-border);
   border-radius: var(--rt-radius-m);
-  background-color: var(--pane-bg);
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
 }
 
 .process-card:hover {
-  border-color: var(--primary-color);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-}
-
-.process-card.has-error {
-  border-color: #ff4d4f;
-  background-color: rgba(255, 77, 79, 0.05);
-}
-
-.process-card.has-error:hover {
-  box-shadow: 0 2px 8px rgba(255, 77, 79, 0.2);
+  border-color: var(--rt-color-primary);
+  box-shadow: var(--rt-bshadow-pop);
 }
 
 .card-header {
@@ -142,61 +133,80 @@ defineExpose({ scrollEl });
   justify-content: space-between;
 }
 
-.process-card .cid {
+.card-header .cid {
   width: 100%;
   overflow: hidden;
   font-size: var(--rt-font-l);
   font-weight: bold;
+  color: var(--rt-color-text);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.display-name {
+.cid .display-name {
   margin-left: 4px;
   font-size: var(--rt-font-s);
   font-weight: normal;
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
 }
 
-.meta-block {
+.card-meta {
   display: flex;
   flex-direction: column;
   gap: 1px;
   margin-top: 2px;
 }
 
-.process-card .details {
+.card-meta .details {
   font-size: var(--rt-font-xs);
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
 }
 
-.process-card .depends {
+.card-meta .depends {
   font-size: var(--rt-font-xs);
   font-weight: bold;
-  color: var(--accent-color);
+  color: var(--rt-color-accent);
 }
 
-.process-card .depends.no-deps {
+.card-meta .depends.no-deps {
   font-weight: normal;
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
+}
+
+.process-card.has-error {
+  background-color: var(--rt-color-error-container);
+  border-color: var(--rt-color-error);
+  color: var(--rt-color-on-error-container);
+}
+
+.process-card.has-error:hover {
+  box-shadow: var(--rt-bshadow-pop-error);
+}
+
+.process-card.has-error .cid,
+.process-card.has-error .display-name,
+.process-card.has-error .details,
+.process-card.has-error .depends,
+.process-card.has-error .depends.no-deps {
+  color: var(--rt-color-on-error-container);
 }
 
 .add-btn {
   width: 100%;
   height: 40px;
-  border: 2px dashed var(--border-color);
+  border: 2px dashed var(--rt-color-border);
   border-radius: var(--rt-radius-m);
   background: transparent;
   font-size: var(--rt-font-s);
   font-weight: bold;
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
   cursor: pointer;
   transition: border-color 0.2s, color 0.2s, background-color 0.2s;
 }
 
 .add-btn:hover {
-  border-color: var(--primary-color);
-  background-color: rgba(57, 108, 216, 0.05);
-  color: var(--primary-color);
+  border-color: var(--rt-color-primary);
+  background-color: var(--rt-color-surface-header);
+  color: var(--rt-color-primary);
 }
 </style>

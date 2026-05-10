@@ -49,68 +49,68 @@ const isExpanded = ref(false);
 .zoom-control-container {
   display: flex;
   align-items: center;
-  background-color: var(--pane-bg);
+  height: 42px;
+  padding: 4px;
+  background-color: var(--rt-color-surface);
   border: var(--rt-border-main);
   border-radius: var(--rt-radius-m);
-  padding: 4px;
-  box-shadow: var(--rt-shadow-pop);
-  user-select: none;
+  box-shadow: var(--rt-bshadow-pop);
   overflow: hidden;
+  user-select: none;
   /* Fixed height to prevent vertical jitter during expansion */
-  height: 42px;
   transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
 .zoom-btn-icon {
+  flex-shrink: 0;
   width: 32px;
   height: 32px;
   padding: 0;
-  flex-shrink: 0;
 }
 
 .zoom-info {
   display: flex;
   align-items: center;
   justify-content: center;
+  min-width: 50px;
   padding: 0 4px;
   /* Maintain a stable minimum width to prevent UI jitter when text changes */
-  min-width: 50px;
   overflow: hidden;
 }
 
 .zoom-text {
-  font-size: var(--rt-font-s);
-  font-weight: 800;
-  color: var(--text-main);
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
   padding: 4px 8px;
   border-radius: var(--rt-radius-s);
+  font-size: var(--rt-font-s);
+  font-weight: 800;
+  color: var(--rt-color-text);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
   transition: background-color 0.2s, color 0.2s;
 }
 
 .zoom-text:hover {
-  background-color: var(--bg-color);
-  color: var(--primary-color);
+  background-color: var(--rt-color-bg);
+  color: var(--rt-color-primary);
 }
 
 /* Slider transition logic */
 .slider-wrapper {
-  width: 0;
-  opacity: 0;
   display: flex;
   align-items: center;
+  width: 0;
   margin-left: 0;
-  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+  opacity: 0;
   /* Disable mouse events when collapsed to stabilize hover */
   pointer-events: none;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
 }
 
 .zoom-control-container.expanded .slider-wrapper {
   width: 120px;
-  opacity: 1;
   margin-left: var(--rt-spacing-s);
   margin-right: var(--rt-spacing-s);
+  opacity: 1;
   /* Enable mouse events when expanded */
   pointer-events: auto;
 }
@@ -118,13 +118,13 @@ const isExpanded = ref(false);
 .zoom-slider {
   width: 100%;
   cursor: pointer;
-  accent-color: var(--primary-color);
+  accent-color: var(--rt-color-primary);
 }
 
 /* Webkit slider styling for better look */
 .zoom-slider::-webkit-slider-runnable-track {
   height: 4px;
-  background: var(--border-color);
+  background: var(--rt-color-border);
   border-radius: 2px;
 }
 
@@ -132,7 +132,7 @@ const isExpanded = ref(false);
   appearance: none;
   width: 12px;
   height: 12px;
-  background: var(--primary-color);
+  background: var(--rt-color-primary);
   border-radius: 50%;
   margin-top: -4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);

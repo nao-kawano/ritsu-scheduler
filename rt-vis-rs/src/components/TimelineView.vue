@@ -80,17 +80,17 @@ defineExpose({
   min-width: 0;
   min-height: 0;
   height: 100%;
+  background-color: var(--rt-color-surface);
   overflow: hidden;
-  background-color: var(--pane-bg);
 }
 
 /* --- Header Section --- */
 .timeline-header {
   flex-shrink: 0;
   height: var(--header-row-height);
-  overflow: hidden;
+  background: var(--rt-color-surface-header);
   border-bottom: var(--rt-border-main);
-  background: var(--rt-bg-header);
+  overflow: hidden;
 }
 
 .time-axis {
@@ -111,12 +111,12 @@ defineExpose({
 
 .cycle-label {
   font-weight: bold;
-  color: var(--text-main);
+  color: var(--rt-color-text);
 }
 
 .time-label {
   font-size: var(--rt-font-xs);
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
   opacity: 0.8;
 }
 
@@ -158,7 +158,7 @@ defineExpose({
 
 .plan-preview {
   font-size: var(--rt-font-xs);
-  color: var(--text-dim);
+  color: var(--rt-color-text-dim);
   opacity: 0.4;
 }
 </style>
