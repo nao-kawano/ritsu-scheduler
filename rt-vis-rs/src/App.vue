@@ -359,10 +359,21 @@ html {
   pointer-events: auto;
 }
 
+/* Interaction states for interactive scheduling */
+.rt-exec-bar.is-editable {
+  cursor: grab;
+}
+
+.rt-exec-bar.is-readonly {
+  opacity: 0.8;
+  cursor: default;
+  pointer-events: none;
+}
+
 .rt-exec-bar-rect {
+  fill: var(--rt-color-primary);
   stroke: var(--rt-color-border);
   stroke-width: 1;
-  fill: var(--rt-color-primary);
   transition: filter 0.2s ease-out;
 }
 
@@ -371,6 +382,17 @@ html {
   font-size: var(--rt-font-xs);
   pointer-events: none;
   user-select: none;
+}
+
+/* Drag handles for duration adjustment */
+.rt-exec-handle-duration {
+  fill: transparent;
+  cursor: ew-resize;
+  pointer-events: all;
+}
+
+.rt-exec-bar.is-editable:hover .rt-exec-handle-duration {
+  fill: rgba(255, 255, 255, 0.2);
 }
 
 /* Status: Overrun */

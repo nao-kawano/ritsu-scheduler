@@ -6,8 +6,8 @@ import { useCreateModeLayout } from '../composables/useCreateModeLayout';
 import type { PlannedExecution } from '../types/simulation';
 
 // --- State and Composables ---
-const { config, planned_executions, config_errors, openEdit } = useAppState();
-const { cycleTimeMs, getPos } = useTimeScale();
+const { config, planned_executions, config_errors } = useAppState();
+const { cycleTimeMs, getPos, getMs } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
 // -----------------------------------------------------------------------------
@@ -67,6 +67,22 @@ const activeExecutions = computed(() => {
 });
 
 /**
+ * Identify the first execution instance for each process (CID).
+ * These instances are the primary targets for interactive editing (D&D).
+ */
+const firstInstances = computed(() => {
+  const seen = new Set<number>();
+  const firsts = new Set<number>();
+  for (const exec of activeExecutions.value) {
+    if (!seen.has(exec.cid)) {
+      seen.add(exec.cid);
+      firsts.add(exec.instance_id);
+    }
+  }
+  return firsts;
+});
+
+/**
  * Identify CIDs that have any execution with a warning status (Overrun or Skip).
  * Used to highlight the entire row for better visibility.
  */
@@ -108,6 +124,122 @@ const highlightedIds = computed(() => {
   }
 
   return ids;
+});
+
+// --- Drag & Drop Editing ---
+
+type DragMode = 'offset' | 'duration';
+
+const dragState = ref<{
+  mode: DragMode;
+  startX: number;
+  initialValue: number;
+  clientWrap: any;
+} | null>(null);
+
+/**
+ * Initialize drag operation for either Offset or Duration change.
+ */
+const startDrag = (event: MouseEvent, exec: PlannedExecution, mode: DragMode) => {
+  const clientWrap = config.client_configs.find(c => c.data.client_id === exec.cid);
+  if (!clientWrap) return;
+
+  // Prevent text selection or other default browser behaviors during drag.
+  event.preventDefault();
+
+  dragState.value = {
+    mode,
+    startX: event.clientX,
+    initialValue: mode === 'offset' ? clientWrap.data.cycle_offset : (clientWrap.data.expected_duration_ms ?? 0),
+    clientWrap
+  };
+
+  window.addEventListener('mousemove', onDrag);
+  window.addEventListener('mouseup', endDrag);
+};
+
+/**
+ * Handle mouse movement during drag.
+ * Updates the configuration in real-time with snapping and boundary guards.
+ */
+const onDrag = (event: MouseEvent) => {
+  if (!dragState.value) return;
+
+  const { mode, startX, initialValue, clientWrap } = dragState.value;
+  const deltaX = event.clientX - startX;
+  const deltaMs = getMs(deltaX);
+
+  if (mode === 'duration') {
+    // Snap to the visual Minor Grid (synced with zoom/layout)
+    const minorGridMs = getMs(gridInfo.value.minorPx);
+    let newDuration = initialValue + deltaMs;
+    newDuration = Math.round(newDuration / minorGridMs) * minorGridMs;
+
+    // Boundary Guards: [MinorGrid, TotalCycleDuration]
+    const minDuration = minorGridMs;
+    const maxDuration = clientWrap.data.cycle * cycleTimeMs.value;
+    newDuration = Math.max(minDuration, Math.min(maxDuration, newDuration));
+
+    // Update SSOT only if the value actually changed to minimize reactivity churn.
+    if (clientWrap.data.expected_duration_ms !== newDuration) {
+      clientWrap.data.expected_duration_ms = newDuration;
+    }
+  } else if (mode === 'offset') {
+    // Snap to the visual Major Grid (synced with zoom/layout)
+    const majorGridMs = getMs(gridInfo.value.majorPx);
+    const deltaCycles = Math.round(deltaMs / majorGridMs);
+    let newOffset = initialValue + deltaCycles;
+
+    // Boundary Guards: [0, cycle - 1]
+    newOffset = Math.max(0, Math.min(clientWrap.data.cycle - 1, newOffset));
+
+    // Update SSOT only if the value actually changed.
+    if (clientWrap.data.cycle_offset !== newOffset) {
+      clientWrap.data.cycle_offset = newOffset;
+    }
+  }
+};
+
+/**
+ * Clean up drag state and event listeners.
+ */
+const endDrag = () => {
+  dragState.value = null;
+  window.removeEventListener('mousemove', onDrag);
+  window.removeEventListener('mouseup', endDrag);
+};
+
+// --- Guide Region ---
+
+/**
+ * Calculate the boundaries of the allowed area (Guide Region) during a drag operation.
+ * Provides visual feedback to the user on how far they can move/resize a bar.
+ */
+const guideRegion = computed(() => {
+  if (!dragState.value) return null;
+
+  const { mode, clientWrap } = dragState.value;
+  const cycleMs = cycleTimeMs.value;
+  const processCycle = clientWrap.data.cycle;
+
+  let startMs = 0;
+  let durationMs = 0;
+
+  if (mode === 'duration') {
+    // For Duration: Shows the valid duration range within the current scheduled cycle.
+    startMs = clientWrap.data.cycle_offset * cycleMs;
+    durationMs = processCycle * cycleMs;
+  } else if (mode === 'offset') {
+    // For Offset: Shows all valid offset slots.
+    startMs = 0;
+    durationMs = processCycle * cycleMs;
+  }
+
+  return {
+    cid: clientWrap.data.client_id,
+    startMs,
+    durationMs,
+  };
 });
 
 // --- Coordinate Transformations ---
@@ -169,18 +301,6 @@ const dependencyArrows = computed(() => {
   return arrows;
 });
 
-// --- Edit Process ---
-
-/**
- * Handle clicking on an execution bar to open its process configuration.
- */
-const handleExecClick = (exec: PlannedExecution) => {
-  const clientWrap = config.client_configs.find(c => c.data.client_id === exec.cid);
-  if (clientWrap) {
-    openEdit(clientWrap);
-  }
-};
-
 // -----------------------------------------------------------------------------
 // Expose
 
@@ -221,7 +341,15 @@ defineExpose({
             <marker id="arrowhead" markerWidth="6" markerHeight="6" refX="5" refY="3" orient="auto">
               <polygon points="0 0, 6 3, 0 6" fill="var(--rt-color-accent)" />
             </marker>
+            <!-- Diagonal hatching pattern for non-editable instances -->
+            <pattern id="hatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+              <line x1="0" y1="0" x2="0" y2="8" stroke="rgba(255,255,255,0.2)" stroke-width="2" />
+            </pattern>
           </defs>
+
+          <!-- Guide Region (Visible only during drag) -->
+          <rect v-if="guideRegion" :x="getPos(guideRegion.startMs)" :y="getBarY(guideRegion.cid) - 8"
+            :width="getPos(guideRegion.durationMs)" :height="RECT_HEIGHT + 16" class="rt-guide-region" />
 
           <!-- Dependency Arrows -->
           <path v-for="arrow in dependencyArrows" :key="arrow.id" :d="arrow.path" class="rt-exec-arrow" :class="{
@@ -235,10 +363,24 @@ defineExpose({
               'rt-exec-highlight': highlightedIds.has(exec.instance_id),
               'rt-exec-dimmed': hoveredInstanceId !== null && !highlightedIds.has(exec.instance_id),
               'rt-exec-overrun': exec.status === 'overrun',
-              'rt-exec-skip': exec.status === 'skip'
+              'rt-exec-skip': exec.status === 'skip',
+              'is-editable': firstInstances.has(exec.instance_id),
+              'is-readonly': !firstInstances.has(exec.instance_id)
             }" @mouseenter="hoveredInstanceId = exec.instance_id" @mouseleave="hoveredInstanceId = null"
-            @click="handleExecClick(exec)">
+            @mousedown="firstInstances.has(exec.instance_id) && startDrag($event, exec, 'offset')">
+
+            <!-- Main Bar Body -->
             <rect :width="getPos(exec.duration_ms)" :height="RECT_HEIGHT" rx="6" class="rt-exec-bar-rect" />
+
+            <!-- Hatching overlay for read-only instances -->
+            <rect v-if="!firstInstances.has(exec.instance_id)" :width="getPos(exec.duration_ms)" :height="RECT_HEIGHT"
+              rx="6" fill="url(#hatch)" pointer-events="none" />
+
+            <!-- Duration Handle (Visible only for editable instances) -->
+            <rect v-if="firstInstances.has(exec.instance_id)" :x="getPos(exec.duration_ms) - 10" y="0" width="12"
+              :height="RECT_HEIGHT" class="rt-exec-handle-duration"
+              @mousedown.stop="startDrag($event, exec, 'duration')" />
+
             <text x="8" :y="RECT_HEIGHT / 2 + 4" font-weight="bold" class="rt-exec-bar-label">
               {{ exec.status === 'overrun' ? 'Overrun' : '' }}
               {{ exec.status === 'skip' ? 'Skip' : '' }}
@@ -369,5 +511,14 @@ defineExpose({
 
 .error-text-msg.is-summary {
   font-weight: bold;
+}
+
+/* --- Drag Guide Region --- */
+.rt-guide-region {
+  fill: color-mix(in srgb, var(--rt-color-accent) 20%, transparent);
+  stroke: var(--rt-color-accent);
+  stroke-width: 0.6;
+  stroke-dasharray: 4 4;
+  pointer-events: none;
 }
 </style>
