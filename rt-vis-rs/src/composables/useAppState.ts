@@ -253,6 +253,22 @@ const deleteClient = (configId: number) => {
 };
 
 /**
+ * Move a client config element from one index to another to reorder.
+ */
+const moveClientConfig = (fromIndex: number, toIndex: number) => {
+  if (fromIndex === toIndex || toIndex === fromIndex + 1) {
+    return;
+  }
+
+  const target = config.client_configs[fromIndex];
+  if (!target) return;
+
+  config.client_configs.splice(fromIndex, 1);
+  const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+  config.client_configs.splice(insertIndex, 0, target);
+};
+
+/**
  * Hook to access global application state.
  */
 export function useAppState() {
@@ -271,6 +287,7 @@ export function useAppState() {
     closeEdit,
     addClient,
     updateClient,
-    deleteClient
+    deleteClient,
+    moveClientConfig
   };
 }
