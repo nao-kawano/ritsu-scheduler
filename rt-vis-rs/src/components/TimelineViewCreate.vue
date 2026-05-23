@@ -154,6 +154,8 @@ const startDrag = (event: MouseEvent, exec: PlannedExecution, mode: DragMode) =>
     clientWrap
   };
 
+  document.body.classList.add(mode === 'offset' ? 'is-dragging-move' : 'is-dragging-resize');
+
   window.addEventListener('mousemove', onDrag);
   window.addEventListener('mouseup', endDrag);
 };
@@ -204,6 +206,9 @@ const onDrag = (event: MouseEvent) => {
  * Clean up drag state and event listeners.
  */
 const endDrag = () => {
+  if (dragState.value) {
+    document.body.classList.remove('is-dragging-move', 'is-dragging-resize');
+  }
   dragState.value = null;
   window.removeEventListener('mousemove', onDrag);
   window.removeEventListener('mouseup', endDrag);

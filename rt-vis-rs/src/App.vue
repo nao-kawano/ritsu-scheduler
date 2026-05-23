@@ -353,9 +353,24 @@ html {
   color: var(--rt-color-text-dim);
 }
 
+/* App-wide Dragging Styles */
+body.is-dragging-move {
+  cursor: grabbing !important;
+}
+
+body.is-dragging-resize {
+  cursor: ew-resize !important;
+}
+
+/* Prevent cursor jitter and hover effects on other elements during drag */
+body.is-dragging-move *,
+body.is-dragging-resize * {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
 /* --- Execution Elements (Timeline) --- */
 .rt-exec-bar {
-  cursor: pointer;
   pointer-events: auto;
 }
 

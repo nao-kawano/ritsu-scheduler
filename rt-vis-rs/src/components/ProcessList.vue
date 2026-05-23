@@ -39,6 +39,8 @@ const startDrag = (event: MouseEvent, index: number) => {
   targetIndex.value = index;
   lastMouseY = event.clientY;
 
+  document.body.classList.add('is-dragging-move');
+
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('mouseup', onMouseUp);
 
@@ -143,6 +145,10 @@ const stopScrollLoop = () => {
  * Handle mouseup event to complete or cancel dragging.
  */
 const onMouseUp = () => {
+  if (draggingIndex.value !== null) {
+    document.body.classList.remove('is-dragging-move');
+  }
+
   if (draggingIndex.value !== null && targetIndex.value !== null) {
     moveClientConfig(draggingIndex.value, targetIndex.value);
   }
