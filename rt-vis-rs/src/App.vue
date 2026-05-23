@@ -69,7 +69,7 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
       <GlobalError :message="currentErrorMessage" class="floating-error" />
 
       <!-- Left Pane -->
-      <ProcessList ref="processListRef" @scroll="onProcessListScroll" />
+      <ProcessList :key="mode" ref="processListRef" @scroll="onProcessListScroll" />
 
       <!-- Right Pane -->
       <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewGeneric" ref="timelineViewRef"
