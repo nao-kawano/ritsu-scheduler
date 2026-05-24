@@ -54,16 +54,17 @@ graph TD
     end
 
     %% Visualization Project
-    subgraph "ritsu-vis (visualizer)"
+    subgraph "rt-vis-rs (Visualizer)"
         VIS[Visualizer]
     end
 
     %% Inter-project dependencies
     Main --> SC
-    EM --> SCH
     EM -.-> Msg
+    EM --> SCH
     CTr -.-> Msg
     RCL -.-> Msg
+    VIS --> SCH
     VIS --> SC
     %% for layout
     SCH ~~~ Msg

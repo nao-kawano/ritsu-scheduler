@@ -26,7 +26,7 @@ Per client configuration below:
 ### Client ID
 
 - Specifies a unique ID for this process.
-  - Each client has a unique ID (string of 3-digit decimal with leading zero).
+  - Each client has a unique ID represented as an integer (`u16`, from `0` to `999`).
   - This ID is used to identify the client in the scheduler.
 
 ### Display Name
@@ -62,18 +62,18 @@ Per client configuration below:
   - If the dependent process has a different cycle offset,
     this process starts when the specified cycle and cycle offset are reached,
     and only if the dependent process has already completed.
-- For example: `ID=0`, `Cycle=2`, `CycleOffset=0`, `Depends=""` and
-  - `Cycle=2`, `CycleOffset=0`, `Depends="000"`
-    - Run every cycle, starting immediately after process "000" completes.
-    - This is because the cycle and cycle offset are the same as process "000".
-  - `Cycle=2`, `CycleOffset=1`, `Depends="000"`
-    - Run every other cycle, with an offset of 1 cycle, but only if process "000" has already completed.
-    - This process will wait until Cycle 2, CycleOffset 1, to check if process "000" is complete before starting.
-- Processes are identified by a ClientID.
-- Multiple dependencies can be specified; this means all dependent processes must complete.
-  - `""`: No dependencies. Run only based on `Cycle` and `Cycle Offset`.
-  - `"001"`: Run after process "001" completes.
-  - `"001,002"`: Run after both processes "001" and "002" complete.
+- For example: `client_id=10`, `cycle=2`, `cycle_offset=0`, `depends=[]` and
+  - `cycle=2`, `cycle_offset=0`, `depends=[10]`
+    - Run every 2nd cycle, starting immediately after process `10` completes.
+    - This is because the cycle and cycle offset are the same as process `10`.
+  - `cycle=2`, `cycle_offset=1`, `depends=[10]`
+    - Run every 2nd cycle, with an offset of 1 cycle, but only if process `10` has already completed.
+    - This process will wait until cycle_offset 1 to check if process `10` is complete before starting.
+- Processes are identified by their `client_id`.
+- Multiple dependencies can be specified in an array; this means all dependent processes must complete.
+  - `[]`: No dependencies. Run only based on `cycle` and `cycle_offset`.
+  - `[10]`: Run after process `10` completes.
+  - `[10, 11]`: Run after both processes `10` and `11` complete.
 
 ### Expected Duration MS
 
