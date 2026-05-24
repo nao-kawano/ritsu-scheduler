@@ -187,6 +187,15 @@ html {
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: var(--rt-font-m);
   color: var(--rt-color-text);
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+input,
+textarea {
+  user-select: text;
+  -webkit-user-select: text;
 }
 
 /* =========================================
@@ -206,7 +215,6 @@ html {
   font-size: var(--rt-font-m);
   font-weight: bold;
   cursor: pointer;
-  user-select: none;
   transition: background-color 0.2s, border-color 0.2s, color 0.2s, box-shadow 0.2s, filter 0.2s;
 }
 
@@ -401,7 +409,6 @@ body.is-dragging-resize * {
   fill: var(--rt-color-on-primary);
   font-size: var(--rt-font-xs);
   pointer-events: none;
-  user-select: none;
 }
 
 /* Drag handles for duration adjustment */

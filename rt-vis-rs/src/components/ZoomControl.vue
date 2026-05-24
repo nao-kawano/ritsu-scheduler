@@ -56,7 +56,6 @@ const isExpanded = ref(false);
   border-radius: var(--rt-radius-m);
   box-shadow: var(--rt-bshadow-pop);
   overflow: hidden;
-  user-select: none;
   /* Fixed height to prevent vertical jitter during expansion */
   transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
