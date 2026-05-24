@@ -292,18 +292,18 @@ fn test_simulate_plan_default_duration() {
     assert_eq!(result.executions[0].duration_ms, MIN_DURATION_MS);
 
     // 0ms: P1 starts (1).
-    // 5ms: P1 ends (0).
+    // 1ms: P1 ends (0).
     // 100ms: P1 starts (1).
-    // 105ms: P1 ends (0).
+    // 101ms: P1 ends (0).
     // 200ms: End of simulation (0).
     assert_eq!(result.metrics.len(), 5);
     assert_eq!(result.metrics[0].time_ms, 0);
     assert_eq!(result.metrics[0].running_count, 1);
-    assert_eq!(result.metrics[1].time_ms, 5);
+    assert_eq!(result.metrics[1].time_ms, 1);
     assert_eq!(result.metrics[1].running_count, 0);
     assert_eq!(result.metrics[2].time_ms, 100);
     assert_eq!(result.metrics[2].running_count, 1);
-    assert_eq!(result.metrics[3].time_ms, 105);
+    assert_eq!(result.metrics[3].time_ms, 101);
     assert_eq!(result.metrics[3].running_count, 0);
     assert_eq!(result.metrics[4].time_ms, 200);
     assert_eq!(result.metrics[4].running_count, 0);

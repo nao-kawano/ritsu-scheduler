@@ -183,6 +183,7 @@ const onDrag = (event: MouseEvent) => {
     newDuration = Math.max(minDuration, Math.min(maxDuration, newDuration));
 
     // Update SSOT only if the value actually changed to minimize reactivity churn.
+    newDuration = Math.max(1, Math.round(newDuration));
     if (clientWrap.data.expected_duration_ms !== newDuration) {
       clientWrap.data.expected_duration_ms = newDuration;
     }
