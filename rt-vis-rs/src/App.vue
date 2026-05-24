@@ -296,6 +296,11 @@ html {
   color: var(--rt-color-primary);
 }
 
+.rt-toggle-item:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
 /* --- Form Inputs --- */
 .rt-input {
   height: 34px;

@@ -74,6 +74,7 @@ const resetNewConfirm = () => {
       <div class="rt-toggle-container">
         <button :class="{ active: mode === 'Create' }" class="rt-toggle-item" @click="mode = 'Create'">Create</button>
         <button :class="{ active: mode === 'Analyze' }" class="rt-toggle-item"
+          :disabled="true" title="Under Development"
           @click="mode = 'Analyze'">Analyze</button>
       </div>
     </div>
