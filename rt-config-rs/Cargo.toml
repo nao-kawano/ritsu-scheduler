@@ -1,0 +1,8 @@
+[package]
+name = "rt-config"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+rt-message.workspace = true
+serde.workspace = true

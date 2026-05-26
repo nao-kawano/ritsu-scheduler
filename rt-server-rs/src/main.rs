@@ -5,17 +5,16 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use rt_config::SchedulerConfig;
 #[cfg(feature = "perf-log")]
 use rt_message::MessageType;
 
 mod clients;
-mod config;
 mod cycle;
 mod event;
 mod manager;
 
 use clients::{ClientConnector, udp::UdpTransport};
-use config::{ClientConfig, SchedulerConfig, ServerConfig};
 use cycle::{CycleGenerator, interval::IntervalTrigger};
 use event::Event;
 use manager::{EventManager, ManagerState};
@@ -28,28 +27,6 @@ use std::time;
 
 /* -------------------------------------------------------------------------- */
 
-#[allow(dead_code)]
-fn load_sample_config() -> SchedulerConfig {
-    let server_config = ServerConfig {
-        port: 7878,
-        cycle_time_ms: 50,
-        stats_interval_cycle: 0,
-    };
-    #[rustfmt::skip]
-    let client_configs = vec![
-        ClientConfig::new(0, 2, 0, vec![]).unwrap(),
-        ClientConfig::new(1, 2, 0, vec![]).unwrap(),
-        ClientConfig::new(10, 2, 0, vec![0]).unwrap(),
-        ClientConfig::new(11, 2, 0, vec![0, 1]).unwrap(),
-        ClientConfig::new(20, 2, 1, vec![10, 11]).unwrap(),
-        ClientConfig::new(2, 2, 1, vec![]).unwrap(),
-    ];
-    SchedulerConfig {
-        server_config,
-        client_configs,
-    }
-}
-
 fn load_config(path: &str) -> SchedulerConfig {
     let r = fs::read_to_string(path);
     let Ok(content) = r else {
@@ -60,6 +37,11 @@ fn load_config(path: &str) -> SchedulerConfig {
     let Ok(config) = r else {
         panic!("failed to parse config file {}, {}", path, r.unwrap_err());
     };
+
+    // Output raw configuration with <CONFIG> prefix for each line after successful parse.
+    for line in content.lines() {
+        info!("<CONFIG> {}", line);
+    }
 
     return config;
 }
@@ -179,12 +161,26 @@ fn main() {
     // load configuration from file.
     let config = load_config("./config.toml");
 
+    // validate configuration.
+    if let Err(errors) = config.validate() {
+        for (cid, errs) in errors {
+            for err in errs {
+                error!("[ClientConfig CID:{:03}] {}", cid, err);
+            }
+        }
+        panic!("Configuration validation failed. Please check your config.toml");
+    }
+
+    // derive execution rules.
+    let rules = config.get_client_rules();
+
     // setup channel between modules.
     let (tx, rx): (mpsc::Sender<Event>, mpsc::Receiver<Event>) = mpsc::channel();
 
     // setup manager.
     let mut event_manager = EventManager::new(
         config.client_configs,
+        rules,
         config.server_config.stats_interval_cycle,
     );
 

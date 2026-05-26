@@ -1,22 +1,33 @@
 #[cfg(test)]
 use super::*;
+
 use crate::ManagerState;
-use crate::config::*;
 use crate::manager::context::ClientState;
 
+use rt_config::{ClientConfig, SchedulerConfig, ServerConfig};
+use rt_message::{Message, MessageType};
 use std::collections::HashMap;
 
 fn create_context_scenarios() -> ManagerContext {
-    let mut ctx = ManagerContext::new(
-        vec![
-            // CID, Cycle, Offset, Depends
-            ClientConfig::new(0, 2, 0, vec![]).unwrap(),
-            ClientConfig::new(1, 2, 0, vec![0]).unwrap(), // Floating (depends on 0, same offset)
-            ClientConfig::new(2, 2, 1, vec![1]).unwrap(), // Non-Floating (depends on 1, different offset)
-            ClientConfig::new(3, 2, 1, vec![]).unwrap(),  // Root (offset 1)
-        ],
-        0,
-    );
+    let client_configs = vec![
+        ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
+        ClientConfig::new(1, 2, 0, vec![0], 0).unwrap(), // Floating (depends on 0, same offset)
+        ClientConfig::new(2, 2, 1, vec![1], 0).unwrap(), // Non-Floating (depends on 1, different offset)
+        ClientConfig::new(3, 2, 1, vec![], 0).unwrap(),  // Root (offset 1)
+    ];
+    let server_config = ServerConfig {
+        port: 8080,
+        cycle_time_ms: 50,
+        stats_interval_cycle: 0,
+    };
+    let scheduler_config = SchedulerConfig {
+        server_config,
+        client_configs,
+    };
+    let rules = scheduler_config.get_client_rules();
+
+    let mut ctx = ManagerContext::new(scheduler_config.client_configs, rules, 0);
+
     ctx.state = ManagerState::Running;
     ctx.num_active_clients = ctx.clients.len();
     for client in ctx.clients.values_mut() {

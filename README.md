@@ -10,7 +10,7 @@ Schedules user processes considering periodic cycles and process dependencies.
 - **Multi-language support**: Simple messaging protocol supporting multiple programming languages.
   - Modular transport support (UDP-based by default).
   - This repository includes sample clients for **Rust** and **Python**.
-- **Simulation and Visualization**: Advanced tools for system planning (planned for future release).
+- **Simulation and Visualization**: Advanced tools for system planning and scheduling analysis.
 
 ## Process Scheduling
 
@@ -50,11 +50,13 @@ sequenceDiagram
 
 ## Repository Structure
 
+- **[rt-config-rs](./rt-config-rs)**: Common configuration structures and validation logic shared between the scheduler and visualization tools.
 - **[rt-core-rs](./rt-core-rs)**: The core scheduling logic. Manages process states and dependency resolutions.
 - **[rt-server-rs](./rt-server-rs)**: The Ritsu scheduler server. Responsible for client management, timing control, and coordinating execution with the core scheduler.
 - **[rt-message-rs](./rt-message-rs)**: Common message types and serialization protocol used for server-client communication.
 - **[rt-client-rs](./rt-client-rs)**: High-level client library for Rust-based processes.
 - **[rt-client-py](./rt-client-py)**: Client implementation for Python-based processes.
+- **[rt-vis-rs](./rt-vis-rs)**: Tauri-based visualizer application for process scheduling simulation and configuration editing.
 
 ## Documentation
 

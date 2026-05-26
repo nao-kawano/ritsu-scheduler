@@ -5,10 +5,10 @@
 #[allow(unused_imports)]
 use log::{debug, error, info, trace, warn};
 
+use rt_config::{ClientConfig, ClientRule};
 use rt_core::{ProcessEntry, Scheduler};
 
 use super::ManagerState;
-use crate::config::ClientConfig;
 
 use std::collections::HashMap;
 use std::time;
@@ -124,60 +124,45 @@ pub struct ManagerContext {
 impl ManagerContext {
     pub const CYCLE_MAX: u32 = 9999; // must be odd value for wrap-around.
 
-    pub fn new(configs: Vec<ClientConfig>, stats_interval_cycle: u32) -> Self {
-        // at least one client must be provided.
+    pub fn new(
+        configs: Vec<ClientConfig>,
+        rules: HashMap<u16, ClientRule>,
+        stats_interval_cycle: u32,
+    ) -> Self {
+        // At least one client must be provided.
         if configs.len() < 1 {
-            panic!("client config is empty");
+            panic!("Client config is empty");
         }
         // create clients for connection management.
         let clients: HashMap<u16, ClientInfo> = configs
             .into_iter()
             .map(|config| (config.client_id, ClientInfo::new(config)))
             .collect();
-        // create process entry for execution management.
+        // Create process entries for execution management.
         let mut graph_start: Vec<u16> = Vec::with_capacity(clients.len());
         let mut entries: HashMap<u16, ProcessEntry> = HashMap::with_capacity(clients.len());
         for client in clients.values() {
-            let mut floating: bool = false;
-            // verify dependency.
-            for depend in &client.config.depends {
-                if let Some(depend_client) = clients.get(depend) {
-                    // All specified processes must have the same Cycle.
-                    if depend_client.config.cycle != client.config.cycle {
-                        panic!(
-                            "ClientConfig {:03} dependent process {:03} has different cycle",
-                            client.config.client_id, depend
-                        );
-                    }
-                    // All specified processes must have same or smaller CycleOffset.
-                    if depend_client.config.cycle_offset > client.config.cycle_offset {
-                        panic!(
-                            "ClientConfig {:03} dependent process {:03} has larger cycle_offset",
-                            client.config.client_id, depend
-                        );
-                    }
-                    // If the dependent process has the same cycle and cycle offset,
-                    // this process starts immediately after the dependent process completes.
-                    if depend_client.config.cycle_offset == client.config.cycle_offset {
-                        floating = true;
-                    }
-                } else {
-                    panic!(
-                        "ClientConfig {:03} dependent process {:03} does not exist",
-                        client.config.client_id, depend
-                    );
-                }
-            }
-            // insert entry.
+            // Retrieve pre-calculated execution rules for this client.
+            let rule = rules
+                .get(&client.config.client_id)
+                .unwrap_or_else(|| panic!("Rule for CID:{:03} not found", client.config.client_id));
+
+            // Create entry with derived floating status.
             entries.insert(
                 client.config.client_id,
-                ProcessEntry::new(client.config.client_id, &client.config.depends, floating),
+                ProcessEntry::new(
+                    client.config.client_id,
+                    &client.config.depends,
+                    rule.is_floating,
+                ),
             );
-            if !floating {
+
+            // If the process is not floating, it is a starting point of the execution graph.
+            if !rule.is_floating {
                 graph_start.push(client.config.client_id);
             }
         }
-        let graph: Scheduler = Scheduler::new(entries);
+        let sched: Scheduler = Scheduler::new(entries);
         // create context.
         ManagerContext {
             state: ManagerState::Starting,
@@ -186,7 +171,7 @@ impl ManagerContext {
             clients,
             num_active_clients: 0,
             cycle_current: 0,
-            sched: graph,
+            sched,
             graph_start,
             stats: ServerStats {
                 interval_cycle: stats_interval_cycle,

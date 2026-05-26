@@ -1,16 +1,26 @@
 #[cfg(test)]
 use super::*;
-use crate::config::*;
+
+use rt_config::{ClientConfig, SchedulerConfig, ServerConfig};
 
 fn create_context() -> ManagerContext {
-    let mut ctx = ManagerContext::new(
-        vec![
-            ClientConfig::new(0, 1, 0, vec![]).unwrap(),
-            ClientConfig::new(1, 2, 1, vec![]).unwrap(),
-            ClientConfig::new(2, 1, 0, vec![0]).unwrap(),
-        ],
-        0,
-    );
+    let client_configs = vec![
+        ClientConfig::new(0, 1, 0, vec![], 0).unwrap(),
+        ClientConfig::new(1, 2, 1, vec![], 0).unwrap(),
+        ClientConfig::new(2, 1, 0, vec![0], 0).unwrap(),
+    ];
+    let server_config = ServerConfig {
+        port: 8080,
+        cycle_time_ms: 50,
+        stats_interval_cycle: 0,
+    };
+    let scheduler_config = SchedulerConfig {
+        server_config,
+        client_configs,
+    };
+    let rules = scheduler_config.get_client_rules();
+
+    let mut ctx = ManagerContext::new(scheduler_config.client_configs, rules, 0);
     ctx.state = ManagerState::Exiting;
     ctx.exit_reason = Some(vec![("reason".to_string(), "Shutdown".to_string())]);
     ctx.clients.get_mut(&0).unwrap().state = ClientState::Exiting;

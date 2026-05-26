@@ -1,2 +1,37 @@
+# --- General / OS ---
+.DS_Store
+Thumbs.db
+
+# --- Development / Editor ---
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*.bak
+
+# --- Rust ---
 /target/
+**/*.rs.bk
+
+# --- Node.js & Tauri (Vis App) ---
+**/node_modules/
+**/dist/
+**/dist-ssr/
+**/src-tauri/target/
+**/src-tauri/gen/
+.env*.local
+
+# --- Python ---
+**/__pycache__/
+**/*.py[cod]
+**/*$py.class
+**/.venv/
+**/venv/
+**/.pytest_cache/
+
+# --- Project Specific ---
+logs
+*.log
+/_tmp/
 /_plans/

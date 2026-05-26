@@ -1,6 +1,9 @@
 #[cfg(test)]
 use super::*;
 
+use rt_config::{ClientConfig, ClientRule, SchedulerConfig, ServerConfig};
+use std::collections::HashMap;
+
 #[test]
 fn test_client_stats_default() {
     let stats = ClientStats::default();
@@ -20,13 +23,23 @@ fn test_client_stats_default() {
 #[test]
 fn test_manager_context_new() {
     // Given
-    let configs = vec![
-        ClientConfig::new(0, 2, 0, vec![]).unwrap(),
-        ClientConfig::new(1, 2, 0, vec![0]).unwrap(),
+    let server_config = ServerConfig {
+        port: 8080,
+        cycle_time_ms: 50,
+        stats_interval_cycle: 0,
+    };
+    let client_configs = vec![
+        ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
+        ClientConfig::new(1, 2, 0, vec![0], 0).unwrap(),
     ];
+    let scheduler_config = SchedulerConfig {
+        server_config,
+        client_configs,
+    };
+    let rules = scheduler_config.get_client_rules();
 
     // When
-    let context = ManagerContext::new(configs, 0);
+    let context = ManagerContext::new(scheduler_config.client_configs, rules, 0);
 
     // Then
     assert_eq!(context.state, ManagerState::Starting);
@@ -41,8 +54,18 @@ fn test_manager_context_new() {
 #[test]
 fn test_manager_context_set_state() {
     // Given
-    let configs = vec![ClientConfig::new(0, 1, 0, vec![]).unwrap()];
-    let mut context = ManagerContext::new(configs, 0);
+    let server_config = ServerConfig {
+        port: 8080,
+        cycle_time_ms: 50,
+        stats_interval_cycle: 0,
+    };
+    let client_configs = vec![ClientConfig::new(0, 1, 0, vec![], 0).unwrap()];
+    let scheduler_config = SchedulerConfig {
+        server_config,
+        client_configs,
+    };
+    let rules = scheduler_config.get_client_rules();
+    let mut context = ManagerContext::new(scheduler_config.client_configs, rules, 0);
 
     // When
     let result = context.set_state(ManagerState::Running);
@@ -61,21 +84,23 @@ fn test_manager_context_set_state() {
 }
 
 #[test]
-#[should_panic(expected = "client config is empty")]
+#[should_panic(expected = "Client config is empty")]
 fn test_manager_context_new_empty_configs() {
     // Given
     let configs: Vec<ClientConfig> = vec![];
+    let rules: HashMap<u16, ClientRule> = HashMap::new();
 
     // When
-    ManagerContext::new(configs, 0);
+    ManagerContext::new(configs, rules, 0);
 }
 
 #[test]
 #[should_panic]
-fn test_manager_context_new_no_cycle_trigger() {
+fn test_manager_context_new_no_rule() {
     // Given
-    let configs = vec![ClientConfig::new(1, 2, 0, vec![0]).unwrap()];
+    let configs = vec![ClientConfig::new(1, 2, 0, vec![0], 0).unwrap()];
+    let rules: HashMap<u16, ClientRule> = HashMap::new(); // Missing rule for CID 1
 
     // When
-    ManagerContext::new(configs, 0);
+    ManagerContext::new(configs, rules, 0);
 }

@@ -9,8 +9,6 @@ graph TD
     %% Server Project
     subgraph "rt-server-rs (Scheduler)"
         Main[Main]
-        SC[SchedulerConfig]
-
         EM[EventManager]
 
         CG[CycleGenerator]
@@ -21,16 +19,20 @@ graph TD
         CTr["&laquo;interface&raquo;<br/>ClientTransport"]
         UT[UdpTransport]
 
-        Main -.-> SC
-        Main --> EM
         Main --> CC
         Main --> CG
+        Main --> EM
 
         CG --> CT
         CT -.-> IT
 
         CC --> CTr
         CTr -.-> UT
+    end
+
+    %% Config Project
+    subgraph "rt-config-rs (Common)"
+        SC[SchedulerConfig]
     end
 
     %% Core Project
@@ -51,14 +53,22 @@ graph TD
         Msg[Message Struct / Types]
     end
 
+    %% Visualization Project
+    subgraph "rt-vis-rs (Visualizer)"
+        VIS[Visualizer]
+    end
+
     %% Inter-project dependencies
-    EM --> SCH
+    Main --> SC
     EM -.-> Msg
+    EM --> SCH
     CTr -.-> Msg
     RCL -.-> Msg
+    VIS --> SCH
+    VIS --> SC
     %% for layout
-    PCL ~~~ Msg
     SCH ~~~ Msg
+    PCL ~~~ Msg
 
     %% Communication Flow
     UT <-.->|UDP| RCL

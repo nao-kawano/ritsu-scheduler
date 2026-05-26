@@ -1,22 +1,59 @@
-[server_config]
-port = 7878
-cycle_time_ms = 50
-stats_interval_cycle = 40
+# ==============================================================================
+# Ritsu Scheduler Configuration (TOML Format)
+# ==============================================================================
+# This file defines the global server settings and the scheduling rules for
+# each client process. For more details, see docs/configuration.md.
+# ==============================================================================
 
+# [server_config] - Global server settings
+# ------------------------------------------------------------------------------
+# port:                 (u16) UDP port to listen for client connections.
+# cycle_time_ms:        (u32) Duration of one base scheduling cycle in milliseconds.
+# stats_interval_cycle: (u32, optional) Interval in cycles to log performance stats.
+#                       Set to 0 or omit to disable.
+# ------------------------------------------------------------------------------
+[server_config]
+port = 7878               # Standard port for Ritsu communication
+cycle_time_ms = 50        # High-frequency control loop (20Hz)
+stats_interval_cycle = 40 # Performance summary every 2 seconds (40 * 50ms)
+
+
+# [[client_configs]] - Individual process settings
+# ------------------------------------------------------------------------------
+# Repeat this section for each client process you want to manage.
+#
+# client_id:            (u16) Unique ID for the process (0-999).
+# cycle:                (u8)  Execution period. (1 = every cycle, 2 = every 2nd cycle, etc.)
+# cycle_offset:         (u8)  Starting cycle offset. Must be less than 'cycle'.
+# depends:              (list) List of Client IDs that must complete before this runs.
+#                       All dependents must have the SAME 'cycle' value.
+# expected_duration_ms: (u32, optional) Expected execution time for visualization.
+# ------------------------------------------------------------------------------
+
+# Example 1: A base process that runs every 2 cycles starting from cycle 0.
 [[client_configs]]
 client_id = 10
 cycle = 2
 cycle_offset = 0
 depends = []
+expected_duration_ms = 15
 
+# Example 2: A dependent process.
+# Since cycle and offset are the same as CID:10, this starts immediately after
+# CID:10 completes in the same cycle (Chain execution).
 [[client_configs]]
 client_id = 11
 cycle = 2
 cycle_offset = 0
 depends = [10]
+expected_duration_ms = 20
 
+# Example 3: A staggered process.
+# Runs every 2 cycles but starts 1 cycle after Example 1 (Cycle 1, 3, 5...).
+# This is useful for load balancing across cycles.
 [[client_configs]]
 client_id = 20
 cycle = 2
 cycle_offset = 1
 depends = []
+expected_duration_ms = 40

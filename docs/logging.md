@@ -35,6 +35,7 @@ To ensure logs are easily searchable, use the following fixed-width formats for 
 - `<RECV>` : Reception of a message from a client.
 - `<SEND>` : Transmission of a response to a client.
 - `<STAT>` : Transition of an entity's state (Main source for visualization).
+- `<CONFIG>` : Raw configuration data (TOML) for reproducibility in analysis tools.
 
 ## Component Responsibilities
 
