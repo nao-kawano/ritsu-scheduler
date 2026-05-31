@@ -151,4 +151,20 @@ impl ProcessEntry {
             depend_value.1 = false;
         }
     }
+
+    /// Clear only the dependencies that are in the filter list.
+    pub(crate) fn reset_dependency_statuses_in(&mut self, filter_cids: &[u16]) {
+        for depend_value in self.dependency_statuses.iter_mut() {
+            if filter_cids.contains(&depend_value.0) {
+                if depend_value.1 {
+                    trace!(
+                        "CID:{:03} deps reset for CID:{:03}",
+                        self.cid, depend_value.0
+                    );
+                    depend_value.1 = false;
+                    self.unmet_dependencies += 1;
+                }
+            }
+        }
+    }
 }
