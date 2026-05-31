@@ -40,21 +40,28 @@ pub struct Scheduler {
     graph_start: HashSet<u16>,
     graph_forward: HashMap<u16, Vec<u16>>,
     graph_forward_all: HashMap<u16, Vec<u16>>,
+    graph_forward_same_cycle: HashMap<u16, Vec<u16>>,
 }
 
 impl Scheduler {
     pub fn new(entries: HashMap<u16, ProcessEntry>) -> Self {
         let (graph_start, graph_forward) = Scheduler::create_graph(&entries);
         let mut graph_forward_all = HashMap::new();
+        let mut graph_forward_same_cycle = HashMap::new();
         for &cid in entries.keys() {
             let forwards = Scheduler::find_forward_all(cid, true, &entries, &graph_forward);
             graph_forward_all.insert(cid, forwards);
+
+            let forwards_same =
+                Scheduler::find_forward_same_cycle(cid, true, &entries, &graph_forward);
+            graph_forward_same_cycle.insert(cid, forwards_same);
         }
         Scheduler {
             entries,
             graph_start,
             graph_forward,
             graph_forward_all,
+            graph_forward_same_cycle,
         }
     }
 
@@ -81,12 +88,13 @@ impl Scheduler {
             return Err(format!("process CID:{:03} does not exist", cid));
         }
 
-        // check if dependency is met.
-        // if target cid has dependency, check at next root cycle.
-        if let Some(entry) = self.entries.get(&cid) {
-            if !entry.is_dependency_met() {
-                debug!("CID:{:03} dependency unmet, skip start", cid);
-                return Ok(vec![]);
+        // Clear past ghosts dependencies to prevent old complete flags from lingering.
+        if let Some(forwards) = self.graph_forward_all.get(&cid) {
+            let forwards_clone = forwards.clone();
+            for &forward_cid in &forwards_clone {
+                if let Some(entry) = self.entries.get_mut(&forward_cid) {
+                    entry.reset_dependency_statuses_in(&forwards_clone);
+                }
             }
         }
 
@@ -95,7 +103,15 @@ impl Scheduler {
         let mut late_cids: Vec<u16> = Vec::new();
         let mut is_not_ready = false;
 
-        if let Some(forwards) = self.graph_forward_all.get(&cid) {
+        // check if dependency is met. (autonomous skip)
+        if let Some(entry) = self.entries.get(&cid) {
+            if !entry.is_dependency_met() {
+                debug!("CID:{:03} dependency unmet, trigger autonomous skip", cid);
+                is_not_ready = true;
+            }
+        }
+
+        if let Some(forwards) = self.graph_forward_same_cycle.get(&cid) {
             for &forward_cid in forwards {
                 if let Some(entry) = self.entries.get(&forward_cid) {
                     match entry.state {
@@ -138,7 +154,7 @@ impl Scheduler {
                     }
                 }
                 // Dependents of overrun processes become Skip
-                if let Some(skip_forwards) = self.graph_forward_all.get(&running_cid) {
+                if let Some(skip_forwards) = self.graph_forward_same_cycle.get(&running_cid) {
                     for &skip_cid in &skip_forwards[1..] {
                         if let Some(entry) = self.entries.get_mut(&skip_cid) {
                             if entry.state == ProcessState::Ready {
@@ -166,12 +182,13 @@ impl Scheduler {
                 }
             }
             // Mark remaining Ready processes as Skip
-            if let Some(forwards) = self.graph_forward_all.get(&cid) {
+            if let Some(forwards) = self.graph_forward_same_cycle.get(&cid) {
                 for &skip_cid in forwards {
                     if let Some(entry) = self.entries.get_mut(&skip_cid) {
                         if entry.state == ProcessState::Ready {
                             let mut change = ProcessStateChange::new(&entry);
                             if entry.set_state(ProcessState::Skip) {
+                                entry.reset_dependency_statuses(); // Clear dependencies as it's skipped
                                 change.after = ProcessState::Skip;
                                 changes.push(change);
                             }
@@ -414,7 +431,6 @@ impl Scheduler {
         return Scheduler::find_forward(cid, include_self, entries, forward_dependencies, false);
     }
 
-    #[allow(dead_code)]
     fn find_forward_same_cycle(
         cid: u16,
         include_self: bool,

@@ -35,6 +35,8 @@ fn test_new() {
     assert_eq!(sched.graph_forward.get(&10).unwrap().contains(&20), true);
     assert_eq!(sched.graph_forward.get(&11).unwrap().contains(&20), true);
     assert_eq!(sched.graph_forward.get(&20).unwrap().contains(&30), true);
+    assert_eq!(sched.graph_forward_all.len(), 6);
+    assert_eq!(sched.graph_forward_same_cycle.len(), 6);
 }
 
 #[test]
@@ -365,34 +367,37 @@ fn test_scenario_overrun_and_late() {
     assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready);
 
     // == cycle:1
+    // 20 and 30 autonomously skip due to unmet dependencies (10 and 11 are not started).
     let changes = sched.on_start(20).unwrap();
-    assert_eq!(changes.len(), 0);
-
-    // == cycle:2
-    // 0 marked as overrun. All dependent processes that ware Ready will become skip.
-    let changes = sched.on_start(0).unwrap();
-    assert_eq!(changes.len(), 5);
-    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Overrun);
-    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready); // not affected
-    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Skip); // Skip
-    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Skip); // Skip
-    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Skip); // Skip
-    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Skip); // Skip
-
-    let changes = sched.on_start(1).unwrap();
-    assert_eq!(changes.len(), 1);
-    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Overrun);
-    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Skip); // Skip
-    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Skip);
-    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Skip);
+    assert_eq!(changes.len(), 2); // 20 (Skip), 30 (Skip)
     assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Skip);
     assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Skip);
+    let _ = sched.on_ready(20).unwrap();
+    let _ = sched.on_ready(30).unwrap();
+
+    // == cycle:2
+    // 0 marked as overrun. Dependents in the same cycle (10, 11) will become skip.
+    let changes = sched.on_start(0).unwrap();
+    assert_eq!(changes.len(), 3); // 0 (Overrun), 10 (Skip), 11 (Skip)
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Overrun);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Ready); // Not affected yet
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Ready); // Not affected yet
+
+    let changes = sched.on_start(1).unwrap();
+    assert_eq!(changes.len(), 1); // 1 (Skip)
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Overrun);
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Ready);
 
     let _ = sched.on_ready(1).unwrap();
     let _ = sched.on_ready(10).unwrap();
     let _ = sched.on_ready(11).unwrap();
-    let _ = sched.on_ready(20).unwrap();
-    let _ = sched.on_ready(30).unwrap();
     assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Overrun);
     assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready);
     assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Ready);
@@ -404,8 +409,8 @@ fn test_scenario_overrun_and_late() {
     let changes = sched.on_done(0).unwrap();
     assert_eq!(changes.len(), 1);
     assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Late);
-    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready); // keep Ready
-    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Ready); // keep Ready
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Ready);
     assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Ready);
     assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Ready);
     assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Ready);
@@ -419,6 +424,14 @@ fn test_scenario_overrun_and_late() {
     let changes = sched.on_ready(0).unwrap();
     assert_eq!(changes.len(), 1);
     assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Ready);
+
+    // == cycle:3
+    // Call on_start(20) at its execution window.
+    // 20 and 30 autonomously skip due to unmet dependencies (10 and 11 are skipped, not done).
+    let changes = sched.on_start(20).unwrap();
+    assert_eq!(changes.len(), 2); // 20 (Skip), 30 (Skip)
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Skip);
 }
 
 #[test]
@@ -461,23 +474,146 @@ fn test_scenario_idle_and_late() {
     assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Idle);
     assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Running);
     assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Ready);
+    let _ = sched.on_done(20).unwrap();
+    let _ = sched.on_ready(20).unwrap();
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Running);
+    let _ = sched.on_done(30).unwrap();
+    let _ = sched.on_ready(30).unwrap();
 
     // == cycle:2
     let changes = sched.on_start(0).unwrap();
-    assert_eq!(changes.len(), 5);
+    assert_eq!(changes.len(), 3); // 0 (Skip), 10 (Late), 11 (Late)
     assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Skip);
-    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready); // not affected
-    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Late); // mark as Late
-    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Late); // mark as Late
-    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Overrun); // mark as Overrun
-    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Skip);
-
-    let changes = sched.on_start(1).unwrap();
-    assert_eq!(changes.len(), 1);
-    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Skip);
-    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Skip); // Skip
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Ready);
     assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Late);
     assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Late);
-    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Overrun);
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Ready); // Not affected yet
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Ready); // Not affected yet
+    let _ = sched.on_ready(0).unwrap();
+
+    let changes = sched.on_start(1).unwrap();
+    assert_eq!(changes.len(), 1); // 1 (Skip)
+    assert_eq!(sched.entries.get(&0).unwrap().state, ProcessState::Ready); // recovered
+    assert_eq!(sched.entries.get(&1).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Late);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Late);
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Ready);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Ready);
+    let _ = sched.on_ready(1).unwrap();
+
+    // Recover Late processes (Late -> Idle -> Ready)
+    // For 10
+    let changes = sched.on_ready(10).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Idle);
+    let changes = sched.on_ready(10).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Ready);
+    // For 11
+    let changes = sched.on_ready(11).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Idle);
+    let changes = sched.on_ready(11).unwrap();
+    assert_eq!(changes.len(), 1);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Ready);
+
+    // == cycle:3
+    // Call on_start(20) at its execution window.
+    // 20 and 30 autonomously skip due to unmet dependencies (10 and 11 were Late).
+    let changes = sched.on_start(20).unwrap();
+    assert_eq!(changes.len(), 2); // 20 (Skip), 30 (Skip)
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Skip);
     assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Skip);
+    let _ = sched.on_ready(20).unwrap();
+    let _ = sched.on_ready(30).unwrap();
+}
+
+#[test]
+fn test_dependency_past_ghost_clear() {
+    let _ = env_logger::builder().is_test(true).try_init();
+    let mut sched = Scheduler::new(create_entries());
+
+    // Setup all processes to Ready
+    for (_, entry) in sched.entries.iter_mut() {
+        entry.state = ProcessState::Ready;
+    }
+
+    // == cycle:0
+    let _ = sched.on_start(0).unwrap();
+    let _ = sched.on_start(1).unwrap();
+
+    // 0 completes, starting 10. 11 waits because 1 is not done.
+    let _ = sched.on_done(0).unwrap();
+    let _ = sched.on_ready(0).unwrap();
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Running);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Ready);
+
+    // 10 completes.
+    let _ = sched.on_done(10).unwrap();
+    let _ = sched.on_ready(10).unwrap();
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Ready);
+
+    // 1 remains Running (delayed).
+
+    // == cycle:1
+    // 1 is still Running.
+    // 20 should autonomously skip due to unmet dependencies (11 is not done).
+    let changes = sched.on_start(20).unwrap();
+    assert_eq!(changes.len(), 2); // 20 (Skip), 30 (Skip)
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Skip);
+    let _ = sched.on_ready(20).unwrap();
+    let _ = sched.on_ready(30).unwrap();
+
+    // Later in cycle:1, 1 finally finishes.
+    // This starts 11.
+    let _ = sched.on_done(1).unwrap();
+    let _ = sched.on_ready(1).unwrap();
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Running);
+
+    // 11 finishes, setting dependency flag on 20.
+    // 20's dependency on 11 is now satisfied (which is a "ghost" from cycle 1 delay).
+    let _ = sched.on_done(11).unwrap();
+    let _ = sched.on_ready(11).unwrap();
+
+    // == cycle:2
+    // Start of cycle 2 (offset=0's turn).
+    // This must trigger the ghost clearing logic for descendants of 0 (which includes 20).
+    let _ = sched.on_start(0).unwrap();
+    let _ = sched.on_start(1).unwrap();
+
+    // Check that 20's dependency flag from 11 has been reset to false,
+    // and unmet_dependencies is back to 2.
+    let entry_20 = sched.entries.get(&20).unwrap();
+    let dep_11 = entry_20
+        .dependency_statuses
+        .iter()
+        .find(|x| x.0 == 11)
+        .unwrap();
+    assert_eq!(dep_11.1, false); // Cleared
+    assert_eq!(entry_20.unmet_dependencies, 2);
+
+    // Both 0 and 1 complete immediately.
+    // 10 starts. 11 starts because both 0 and 1 are complete.
+    let _ = sched.on_done(0).unwrap();
+    let _ = sched.on_ready(0).unwrap();
+    let _ = sched.on_done(1).unwrap();
+    let _ = sched.on_ready(1).unwrap();
+    assert_eq!(sched.entries.get(&10).unwrap().state, ProcessState::Running);
+    assert_eq!(sched.entries.get(&11).unwrap().state, ProcessState::Running);
+
+    // 10 completes, but 11 is delayed again.
+    let _ = sched.on_done(10).unwrap();
+    let _ = sched.on_ready(10).unwrap();
+
+    // == cycle:3
+    // 20's execution window (offset=1's turn).
+    // Since 11 is still Running, 20's dependency on 11 is unmet.
+    // If the ghost flag was correctly cleared, 20 must skip.
+    let changes = sched.on_start(20).unwrap();
+    assert_eq!(changes.len(), 2); // 20 (Skip), 30 (Skip)
+    assert_eq!(sched.entries.get(&20).unwrap().state, ProcessState::Skip);
+    assert_eq!(sched.entries.get(&30).unwrap().state, ProcessState::Skip);
+    let _ = sched.on_ready(20).unwrap();
+    let _ = sched.on_ready(30).unwrap();
 }
