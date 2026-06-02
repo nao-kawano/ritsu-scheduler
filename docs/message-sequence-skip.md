@@ -15,18 +15,31 @@ At the start of each cycle, verify that the process and its dependent processes 
   - Upon completion, the scheduler skips triggering any dependent processes.
   - The subsequent `READY` request is treated as **Process Not Ready**, and the scheduler responds with `LATE`.
 
-- **Dependency Not Met (SKIP)**
-  - If the process is `Ready` for the current cycle, but any of its dependent processes are not ready
-    (e.g., skipped or overrun), the scheduler responds with `SKIP`.
+- **Process Skipped (SKIP)**
+  - If a process is ready for the current cycle but cannot run, the scheduler responds with `SKIP`
+    at the process's startup timing (`on_start`). This occurs in two main scenarios:
+    1. **Co-scheduling Sync Failure**: Other processes in the same-cycle dependency group are not ready
+       (e.g., they are in Overrun, Idle, or Late states), causing all ready processes
+       in that same-cycle group to be skipped together. (Cascaded Skip)
+    2. **Dependency Not Met**: Preceding dependent processes that run in a different cycle (different
+       offset) are still running or skipped. (Autonomous Skip)
   - This notifies the client to skip the current execution and send `READY` again for the next cycle.
 
 Example: ProcessA->ProcessB scenario
+
+### Pattern 1: Same Cycle (Floating Dependency)
+
+This scenario shows when ProcessA (cycle=1, offset=0) and ProcessB (cycle=1, offset=0, floating) run in the same cycle, and B depends on A.
+If A overruns, B is skipped simultaneously at the start of the cycle.
 
 ```mermaid
 sequenceDiagram
   participant S as Scheduler
   participant A as ProcessA
   participant B as ProcessB
+
+  Note over A: ProcessA (cycle=1, offset=0)
+  Note over B: ProcessB (cycle=1, offset=0, floating, depends=[A])
 
   A -) S: READY
   Note over A: Ready
@@ -35,13 +48,13 @@ sequenceDiagram
 
 Note over S,B: << cycle N >>
 
-  Note over S: Check process A,B status.<br />-> OK
+  Note over S: Check process A status.<br />-> OK (B waits for A to complete)
   S --) A: START,cycle=N
   Note over A: Running
   A ->> A: process
 
 Note over S,B: << cycle N+1 >>
-  Note over S: Check process A,B status.<br />A still Running -> mark as Overrun
+  Note over S: cycle N+1 starts.<br />A reaches next startup timing -> mark as Overrun.<br />B is in the same cycle group -> B is skipped.
 
   S --) B: SKIP,cycle=N+1
   Note over B: send READY again
@@ -50,12 +63,12 @@ Note over S,B: << cycle N+1 >>
   Note over A: processing...
   A -) S: DONE
   Note over A: Idle
-  Note over S: skip to start after processes due to overrun
+  Note over S: A had overrun, so do not trigger dependent B
   S --) A: OK
 
   A -) S: READY
   Note over A: Ready
-  Note over S: skip this cycle
+  Note over S: skip this cycle (A overrun in this cycle)
   S --) A: *LATE,cycle=N+1*
     Note over A: send READY again
 
@@ -63,6 +76,52 @@ Note over S,B: << cycle N+1 >>
   Note over A: Ready
 
 Note over S,B: << cycle N+2 >>
+```
+
+### Pattern 2: Different Cycles (Offset-based Dependency)
+
+This scenario shows when ProcessA (cycle=2, offset=0) and ProcessB (cycle=2, offset=1) run in different cycles, and B depends on A.
+If A is still running during cycle N+1, B triggers an autonomous skip at its own startup timing, while A continues running without transitioning to Overrun.
+
+```mermaid
+sequenceDiagram
+  participant S as Scheduler
+  participant A as ProcessA
+  participant B as ProcessB
+
+  Note over A: ProcessA (cycle=2, offset=0)
+  Note over B: ProcessB (cycle=2, offset=1, depends=[A])
+
+  A -) S: READY
+  Note over A: Ready
+  B -) S: READY
+  Note over B: Ready
+
+Note over S,B: << cycle N (offset=0) >>
+
+  Note over S: cycle N starts.<br />A reaches startup timing -> OK.
+  S --) A: START,cycle=N
+  Note over A: Running
+  A ->> A: process
+
+Note over S,B: << cycle N+1 (offset=1) >>
+  Note over S: cycle N+1 starts.<br />B reaches startup timing, but A is still running.<br />-> B triggers autonomous skip (A remains Running).
+
+  S --) B: SKIP,cycle=N+1
+  Note over B: send READY again
+  B -) S: READY
+
+  Note over A: processing...
+  A -) S: DONE
+  Note over A: Idle
+  S --) A: OK
+
+  A -) S: READY
+  Note over A: Ready
+
+Note over S,B: << cycle N+2 (offset=0) >>
+  Note over S: cycle N+2 starts.<br />A reaches startup timing.
+  S --) A: START,cycle=N+2
 ```
 
 ## Examples

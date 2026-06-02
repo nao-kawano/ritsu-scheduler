@@ -96,9 +96,10 @@ Note:
 - Skip
   - Client is Idle.
   - Server skips the run for the current cycle. The Server sends `SKIP` to the client and waits for `READY` again.
-  - This happens when:
-    - Client is in Ready but dependent process is not completed for previous cycle.
-    - Client is still waiting for dependencies to be met in previous cycle.
+  - This happens when the client is ready, but the execution is skipped due to any of the following:
+    - The client's dependencies that run in a different cycle (different offset) are not met (e.g., the preceding process is still running).
+    - Other processes in the same cycle (same offset) are not ready (e.g., they are still running from the previous cycle, or haven't sent a READY request yet).
+    - A preceding process in the same cycle is skipped, cascading the skip state to its same-cycle (floating) descendants.
 - Late
   - Client is Idle.
   - Server skips the run for the current cycle. It waits for `READY` and responds with `LATE`.

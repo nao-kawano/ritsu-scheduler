@@ -74,6 +74,10 @@ Per client configuration below:
   - `[]`: No dependencies. Run only based on `cycle` and `cycle_offset`.
   - `[10]`: Run after process `10` completes.
   - `[10, 11]`: Run after both processes `10` and `11` complete.
+- **Lifecycle and Reset**:
+  - Dependency completion flags are cleared at the start of each new cycle.
+  - This ensures that a process always waits for the execution result of the _latest_ cycle of its dependencies,
+    preventing premature startup due to leftover completion flags from previous cycles.
 
 ### Expected Duration MS
 
