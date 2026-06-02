@@ -354,7 +354,6 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
                         if let Ok(changes) = scheduler.on_start(t.cid) {
                             // Records process state.
                             state.process_changes(event.time_ms, &changes, manager_cycle, &config);
-                            // TODO: insert missed dependency processes.
                             // Set Skipped process to Ready for next cycle.
                             for change in &changes {
                                 match change.after {
