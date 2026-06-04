@@ -144,3 +144,39 @@ fn test_reset_dependency_statuses() {
     assert_eq!(entry.is_dependency_met(), false);
     assert_eq!(entry.dependency_statuses.len(), 2);
 }
+
+#[test]
+fn test_reset_dependency_statuses_in() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
+    // cycle trigger.
+    let mut entry = ProcessEntry::new(1, &vec![], false);
+    entry.reset_dependency_statuses_in(&[1, 3]); // no effect.
+    assert_eq!(entry.is_dependency_met(), true);
+
+    // depends trigger.
+    let mut entry = ProcessEntry::new(2, &vec![1, 3, 5], true);
+    entry.mark_dependency_complete(1);
+    entry.mark_dependency_complete(3);
+    entry.mark_dependency_complete(5);
+    assert_eq!(entry.is_dependency_met(), true);
+    assert_eq!(entry.unmet_dependencies, 0);
+
+    // Only reset dependencies in filter.
+    entry.reset_dependency_statuses_in(&[1, 3, 99]);
+    assert_eq!(entry.is_dependency_met(), false);
+    assert_eq!(entry.unmet_dependencies, 2);
+
+    assert_eq!(
+        entry.dependency_statuses.iter().find(|x| x.0 == 1),
+        Some(&(1, false))
+    );
+    assert_eq!(
+        entry.dependency_statuses.iter().find(|x| x.0 == 3),
+        Some(&(3, false))
+    );
+    assert_eq!(
+        entry.dependency_statuses.iter().find(|x| x.0 == 5),
+        Some(&(5, true))
+    );
+}

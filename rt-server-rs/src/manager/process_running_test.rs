@@ -130,19 +130,15 @@ fn test_client_ready_late() {
 
     // --- Cycle 0 ---
     // CID 0 is in Idle, mark as Late.
-    // CID 1, 2 is Skip.
+    // CID 1 is Skip. (CID 2 waits for its cycle)
     let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
-    assert_eq!(result.len(), 2);
+    assert_eq!(result.len(), 1);
     assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Skip);
-    assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Skip);
 
-    // CID 1, 2 sends READY again.
+    // CID 1 sends READY again.
     let m_ready1 = Message::new(MessageType::Ready, 1, 1, None).unwrap();
     let result = proc.on_client_ready(&mut ctx, &m_ready1).unwrap();
-    assert_eq!(result.len(), 0);
-    let m_ready2 = Message::new(MessageType::Ready, 1, 2, None).unwrap();
-    let result = proc.on_client_ready(&mut ctx, &m_ready2).unwrap();
     assert_eq!(result.len(), 0);
 
     // Late Ready arrives from CID 0.
@@ -156,6 +152,15 @@ fn test_client_ready_late() {
     let m_ready0 = Message::new(MessageType::Ready, 2, 0, None).unwrap();
     let result = proc.on_client_ready(&mut ctx, &m_ready0).unwrap();
     assert_eq!(result.len(), 0);
+
+    // --- Cycle 1 ---
+    // CID 2 is autonomously skipped (since 1 was skipped).
+    // CID 3 starts (dependency met).
+    let result = proc.on_cycle_start(&mut ctx, 124).unwrap();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
+    assert_eq!(result.len(), 2);
+    assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Skip);
+    assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Start);
 }
 
 #[test]
@@ -177,8 +182,17 @@ fn test_overrun_and_skip_chain() {
     // CID 0 is still RUNNING (Overrun trigger).
 
     // --- Cycle 1 ---
-    // CID 3 starts, CID 2 waits for 1.
-    let _ = proc.on_cycle_start(&mut ctx, 124).unwrap();
+    // CID 3 starts (dependency met).
+    // CID 2 autonomously skips due to unmet dependency 1 (1 is not done).
+    let result = proc.on_cycle_start(&mut ctx, 124).unwrap();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
+    assert_eq!(result.len(), 2);
+    assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Skip);
+    assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Start);
+
+    // CID 2 sends READY again to recover from Skip.
+    let m_ready2 = Message::new(MessageType::Ready, 1, 2, None).unwrap();
+    let _ = proc.on_client_ready(&mut ctx, &m_ready2).unwrap();
 
     // CID 3 completed.
     let m_done3 = Message::new(MessageType::Done, 1, 3, None).unwrap();
@@ -188,12 +202,24 @@ fn test_overrun_and_skip_chain() {
 
     // --- Cycle 2 ---
     // CID 0 is still Running -> Overrun.
-    // Dependents (CID 1, and eventually CID 2) should be Skipped.
+    // Dependents in the same cycle (CID 1) should be Skipped.
     let result = proc.on_cycle_start(&mut ctx, 125).unwrap();
     let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
-    assert_eq!(result.len(), 2);
+    assert_eq!(result.len(), 1);
     assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Skip);
+
+    // CID 1 sends READY again.
+    let m_ready1 = Message::new(MessageType::Ready, 1, 1, None).unwrap();
+    let _ = proc.on_client_ready(&mut ctx, &m_ready1).unwrap();
+
+    // == cycle:3
+    // CID 2 autonomously skips due to unmet dependency 1.
+    // CID 3 starts (dependency met).
+    let result = proc.on_cycle_start(&mut ctx, 126).unwrap();
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
+    assert_eq!(result.len(), 2);
     assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Skip);
+    assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Start);
 }
 
 #[test]
