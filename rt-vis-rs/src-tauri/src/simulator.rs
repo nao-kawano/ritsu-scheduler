@@ -35,7 +35,7 @@ pub enum ExecutionStatus {
 pub struct PlannedExecution {
     pub instance_id: u32,
     pub cid: u16,
-    pub cycle: u32,
+    pub cycle: i64,
     pub cycle_offset_ms: u32,
     pub start_ms: u32,
     pub duration_ms: u32,
@@ -86,7 +86,7 @@ impl SimulationResult {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum EventKind {
-    ServerCycle(u32),      // cycle_index (starts from 0)
+    ServerCycle(i64),      // cycle_index (starts from 0)
     ProcessDone(u16, u32), // cid, instance_id
 }
 
@@ -164,7 +164,7 @@ impl SimulationState {
         time_ms: u32,
         change: &ProcessStateChange,
         manager_cycle_time: u32,
-        manager_cycle: u32,
+        manager_cycle: i64,
         config_client: &ClientConfig,
     ) {
         match change.after {
@@ -244,7 +244,7 @@ impl SimulationState {
         &mut self,
         time_ms: u32,
         changes: &Vec<ProcessStateChange>,
-        manager_cycle: u32,
+        manager_cycle: i64,
         config: &SchedulerConfig,
     ) {
         let manager_cycle_time = config.server_config.cycle_time_ms as u32;
@@ -272,8 +272,8 @@ impl SimulationState {
 
 struct CycleTrigger {
     cid: u16,
-    cycle: u32,
-    cycle_offset: u32,
+    cycle: i64,
+    cycle_offset: i64,
 }
 
 #[tauri::command]
@@ -308,8 +308,8 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
         if !rule.is_floating {
             triggers.push(CycleTrigger {
                 cid: client.client_id,
-                cycle: client.cycle as u32,
-                cycle_offset: client.cycle_offset as u32,
+                cycle: client.cycle as i64,
+                cycle_offset: client.cycle_offset as i64,
             });
         }
     }
@@ -322,10 +322,10 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
 
     // Setup scheduling data.
     let mut state = SimulationState::new();
-    let mut manager_cycle: u32 = 0;
+    let mut manager_cycle: i64 = 0;
     // Simulate for 2x max_cycle to cover offset scenarios.
     // NOTE: Keep in sync with frontend: useCreateModeLayout.ts -> totalCycles
-    let max_manager_cycle = max_cycle * 2;
+    let max_manager_cycle = (max_cycle * 2) as i64;
     let mut loop_count = 0;
 
     while let Some(event) = state.events.pop() {
