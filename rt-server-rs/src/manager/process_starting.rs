@@ -38,7 +38,7 @@ impl ManagerProc for ManagerProcStarting {
         if let Some(version) = message.get_extra("version") {
             if version != PROTOCOL_VERSION {
                 warn!(
-                    "CYC:{:05} CID:{:03} MID:{} Incompatible version: {}",
+                    "CYC:{:012} CID:{:03} MID:{} Incompatible version: {}",
                     context.cycle_current, message.cid, message.mid, version
                 );
                 responses.push(
@@ -57,7 +57,7 @@ impl ManagerProc for ManagerProcStarting {
             }
         } else {
             warn!(
-                "CYC:{:05} CID:{:03} MID:{} Missing version extra",
+                "CYC:{:012} CID:{:03} MID:{} Missing version extra",
                 context.cycle_current, message.cid, message.mid
             );
             responses.push(
@@ -80,7 +80,7 @@ impl ManagerProc for ManagerProcStarting {
             match client.state {
                 ClientState::None => {
                     debug!(
-                        "<STAT> CYC:{:05} CID:{:03} MID:{} JOIN",
+                        "<STAT> CYC:{:012} CID:{:03} MID:{} JOIN",
                         context.cycle_current, message.cid, message.mid
                     );
                     client.set_client_state(ClientState::Sync, context.cycle_current);
@@ -98,7 +98,7 @@ impl ManagerProc for ManagerProcStarting {
                 ClientState::Sync => {
                     // maybe retransmission, send JOINED.
                     warn!(
-                        "<STAT> CYC:{:05} CID:{:03} MID:{} JOIN (Retransmit)",
+                        "<STAT> CYC:{:012} CID:{:03} MID:{} JOIN (Retransmit)",
                         context.cycle_current, message.cid, message.mid
                     );
                     responses.push(
@@ -113,7 +113,7 @@ impl ManagerProc for ManagerProcStarting {
                 }
                 _ => {
                     warn!(
-                        "CYC:{:05} CID:{:03} MID:{} is already joined, dropped.",
+                        "CYC:{:012} CID:{:03} MID:{} is already joined, dropped.",
                         context.cycle_current, message.cid, message.mid
                     );
                 }
@@ -136,7 +136,7 @@ impl ManagerProc for ManagerProcStarting {
                         Ok(changes) => {
                             for change in changes {
                                 debug!(
-                                    "<STAT> CYC:{:05} CID:{:03} MID:{} {:?} -> {:?}",
+                                    "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?}",
                                     context.cycle_current,
                                     change.cid,
                                     message.mid,
@@ -151,13 +151,13 @@ impl ManagerProc for ManagerProcStarting {
                 ClientState::Active => {
                     // maybe retransmission, keep waiting others.
                     debug!(
-                        "<STAT> CYC:{:05} CID:{:03} MID:{} READY (Retransmit)",
+                        "<STAT> CYC:{:012} CID:{:03} MID:{} READY (Retransmit)",
                         context.cycle_current, message.cid, message.mid
                     );
                 }
                 _ => {
                     warn!(
-                        "CYC:{:05} CID:{:03} MID:{} is not in Sync, dropped.",
+                        "CYC:{:012} CID:{:03} MID:{} is not in Sync, dropped.",
                         context.cycle_current, message.cid, message.mid
                     );
                 }

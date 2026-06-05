@@ -51,7 +51,7 @@ impl ManagerProc for ManagerProcExiting {
         if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state != ClientState::None {
                 debug!(
-                    "<STAT> CYC:{:05} CID:{:03} MID:{} READY (Exiting)",
+                    "<STAT> CYC:{:012} CID:{:03} MID:{} READY (Exiting)",
                     context.cycle_current, message.cid, message.mid
                 );
                 client.set_client_state(ClientState::Exiting, context.cycle_current);
@@ -66,7 +66,7 @@ impl ManagerProc for ManagerProcExiting {
                 );
             } else {
                 warn!(
-                    "CYC:{:05} CID:{:03} MID:{} is disconnected, dropped READY.",
+                    "CYC:{:012} CID:{:03} MID:{} is disconnected, dropped READY.",
                     context.cycle_current, message.cid, message.mid
                 );
             }
@@ -84,7 +84,7 @@ impl ManagerProc for ManagerProcExiting {
         if let Some(client) = context.clients.get_mut(&message.cid) {
             if client.state != ClientState::None {
                 debug!(
-                    "<STAT> CYC:{:05} CID:{:03} MID:{} DONE (Exiting)",
+                    "<STAT> CYC:{:012} CID:{:03} MID:{} DONE (Exiting)",
                     context.cycle_current, message.cid, message.mid
                 );
                 // Always return OK for DONE. Return ERROR on the next READY.
@@ -93,7 +93,7 @@ impl ManagerProc for ManagerProcExiting {
                 );
             } else {
                 warn!(
-                    "CYC:{:05} CID:{:03} MID:{} is disconnected, dropped DONE.",
+                    "CYC:{:012} CID:{:03} MID:{} is disconnected, dropped DONE.",
                     context.cycle_current, message.cid, message.mid
                 );
             }
@@ -110,7 +110,7 @@ impl ManagerProc for ManagerProcExiting {
                 ClientState::None => {
                     // maybe retransmission.
                     warn!(
-                        "<STAT> CYC:{:05} CID:{:03} MID:{} EXIT (Retransmit)",
+                        "<STAT> CYC:{:012} CID:{:03} MID:{} EXIT (Retransmit)",
                         context.cycle_current, message.cid, message.mid
                     );
                     responses.push(
@@ -119,7 +119,7 @@ impl ManagerProc for ManagerProcExiting {
                 }
                 ClientState::Exiting => {
                     debug!(
-                        "<STAT> CYC:{:05} CID:{:03} MID:{} EXIT",
+                        "<STAT> CYC:{:012} CID:{:03} MID:{} EXIT",
                         context.cycle_current, message.cid, message.mid
                     );
                     client.set_client_state(ClientState::None, context.cycle_current);
@@ -130,7 +130,7 @@ impl ManagerProc for ManagerProcExiting {
                 }
                 ClientState::Active | ClientState::Sync => {
                     warn!(
-                        "<STAT> CYC:{:05} CID:{:03} MID:{} EXIT (Unexpected)",
+                        "<STAT> CYC:{:012} CID:{:03} MID:{} EXIT (Unexpected)",
                         context.cycle_current, message.cid, message.mid
                     );
                     client.set_client_state(ClientState::None, context.cycle_current);

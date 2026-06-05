@@ -86,9 +86,9 @@ impl ClientInfo {
     }
 
     /// Set the state of the client.
-    pub fn set_client_state(&mut self, state: ClientState, cycle: u32) -> bool {
+    pub fn set_client_state(&mut self, state: ClientState, cycle: i64) -> bool {
         info!(
-            "<STAT> CYC:{:05} CID:{:03} [Conn] {:?} -> {:?}",
+            "<STAT> CYC:{:012} CID:{:03} [Conn] {:?} -> {:?}",
             cycle, self.config.client_id, self.state, state
         );
         self.state = state;
@@ -114,7 +114,7 @@ pub struct ManagerContext {
     pub clients: HashMap<u16, ClientInfo>,
     pub num_active_clients: usize,
     // for execution.
-    pub cycle_current: u32, // 0..CYCLE_MAX
+    pub cycle_current: i64, // -1..CYCLE_MAX
     pub sched: Scheduler,
     pub graph_start: Vec<u16>, // shortcut for cycle start.
     // for stats.
@@ -122,7 +122,7 @@ pub struct ManagerContext {
 }
 
 impl ManagerContext {
-    pub const CYCLE_MAX: u32 = 9999; // must be odd value for wrap-around.
+    pub const CYCLE_MAX: i64 = 999_999_999_999; // must be odd value for wrap-around.
 
     pub fn new(
         configs: Vec<ClientConfig>,
@@ -170,7 +170,7 @@ impl ManagerContext {
             exit_reason: None,
             clients,
             num_active_clients: 0,
-            cycle_current: 0,
+            cycle_current: -1,
             sched,
             graph_start,
             stats: ServerStats {
@@ -184,7 +184,7 @@ impl ManagerContext {
 
     pub fn set_state(&mut self, state: ManagerState) -> bool {
         info!(
-            "<STAT> CYC:{:05} [Manager] {:?} -> {:?}",
+            "<STAT> CYC:{:012} [Manager] {:?} -> {:?}",
             self.cycle_current, self.state, state
         );
         if self.state != state {

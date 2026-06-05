@@ -28,7 +28,7 @@ To ensure logs are easily searchable, use the following fixed-width formats for 
 
 - **ClientID (CID):** `CID:{:03}` (e.g., `CID:010`)
 - **MessageID (MID):** `MID:{}` (e.g., `MID:3`)
-- **Cycle Number (CYC):** `CYC:{:05}` (e.g., `CYC:00042`)
+- **Cycle Number (CYC):** `CYC:{:012}` (e.g., `CYC:000000000042`)
 
 ## Action Tags
 
@@ -44,7 +44,7 @@ To ensure logs are easily searchable, use the following fixed-width formats for 
 - Must log abnormal scheduling events (e.g., `Overrun`) as `WARN`.
 
 Example:
-`[DEBUG] process_running - <STAT> CYC:00008 CID:010 MID:3 Running -> Idle`
+`[DEBUG] process_running - <STAT> CYC:000000000008 CID:010 MID:3 Running -> Idle`
 
 ### Client Connector Layer
 - Must output `<RECV>` and `<SEND>` logs using the common ClientConnector logic.
@@ -79,6 +79,6 @@ For global events like cycle starts or server-initiated aborts, `MID` and `CID` 
 
 `<STAT> CYC:{Cycle} {Event} ({Details})`
 
-- **Cycle Start:** `<STAT> CYC:00008 START`
-- **Manager Transition:** `<STAT> CYC:00008 [Manager] Starting -> Running`
-- **Server Abort:** `<STAT> CYC:00008 ABORT (Reason: abort requested)`
+- **Cycle Start:** `<STAT> CYC:000000000008 START`
+- **Manager Transition:** `<STAT> CYC:000000000008 [Manager] Starting -> Running`
+- **Server Abort:** `<STAT> CYC:000000000008 ABORT (Reason: abort requested)`

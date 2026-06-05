@@ -42,7 +42,7 @@ impl ManagerProc for ManagerProcExited {
 
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
         warn!(
-            "<STAT> CYC:{:05} CID:{:03} MID:{} None -> None (Retransmit)",
+            "<STAT> CYC:{:012} CID:{:03} MID:{} None -> None (Retransmit)",
             context.cycle_current, message.cid, message.mid
         );
         return Ok(vec![

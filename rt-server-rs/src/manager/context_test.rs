@@ -46,7 +46,7 @@ fn test_manager_context_new() {
     assert_eq!(context.state_changed, false);
     assert_eq!(context.clients.len(), 2);
     assert_eq!(context.num_active_clients, 0);
-    assert_eq!(context.cycle_current, 0);
+    assert_eq!(context.cycle_current, -1);
     assert_eq!(context.graph_start.len(), 1);
     assert_eq!(context.graph_start.contains(&0), true);
 }

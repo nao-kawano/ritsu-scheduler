@@ -52,7 +52,7 @@ fn test_enter_state() {
 
     // check result.
     assert_eq!(ctx.state, ManagerState::Running);
-    assert_eq!(ctx.cycle_current, ManagerContext::CYCLE_MAX);
+    assert_eq!(ctx.cycle_current, -1);
 }
 
 #[test]
@@ -345,6 +345,45 @@ fn test_on_shutdown() {
     assert_eq!(ctx.state_changed, true);
     assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Active);
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exiting);
+    assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Exiting);
+    assert_eq!(ctx.num_active_clients, 4);
+}
+
+#[test]
+fn test_cycle_max_abort() {
+    // create objects.
+    let _ = env_logger::builder().is_test(true).try_init();
+    let mut ctx = create_context_scenarios();
+    let proc = ManagerProcRunning;
+
+    // setup condition.
+    proc.enter_state(&mut ctx);
+    for i in 0..=3 {
+        let _ = ctx.sched.on_ready(i);
+    }
+    ctx.cycle_current = ManagerContext::CYCLE_MAX - 1;
+
+    // send event.
+    let result = proc.on_cycle_start(&mut ctx, 123).unwrap();
+
+    // check result.
+    let rmap: HashMap<u16, &Message> = result.iter().map(|m| (m.cid, m)).collect();
+    assert_eq!(result.len(), 4);
+    assert_eq!(rmap.get(&0).unwrap().mtype, MessageType::Error);
+    assert_eq!(
+        rmap.get(&0).unwrap().get_extra("reason"),
+        Some(&"CycleLimitReached".to_string())
+    );
+    assert_eq!(rmap.get(&1).unwrap().mtype, MessageType::Error);
+    assert_eq!(rmap.get(&2).unwrap().mtype, MessageType::Error);
+    assert_eq!(rmap.get(&3).unwrap().mtype, MessageType::Error);
+
+    // Manager state change to Exiting.
+    assert_eq!(ctx.state, ManagerState::Exiting);
+    assert_eq!(ctx.state_changed, true);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exiting);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Exiting);
     assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Exiting);
     assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Exiting);
     assert_eq!(ctx.num_active_clients, 4);
