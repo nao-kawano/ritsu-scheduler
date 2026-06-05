@@ -38,7 +38,7 @@ pub trait ManagerProc {
         };
         if client.state == ClientState::None {
             warn!(
-                "<STAT> CYC:{:05} CID:{:03} MID:{} EXIT (Retransmit)",
+                "<STAT> CYC:{:012} CID:{:03} MID:{} EXIT (Retransmit)",
                 context.cycle_current, message.cid, message.mid
             );
             return Ok(vec![
@@ -47,7 +47,7 @@ pub trait ManagerProc {
         }
         // send ok to trigger client.
         debug!(
-            "<STAT> CYC:{:05} CID:{:03} MID:{} EXIT",
+            "<STAT> CYC:{:012} CID:{:03} MID:{} EXIT",
             context.cycle_current, message.cid, message.mid
         );
         let mut responses: Vec<Message> = Vec::new();
@@ -82,13 +82,13 @@ pub trait ManagerProc {
     fn going_to_exit(&self, context: &mut ManagerContext, responses: &mut Vec<Message>) {
         if context.num_active_clients == 0 {
             debug!(
-                "CYC:{:05} no clients connected, go to Exited",
+                "CYC:{:012} no clients connected, go to Exited",
                 context.cycle_current
             );
             context.set_state(ManagerState::Exited);
         } else {
             debug!(
-                "CYC:{:05} {} clients connected, go to Exiting",
+                "CYC:{:012} {} clients connected, go to Exiting",
                 context.cycle_current, context.num_active_clients
             );
             let ready_clients: Vec<u16> = context.sched.get_ready_processes();
