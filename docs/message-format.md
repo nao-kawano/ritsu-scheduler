@@ -19,7 +19,11 @@ Extra:
   Key=Value
 Key:
   - "version": Protocol version (e.g. "1"). Used in "JOIN" and "JOINED".
-  - "cycle": Current cycle count (e.g. "123"). Included in "START", "SKIP", "LATE" for "READY" request.
+  - "cycle": Current cycle count.
+    It is a 64-bit signed integer (`i64`) formatted as a string (up to 12 digits, e.g. "123" or "999999999999").
+    Client applications parsing this value must use a 64-bit integer type (like `i64` in Rust, `long` in C++, 
+    or standard `int` in Python) to prevent overflow.
+    Included in "START", "SKIP", "LATE" for "READY" request.
   - "reason": Error reason (e.g. "IncompatibleVersion"). Included in "ERROR".
   - "cid": Client ID (e.g. "001"). Used with "reason=ClientExit" to specify the source of the exit.
 ```
