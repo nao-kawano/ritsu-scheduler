@@ -25,7 +25,7 @@ pub struct ManagerProcRunning;
 impl ManagerProc for ManagerProcRunning {
     fn enter_state(&self, context: &mut ManagerContext) {
         trace!("enter_state");
-        context.cycle_current = ManagerContext::CYCLE_MAX;
+        context.cycle_current = -1;
     }
 
     fn on_cycle_start(&self, context: &mut ManagerContext, global_cycle: u64) -> EventResult {
@@ -35,7 +35,22 @@ impl ManagerProc for ManagerProcRunning {
         }
         context.stats.last_cycle = global_cycle;
 
-        let cycle = self.update_cycle(context);
+        // Increment cycle and check safety limit.
+        context.cycle_current += 1;
+        if context.cycle_current >= ManagerContext::CYCLE_MAX {
+            warn!(
+                "<STAT> CYC:{:05} ABORT (Reason: CycleLimitReached)",
+                context.cycle_current
+            );
+            let mut responses: Vec<Message> = Vec::new();
+            context.exit_reason = Some(vec![(
+                "reason".to_string(),
+                "CycleLimitReached".to_string(),
+            )]);
+            self.going_to_exit(context, &mut responses);
+            return Ok(responses);
+        }
+        let cycle = context.cycle_current;
         debug!("<STAT> CYC:{:05} START", cycle);
         let mut responses: Vec<Message> = Vec::new();
         // update state: check and start trigger=cycle clients.
@@ -319,18 +334,9 @@ impl ManagerProcRunning {
     // -----
     // private methods.
 
-    fn update_cycle(&self, context: &mut ManagerContext) -> u32 {
-        if context.cycle_current >= ManagerContext::CYCLE_MAX {
-            context.cycle_current = 0;
-        } else {
-            context.cycle_current += 1;
-        }
-        return context.cycle_current;
-    }
-
-    fn is_target_cycle(&self, cycle: u32, config: &ClientConfig) -> bool {
-        let target_cycle = config.cycle as u32;
-        let target_cycle_offset = config.cycle_offset as u32;
+    fn is_target_cycle(&self, cycle: i64, config: &ClientConfig) -> bool {
+        let target_cycle = config.cycle as i64;
+        let target_cycle_offset = config.cycle_offset as i64;
         return cycle % target_cycle == target_cycle_offset;
     }
 
