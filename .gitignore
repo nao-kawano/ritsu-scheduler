@@ -33,5 +33,6 @@ Thumbs.db
 # --- Project Specific ---
 logs
 *.log
+**/test_logs/
 /_tmp/
 /_plans/
