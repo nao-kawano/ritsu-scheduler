@@ -1,0 +1,25 @@
+[server_config]
+port = 7902
+cycle_time_ms = 50
+stats_interval_cycle = 200
+
+[[client_configs]]
+client_id = 10
+cycle = 2
+cycle_offset = 0
+depends = []
+expected_duration_ms = 15
+
+[[client_configs]]
+client_id = 11
+cycle = 2
+cycle_offset = 0
+depends = [10]
+expected_duration_ms = 20
+
+[[client_configs]]
+client_id = 20
+cycle = 2
+cycle_offset = 1
+depends = []
+expected_duration_ms = 40
