@@ -20,12 +20,15 @@ based on the state management and message format definitions.
   - Number of retries: Until connected (or timeout after a few seconds)
   - On expiration: Error/Terminate
 - `READY` (before cyclic operation)
-  - Retransmission interval: Set to a value longer than one execution cycle with a safety margin (e.g., 110ms if cycle=2 with a cycle_time 50ms).
-    - **Note**: A significantly longer interval (e.g., several seconds) is recommended to accommodate the system-wide startup sequence and minimize network load until all clients are ready.
+  - Retransmission interval: Set to a value longer than one execution cycle with a safety margin (e.g., 120ms if cycle=2 with a cycle_time 50ms).
+    - **Note**: A significantly longer interval (e.g., several seconds) is recommended
+      to accommodate the system-wide startup sequence and minimize network load until all clients are ready.
   - Number of retries: Until cyclic operation starts
   - On expiration: sends `EXIT`
 - `READY` (in cyclic operation)
-  - Retransmission timeout: Set to a value longer than one execution cycle with a safety margin (e.g., 110ms if cycle=2 with a cycle_time 50ms).
+  - Retransmission timeout: Set to a value longer than two execution cycles with a safety margin (e.g., 220ms if cycle=2 with a cycle_time 50ms).
+    - **Note**: This coefficient of `2.2` (or greater) is required to prevent unexpected timeouts
+      during execution skips (where the client must wait for a skipped cycle plus the preceding process's execution time in the next active cycle).
   - Number of retries: 3
   - On expiration: sends `EXIT`
 - `DONE`

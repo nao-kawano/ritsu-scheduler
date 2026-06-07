@@ -72,7 +72,7 @@ class Config:
     # Retry count for READY request during startup. Set in __init__.
     RETRY_COUNT_READY_STARTUP: int = 0
 
-    # # Retry time for READY request in seconds. Set in __init__.
+    # Retry time for READY request in seconds. Set in __init__. Default is run_cycle_sec * 2.2.
     RETRY_SEC_READY: float = 0.000
     # Retry count for READY request.
     RETRY_COUNT_READY: int = 3
@@ -98,7 +98,8 @@ class Config:
         """
         self.RETRY_COUNT_READY_STARTUP = int(
             startup_wait_sec / self.RETRY_SEC_READY_STARTUP)
-        self.RETRY_SEC_READY = run_cycle_sec * 1.1  # with mergin
+        # with margin (2.2x to handle skipped cycles + dependency wait)
+        self.RETRY_SEC_READY = run_cycle_sec * 2.2
         if retry_sec is not None:
             self.RETRY_SEC_JOIN = retry_sec
             self.RETRY_SEC_DONE = retry_sec
