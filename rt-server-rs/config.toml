@@ -13,9 +13,9 @@
 #                       Set to 0 or omit to disable.
 # ------------------------------------------------------------------------------
 [server_config]
-port = 7878               # Standard port for Ritsu communication
-cycle_time_ms = 50        # High-frequency control loop (20Hz)
-stats_interval_cycle = 40 # Performance summary every 2 seconds (40 * 50ms)
+port = 7878                # Standard port for Ritsu communication
+cycle_time_ms = 50         # High-frequency control loop (20Hz)
+stats_interval_cycle = 200 # Performance summary every 10 seconds (200 * 50ms)
 
 
 # [[client_configs]] - Individual process settings

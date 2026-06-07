@@ -19,6 +19,14 @@ These triggers can be time-based cycles or the completion of other processes.
 - **NOTE:** This is currently implemented using an interval-based trigger.
   - The underlying architecture is designed to support various cycle triggers for future extensibility.
 
+### Stats Interval Cycle
+
+- Specifies the interval in cycles at which the scheduler logs performance statistics for each client.
+  - A value of `0` or omitting the parameter disables all statistics logging (including the final shutdown log).
+  - If enabled,
+    - Logs include metrics like execution time (min, max, average), skip count, late count, and overrun count.
+    - Final statistics are also logged when the scheduler shuts down, regardless of the cycle count.
+
 ## Client (Process) Configuration
 
 Per client configuration below:
