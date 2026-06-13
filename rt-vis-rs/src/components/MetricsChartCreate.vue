@@ -21,7 +21,7 @@ const emit = defineEmits<{
 
 // --- Layout Constants ---
 
-const METRICS_HEIGHT = 84; // Height of each metric chart row (px) - Matching ROW_HEIGHT in Timeline
+const METRICS_HEIGHT = 70; // Height of each metric chart row (px) - Matching ROW_HEIGHT in Timeline
 
 // --- Viewport and Scrolling ---
 

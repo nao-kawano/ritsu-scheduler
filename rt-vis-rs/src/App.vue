@@ -101,9 +101,9 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
 :root {
   /* Layout Dimensions */
   --top-height: 100px;
-  --bottom-height: 221px;
+  --bottom-height: 193px;
   --left-width: 280px;
-  --row-height: 84px;
+  --row-height: 70px;
   --header-row-height: 36px;
   --sb-size: 16px;
 

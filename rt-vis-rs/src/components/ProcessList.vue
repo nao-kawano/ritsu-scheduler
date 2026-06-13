@@ -261,7 +261,7 @@ defineExpose({ scrollEl });
   display: flex;
   align-items: center;
   height: var(--row-height);
-  padding: 0.4rem 0.75rem;
+  padding: 0.3rem 0.75rem;
   gap: 0.25rem;
 
   /* Border/Background */
@@ -274,7 +274,7 @@ defineExpose({ scrollEl });
   justify-content: center;
   width: 100%;
   height: 100%;
-  padding: 0.4rem 0.75rem;
+  padding: 0.25rem 0.75rem;
   background-color: var(--rt-color-surface);
   border: 1px solid var(--rt-color-border);
   border-radius: var(--rt-radius-m);
@@ -313,8 +313,8 @@ defineExpose({ scrollEl });
 .card-meta {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  margin-top: 2px;
+  gap: 0px;
+  margin-top: 1px;
 }
 
 .card-meta .details {

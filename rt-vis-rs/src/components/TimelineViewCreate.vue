@@ -22,7 +22,7 @@ const emit = defineEmits<{
 
 // --- Layout Constants ---
 
-const ROW_HEIGHT = 84;   // Fixed height of each process row (px)
+const ROW_HEIGHT = 70;   // Fixed height of each process row (px)
 const RECT_HEIGHT = 36;  // Height of the execution bar (px)
 
 // --- Viewport and Scrolling ---
