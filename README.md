@@ -63,3 +63,8 @@ sequenceDiagram
 ## Documentation
 
 Detailed specifications and guides can be found in the [docs](./docs/README.md) directory.
+
+## License
+
+This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
+
