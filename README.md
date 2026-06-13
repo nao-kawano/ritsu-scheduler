@@ -1,16 +1,18 @@
 # Ritsu: A Deterministic Process Scheduler
 
-Schedules user processes considering periodic cycles and process dependencies.
+A lightweight, deterministic process scheduler that manages user processes considering periodic cycles and dependencies.
+
+![Ritsu Visualizer Screenshot](docs/assets/rt-vis_screenshot.png)
 
 ## Features
 
-- **Periodic execution**: Predictable execution based on pre-defined timing and cycles.
-- **Dependency management**: Flexible scheduling based on process dependencies (sequential and parallel).
+- **Periodic Execution**: Predictable execution based on pre-defined timing and cycles.
+- **Dependency Management**: Flexible scheduling based on process dependencies (sequential and parallel).
   - Example: Image processing pipelines using camera frames.
-- **Multi-language support**: Simple messaging protocol supporting multiple programming languages.
+- **Multi-Language Support**: A simple messaging protocol supporting multiple programming languages.
   - Modular transport support (UDP-based by default).
   - This repository includes sample clients for **Rust** and **Python**.
-- **Simulation and Visualization**: Advanced tools for system planning and scheduling analysis.
+- **Simulation & Visualization**: Advanced tools for system planning and scheduling analysis.
 
 ## Process Scheduling
 
