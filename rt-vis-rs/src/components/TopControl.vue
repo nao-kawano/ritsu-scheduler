@@ -47,6 +47,22 @@ watch(() => config.server_config, (newVal) => {
   Object.assign(localServerConfig, newVal);
 }, { deep: true });
 
+/**
+ * Formats a duration in milliseconds to a human-readable string.
+ * Automatically scales to 'sec' or 'min' for larger durations.
+ */
+const formatDuration = (totalMs: number): string => {
+  if (totalMs < 1000) {
+    return `${totalMs} ms`;
+  } else if (totalMs < 60000) {
+    const sec = (totalMs / 1000).toFixed(1);
+    return `${sec} sec`;
+  } else {
+    const min = (totalMs / 60000).toFixed(1);
+    return `${min} min`;
+  }
+};
+
 const isConfirmingNew = ref(false);
 
 const onNew = () => {
@@ -94,8 +110,11 @@ const resetNewConfirm = () => {
           <label class="rt-input-label">Stats cycle</label>
           <input type="number" v-model.number="localServerConfig.stats_interval_cycle" min="0" required
             class="rt-input server-input" />
-          <span class="rt-input-hint" v-if="localServerConfig.stats_interval_cycle && localServerConfig.cycle_time_ms">
-            (= {{ localServerConfig.stats_interval_cycle * localServerConfig.cycle_time_ms }} ms)
+          <span class="rt-input-hint" v-if="localServerConfig.stats_interval_cycle === 0">
+            (= Disabled)
+          </span>
+          <span class="rt-input-hint" v-else-if="localServerConfig.stats_interval_cycle && localServerConfig.cycle_time_ms">
+            (= {{ formatDuration(localServerConfig.stats_interval_cycle * localServerConfig.cycle_time_ms) }})
           </span>
         </div>
       </div>
