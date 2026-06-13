@@ -82,12 +82,14 @@ const initialRaw: SchedulerConfig = {
   server_config: {
     port: 7878,
     cycle_time_ms: 50,
-    stats_interval_cycle: 40
+    stats_interval_cycle: 200
   },
   client_configs: [
-    { client_id: 10, display_name: "Camera", cycle: 2, cycle_offset: 0, depends: [], expected_duration_ms: 15 },
-    { client_id: 11, display_name: "Preprocess", cycle: 2, cycle_offset: 0, depends: [10], expected_duration_ms: 20 },
-    { client_id: 20, display_name: "MainProcess", cycle: 2, cycle_offset: 1, depends: [], expected_duration_ms: 40 },
+    { client_id: 1, display_name: "Camera", cycle: 2, cycle_offset: 0, depends: [], expected_duration_ms: 10 },
+    { client_id: 101, display_name: "ObjectDetect", cycle: 2, cycle_offset: 0, depends: [1], expected_duration_ms: 60 },
+    { client_id: 102, display_name: "LaneDetect", cycle: 2, cycle_offset: 0, depends: [1], expected_duration_ms: 20 },
+    { client_id: 501, display_name: "Control", cycle: 2, cycle_offset: 0, depends: [101, 102], expected_duration_ms: 20 },
+    { client_id: 901, display_name: "Telemetry", cycle: 2, cycle_offset: 1, depends: [], expected_duration_ms: 25 },
   ]
 };
 
