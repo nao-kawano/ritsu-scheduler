@@ -55,26 +55,10 @@ impl MockResponse {
 }
 
 fn start_mock_server(
-    address: &str,
+    sock: UdpSocket,
     mut responses: Vec<MockResponse>,
     received: &Arc<Mutex<Vec<Message>>>,
 ) -> JoinHandle<()> {
-    let mut sock: Option<UdpSocket> = None;
-    // setup socket. retry for paralell test.
-    const SLEEP_MSEC: u64 = 100;
-    for _ in 0..(120 * 1000 / SLEEP_MSEC) {
-        let r = UdpSocket::bind(address);
-        if r.is_ok() {
-            sock = Some(r.unwrap());
-            break;
-        }
-        std::thread::sleep(time::Duration::from_millis(SLEEP_MSEC));
-    }
-    if sock.is_none() {
-        panic!("MockServer bind failed");
-    }
-
-    let sock: UdpSocket = sock.unwrap();
     sock.set_read_timeout(Some(time::Duration::from_millis(100)))
         .expect("MockServer Failed to set read timeout");
     let received_clone = received.clone();
@@ -173,7 +157,10 @@ fn test_join() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -181,7 +168,7 @@ fn test_join() {
         MockResponse::new(MessageType::Joined, 0.0),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let ret = client.join();
@@ -205,15 +192,19 @@ fn test_join_retry_ok() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    client.config.retry_sec_join = 0.030;
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
-        MockResponse::new(MessageType::Joined, client.config.retry_sec_join + 0.005),
+        MockResponse::new(MessageType::Joined, client.config.retry_sec_join + 0.030),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let ret = client.join();
@@ -237,7 +228,11 @@ fn test_join_retry_ng() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    client.config.retry_sec_join = 0.030;
 
     // setup condition.
     let retry_count: u32 = client.config.retry_count_join;
@@ -245,11 +240,11 @@ fn test_join_retry_ng() {
         // Join.
         MockResponse::new(
             MessageType::Joined,
-            client.config.retry_sec_join * (retry_count as f64 + 1.0) + 0.005,
+            client.config.retry_sec_join * (retry_count as f64 + 1.0) + 0.030,
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let ret = client.join();
@@ -274,7 +269,10 @@ fn test_join_precond() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -282,7 +280,7 @@ fn test_join_precond() {
         MockResponse::new(MessageType::Joined, 0.0),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -301,7 +299,10 @@ fn test_ready_startup() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -316,7 +317,7 @@ fn test_ready_startup() {
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -341,7 +342,10 @@ fn test_ready_startup_retry_ok() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -352,11 +356,11 @@ fn test_ready_startup_retry_ok() {
         // Ready.
         MockResponse::new(
             MessageType::Start,
-            client.config.retry_sec_ready_startup + 0.005,
+            client.config.retry_sec_ready_startup + 0.030,
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -382,7 +386,10 @@ fn test_ready_startup_retry_ng() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -394,11 +401,11 @@ fn test_ready_startup_retry_ng() {
         // Ready.
         MockResponse::new(
             MessageType::Start,
-            client.config.retry_sec_ready_startup * (retry_count as f64 + 1.0) + 0.005,
+            client.config.retry_sec_ready_startup * (retry_count as f64 + 1.0) + 0.030,
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -445,7 +452,10 @@ fn test_ready() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -461,7 +471,7 @@ fn test_ready() {
         MockResponse::new(MessageType::Start, client.config.retry_sec_ready / 2.0),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -490,7 +500,10 @@ fn test_ready_retry_ok() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -503,10 +516,10 @@ fn test_ready_retry_ok() {
         // Done.
         MockResponse::new(MessageType::Ok, 0.0),
         // Ready.
-        MockResponse::new(MessageType::Start, client.config.retry_sec_ready + 0.005),
+        MockResponse::new(MessageType::Start, client.config.retry_sec_ready + 0.030),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -536,7 +549,10 @@ fn test_ready_retry_ng() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -552,11 +568,11 @@ fn test_ready_retry_ng() {
         // Ready.
         MockResponse::new(
             MessageType::Start,
-            client.config.retry_sec_ready * (retry_count as f64 + 1.0) + 0.005,
+            client.config.retry_sec_ready * (retry_count as f64 + 1.0) + 0.030,
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -587,7 +603,10 @@ fn test_ready_skip() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -597,7 +616,7 @@ fn test_ready_skip() {
         MockResponse::new(MessageType::Skip, 0.0),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -617,7 +636,10 @@ fn test_ready_late() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -627,7 +649,7 @@ fn test_ready_late() {
         MockResponse::new(MessageType::Late, 0.0),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -647,7 +669,10 @@ fn test_ready_error() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -657,7 +682,7 @@ fn test_ready_error() {
         MockResponse::new(MessageType::Error, 0.0),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -677,7 +702,10 @@ fn test_done() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -689,7 +717,7 @@ fn test_done() {
         MockResponse::new(MessageType::Ok, 0.0),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -710,7 +738,10 @@ fn test_ready_mid_mismatch() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
     client.config.retry_sec_ready = 0.1;
     client.config.retry_count_ready = 2;
 
@@ -724,7 +755,7 @@ fn test_ready_mid_mismatch() {
         MockResponse::new_with_id(MessageType::Start, 2, 0, 0.0), // mid 2
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -750,7 +781,11 @@ fn test_done_retry_ng() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    client.config.retry_sec_done = 0.030;
 
     // setup condition.
     let retry_count: u32 = client.config.retry_count_done;
@@ -762,11 +797,11 @@ fn test_done_retry_ng() {
         // Done.
         MockResponse::new(
             MessageType::Ok,
-            client.config.retry_sec_done * (retry_count as f64 + 1.0) + 0.005,
+            client.config.retry_sec_done * (retry_count as f64 + 1.0) + 0.030,
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -814,7 +849,10 @@ fn test_exit() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -824,7 +862,7 @@ fn test_exit() {
         MockResponse::new(MessageType::Ok, client.config.retry_sec_exit / 2.0),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -849,17 +887,21 @@ fn test_exit_retry_ok() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    client.config.retry_sec_exit = 0.030;
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
         // Join.
         MockResponse::new(MessageType::Joined, 0.0),
         // Exit.
-        MockResponse::new(MessageType::Ok, client.config.retry_sec_exit + 0.005),
+        MockResponse::new(MessageType::Ok, client.config.retry_sec_exit + 0.030),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
@@ -885,7 +927,11 @@ fn test_exit_retry_ng() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    client.config.retry_sec_exit = 0.030;
 
     // setup condition.
     let retry_count: u32 = client.config.retry_count_exit;
@@ -895,11 +941,11 @@ fn test_exit_retry_ng() {
         // Exit.
         MockResponse::new(
             MessageType::Ok,
-            client.config.retry_sec_exit * (retry_count as f64 + 1.0) + 0.005,
+            client.config.retry_sec_exit * (retry_count as f64 + 1.0) + 0.030,
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
-    let mock_handle = start_mock_server("127.0.0.1:7878", responses, &requests);
+    let mock_handle = start_mock_server(sock, responses, &requests);
 
     // do.
     let _ = client.join();
