@@ -14,12 +14,12 @@ edition = "2024"
 license = "Apache-2.0"
 
 [workspace.dependencies]
-chrono = "0.4.41"
-env_logger = "0.11.8"
-log = "0.4.27"
+chrono = "0.4.45"
+env_logger = "0.11.10"
+log = "0.4.32"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-toml = "0.9.4"
+toml = "1.1.2"
 rt-config = { path = "rt-config-rs" }
 rt-core = { path = "rt-core-rs" }
 rt-message = { path = "rt-message-rs" }
