@@ -34,5 +34,6 @@ Thumbs.db
 logs
 *.log
 **/test_logs/
+/utils/release-pkg/
 /_tmp/
 /_plans/
