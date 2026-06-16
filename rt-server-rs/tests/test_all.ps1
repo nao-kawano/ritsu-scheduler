@@ -9,9 +9,9 @@ $ProjectRoot = Resolve-Path "$ScriptDir\..\.."
 Write-Host "[INFO] Building binaries in $BuildMode mode..." -ForegroundColor Cyan
 Push-Location $ProjectRoot
 if ($BuildMode -eq "release") {
-    cargo build --release
+    cargo build --release --workspace --exclude rt-vis
 } else {
-    cargo build
+    cargo build --workspace --exclude rt-vis
 }
 $buildExit = $LASTEXITCODE
 Pop-Location
