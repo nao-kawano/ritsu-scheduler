@@ -50,6 +50,8 @@ Pop-Location
 Write-Host "[3/3] Collecting build artifacts..." -ForegroundColor Yellow
 Copy-Item (Join-Path $RootDir "target\release\rt-vis.exe") (Join-Path $OutputDir "rt-vis.exe")
 Copy-Item (Join-Path $RootDir "LICENSE") (Join-Path $OutputDir "LICENSE.txt")
+Copy-Item (Join-Path $RootDir "rt-vis-rs\readme-release.txt") (Join-Path $OutputDir "README.txt")
+
 
 
 Write-Host "`n✨ rt-vis packaging completed successfully. ✨" -ForegroundColor Green

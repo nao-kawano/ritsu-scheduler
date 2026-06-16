@@ -46,6 +46,7 @@ Write-Host "[3/3] Collecting build artifacts..." -ForegroundColor Yellow
 Copy-Item (Join-Path $RootDir "target\release\rt-server.exe") (Join-Path $OutputDir "rt-server.exe")
 Copy-Item (Join-Path $RootDir "rt-server-rs\config.toml") (Join-Path $OutputDir "config.toml")
 Copy-Item (Join-Path $RootDir "LICENSE") (Join-Path $OutputDir "LICENSE.txt")
+Copy-Item (Join-Path $RootDir "rt-server-rs\readme-release.txt") (Join-Path $OutputDir "README.txt")
 
 
 Write-Host "`n✨ rt-server packaging completed successfully. ✨" -ForegroundColor Green
