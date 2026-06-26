@@ -58,9 +58,10 @@ impl CycleTrigger for IntervalTrigger {
                 return false;
             }
             // Sleep for a short duration to remain responsive to stop requests.
-            let remaining = timeout
-                .checked_sub(start.elapsed())
-                .unwrap_or(time::Duration::ZERO);
+            let remaining = match timeout.checked_sub(start.elapsed()) {
+                Some(rem) => rem,
+                None => return true,
+            };
             thread::sleep(std::cmp::min(remaining, time::Duration::from_millis(10)));
         }
         true
