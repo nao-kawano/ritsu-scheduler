@@ -5,6 +5,18 @@ The scheduler controls process execution based on periodic cycles and process de
 Each process can be configured with a trigger to determine when it runs.
 These triggers can be time-based cycles or the completion of other processes.
 
+## Cycle Terminology
+
+To understand how the scheduler manages execution, we distinguish between the following concepts:
+
+### 1. Time / Tick (Scheduler Clock)
+- **`global_cycle`**: The absolute cycle count tracked from the start of the scheduler's event loop (e.g., time-based tick interval).
+- **`running_cycle`**: The execution cycle count tracked from when the scheduler transitions to the `Running` state and actually schedules process executions. It starts at `-1` (representing "not started") and increments to `0` at the first running cycle start.
+
+### 2. Period / Interval (Process Scheduling)
+- **`cycle` (process's cycle)**: The configuration parameter that defines the execution period of the process (e.g., run every `1` cycle, run every `2` cycles).
+- **`cycle_offset`**: The offset in running cycles applied to the start timing of the process.
+
 ## Server (Scheduler) Configuration
 
 ### Port
@@ -21,7 +33,7 @@ These triggers can be time-based cycles or the completion of other processes.
 
 ### Stats Interval Cycle
 
-- Specifies the interval in cycles at which the scheduler logs performance statistics for each client.
+- Specifies the interval in running cycles at which the scheduler logs performance statistics for each client.
   - A value of `0` or omitting the parameter disables all statistics logging (including the final shutdown log).
   - If enabled,
     - Logs include metrics like execution time (min, max, average), skip count, late count, and overrun count.
@@ -47,16 +59,16 @@ Per client configuration below:
 
 ### Cycle
 
-- Specifies how often to run the process within a cycle (e.g., every cycle, every other cycle).
-  - `1` means run every cycle. If the cycle is 50ms, run every 50ms.
-  - `2` means run every other cycle. If the cycle is 50ms, run every 100ms.
+- Specifies how often to run the process in terms of running cycles (e.g., every cycle, every other cycle).
+  - `1` means run every running cycle. If the cycle time is 50ms, run every 50ms.
+  - `2` means run every other running cycle. If the cycle time is 50ms, run every 100ms.
 
 ### Cycle Offset
 
-- Specifies the offset for when this client starts running.
-  - Useful when you want to alternate the execution of clients for distribute the load evenly.
-    - `0`: Start running at the beginning of the specified cycle.
-    - `1`: Start running one cycle later than the beginning of the specified cycle.
+- Specifies the offset in running cycles for when this client starts running.
+  - Useful when you want to alternate the execution of clients to distribute the load evenly.
+    - `0`: Start running at the beginning of the specified running cycle.
+    - `1`: Start running one running cycle later than the beginning of the specified running cycle.
     - Note: The offset value must be less than the trigger cycle.
 
 ### Depends
@@ -83,9 +95,9 @@ Per client configuration below:
   - `[10]`: Run after process `10` completes.
   - `[10, 11]`: Run after both processes `10` and `11` complete.
 - **Lifecycle and Reset**:
-  - Dependency completion flags are cleared at the start of each new cycle.
-  - This ensures that a process always waits for the execution result of the _latest_ cycle of its dependencies,
-    preventing premature startup due to leftover completion flags from previous cycles.
+  - Dependency completion flags are cleared at the start of each process's execution cycle.
+  - This ensures that a process always waits for the execution result of the _latest_ execution cycle of its dependencies,
+    preventing premature startup due to leftover completion flags from previous execution cycles.
 
 ### Expected Duration MS
 
