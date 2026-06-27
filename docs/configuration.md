@@ -17,6 +17,10 @@ To understand how the scheduler manages execution, we distinguish between the fo
 - **`cycle` (process's cycle)**: The configuration parameter that defines the execution period of the process (e.g., run every `1` cycle, run every `2` cycles).
 - **`cycle_offset`**: The offset in running cycles applied to the start timing of the process.
 
+<p align="center">
+  <img src="assets/cycle-terminology.drawio.svg" alt="Overview of Cycles" width="800">
+</p>
+
 ## Server (Scheduler) Configuration
 
 ### Port
