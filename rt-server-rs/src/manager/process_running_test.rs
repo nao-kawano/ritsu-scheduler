@@ -59,14 +59,14 @@ fn test_enter_state() {
     let proc = ManagerProcRunning;
 
     // setup condition.
-    ctx.cycle_current = 5;
+    ctx.running_cycle = 5;
 
     // send event.
     proc.enter_state(&mut ctx);
 
     // check result.
     assert_eq!(ctx.state, ManagerState::Running);
-    assert_eq!(ctx.cycle_current, -1);
+    assert_eq!(ctx.running_cycle, -1);
 }
 
 #[test]
@@ -376,7 +376,7 @@ fn test_cycle_max_abort() {
     for i in 0..=3 {
         let _ = ctx.sched.on_ready(i);
     }
-    ctx.cycle_current = ManagerContext::CYCLE_MAX - 1;
+    ctx.running_cycle = ManagerContext::CYCLE_MAX - 1;
 
     // send event.
     let result = proc.on_cycle_start(&mut ctx, 123).unwrap();

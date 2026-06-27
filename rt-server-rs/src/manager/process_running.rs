@@ -39,22 +39,22 @@ pub struct ManagerProcRunning;
 impl ManagerProc for ManagerProcRunning {
     fn enter_state(&self, context: &mut ManagerContext) {
         trace!("enter_state");
-        context.cycle_current = -1;
+        context.running_cycle = -1;
     }
 
     fn on_cycle_start(&self, context: &mut ManagerContext, global_cycle: u64) -> EventResult {
         if context.stats.start_at.is_none() {
             context.stats.start_at = Some(time::Instant::now());
-            context.stats.start_cycle = global_cycle;
+            context.stats.start_global_cycle = global_cycle;
         }
-        context.stats.last_cycle = global_cycle;
+        context.stats.last_global_cycle = global_cycle;
 
         // Increment cycle and check safety limit.
-        context.cycle_current += 1;
-        if context.cycle_current >= ManagerContext::CYCLE_MAX {
+        context.running_cycle += 1;
+        if context.running_cycle >= ManagerContext::CYCLE_MAX {
             warn!(
                 "<STAT> CYC:{:012} ABORT (Reason: CycleLimitReached)",
-                context.cycle_current
+                context.running_cycle
             );
             let mut responses: Vec<Message> = Vec::new();
             context.exit_reason = Some(vec![(
@@ -64,14 +64,13 @@ impl ManagerProc for ManagerProcRunning {
             self.going_to_exit(context, &mut responses);
             return Ok(responses);
         }
-        let cycle = context.cycle_current;
-        debug!("<STAT> CYC:{:012} START", cycle);
+        debug!("<STAT> CYC:{:012} START", context.running_cycle);
         let mut responses: Vec<Message> = Vec::new();
         // update state: check and start trigger=cycle clients.
         let mut changes: Vec<ProcessStateChange> = Vec::new();
         for client_id in &context.graph_start {
             let client = context.clients.get_mut(client_id).unwrap();
-            if self.is_target_cycle(context.cycle_current, &client.config) {
+            if self.is_target_cycle(context.running_cycle, &client.config) {
                 let r = context.sched.on_start(*client_id);
                 if let Ok(cs) = r {
                     changes.extend(cs);
@@ -90,7 +89,7 @@ impl ManagerProc for ManagerProcRunning {
                 ProcessState::Running => {
                     debug!(
                         "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?} (Cycle)",
-                        context.cycle_current, change.cid, c.last_mid, change.before, change.after
+                        context.running_cycle, change.cid, c.last_mid, change.before, change.after
                     );
                     responses.push(
                         Message::new(
@@ -99,7 +98,7 @@ impl ManagerProc for ManagerProcRunning {
                             change.cid,
                             Some(vec![(
                                 "cycle".to_string(),
-                                context.cycle_current.to_string(),
+                                context.running_cycle.to_string(),
                             )]),
                         )
                         .unwrap(),
@@ -108,13 +107,13 @@ impl ManagerProc for ManagerProcRunning {
                 ProcessState::Overrun => {
                     warn!(
                         "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?}",
-                        context.cycle_current, change.cid, c.last_mid, change.before, change.after
+                        context.running_cycle, change.cid, c.last_mid, change.before, change.after
                     );
                 }
                 ProcessState::Skip => {
                     warn!(
                         "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?}",
-                        context.cycle_current, change.cid, c.last_mid, change.before, change.after
+                        context.running_cycle, change.cid, c.last_mid, change.before, change.after
                     );
                     responses.push(
                         Message::new(
@@ -123,7 +122,7 @@ impl ManagerProc for ManagerProcRunning {
                             change.cid,
                             Some(vec![(
                                 "cycle".to_string(),
-                                context.cycle_current.to_string(),
+                                context.running_cycle.to_string(),
                             )]),
                         )
                         .unwrap(),
@@ -132,22 +131,21 @@ impl ManagerProc for ManagerProcRunning {
                 ProcessState::Late => {
                     warn!(
                         "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?}",
-                        context.cycle_current, change.cid, c.last_mid, change.before, change.after
+                        context.running_cycle, change.cid, c.last_mid, change.before, change.after
                     );
                 }
                 ProcessState::Ready | ProcessState::Idle => {
                     warn!(
                         "CYC:{:012} CID:{:03} invalid state change by start {:?}",
-                        context.cycle_current, change.cid, change
+                        context.running_cycle, change.cid, change
                     );
                 }
             }
         }
 
-        let running_cycles = global_cycle.saturating_sub(context.stats.start_cycle);
         if context.stats.interval_cycle > 0
-            && running_cycles > 0
-            && running_cycles % (context.stats.interval_cycle as u64) == 0
+            && context.running_cycle > 0
+            && context.running_cycle % (context.stats.interval_cycle as i64) == 0
         {
             context.dump_stats(global_cycle);
         }
@@ -179,7 +177,7 @@ impl ManagerProc for ManagerProcRunning {
                     if change.before == ProcessState::Ready {
                         warn!(
                             "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?} (Retransmit)",
-                            context.cycle_current,
+                            context.running_cycle,
                             change.cid,
                             c.last_mid,
                             change.before,
@@ -188,7 +186,7 @@ impl ManagerProc for ManagerProcRunning {
                     } else {
                         debug!(
                             "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?}",
-                            context.cycle_current,
+                            context.running_cycle,
                             change.cid,
                             c.last_mid,
                             change.before,
@@ -200,7 +198,7 @@ impl ManagerProc for ManagerProcRunning {
                     // maybe retransmission, send START to start immediately.
                     warn!(
                         "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?} (Retransmit)",
-                        context.cycle_current, change.cid, c.last_mid, change.before, change.after
+                        context.running_cycle, change.cid, c.last_mid, change.before, change.after
                     );
                     responses.push(
                         Message::new(
@@ -209,7 +207,7 @@ impl ManagerProc for ManagerProcRunning {
                             change.cid,
                             Some(vec![(
                                 "cycle".to_string(),
-                                context.cycle_current.to_string(),
+                                context.running_cycle.to_string(),
                             )]),
                         )
                         .unwrap(),
@@ -219,7 +217,7 @@ impl ManagerProc for ManagerProcRunning {
                     if change.before == ProcessState::Late {
                         debug!(
                             "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?} (Late)",
-                            context.cycle_current,
+                            context.running_cycle,
                             change.cid,
                             c.last_mid,
                             change.before,
@@ -232,7 +230,7 @@ impl ManagerProc for ManagerProcRunning {
                                 change.cid,
                                 Some(vec![(
                                     "cycle".to_string(),
-                                    context.cycle_current.to_string(),
+                                    context.running_cycle.to_string(),
                                 )]),
                             )
                             .unwrap(),
@@ -241,7 +239,7 @@ impl ManagerProc for ManagerProcRunning {
                         // already idle or unexpected.
                         warn!(
                             "CYC:{:012} CID:{:03} MID:{} ignore READY in {:?}",
-                            context.cycle_current, change.cid, c.last_mid, change.before
+                            context.running_cycle, change.cid, c.last_mid, change.before
                         );
                     }
                 }
@@ -274,7 +272,7 @@ impl ManagerProc for ManagerProcRunning {
                 ProcessState::Running => {
                     debug!(
                         "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?} (Dependency)",
-                        context.cycle_current, change.cid, c.last_mid, change.before, change.after
+                        context.running_cycle, change.cid, c.last_mid, change.before, change.after
                     );
                     responses.push(
                         Message::new(
@@ -283,7 +281,7 @@ impl ManagerProc for ManagerProcRunning {
                             change.cid,
                             Some(vec![(
                                 "cycle".to_string(),
-                                context.cycle_current.to_string(),
+                                context.running_cycle.to_string(),
                             )]),
                         )
                         .unwrap(),
@@ -294,7 +292,7 @@ impl ManagerProc for ManagerProcRunning {
                     if change.before == ProcessState::Running {
                         debug!(
                             "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?}",
-                            context.cycle_current,
+                            context.running_cycle,
                             change.cid,
                             c.last_mid,
                             change.before,
@@ -304,7 +302,7 @@ impl ManagerProc for ManagerProcRunning {
                         // maybe retransmission.
                         warn!(
                             "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?} (Retransmit)",
-                            context.cycle_current,
+                            context.running_cycle,
                             change.cid,
                             c.last_mid,
                             change.before,
@@ -317,7 +315,7 @@ impl ManagerProc for ManagerProcRunning {
                 ProcessState::Late => {
                     warn!(
                         "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?} (Late)",
-                        context.cycle_current, change.cid, c.last_mid, change.before, change.after
+                        context.running_cycle, change.cid, c.last_mid, change.before, change.after
                     );
                     responses
                         .push(Message::new(MessageType::Ok, c.last_mid, change.cid, None).unwrap());
@@ -348,10 +346,10 @@ impl ManagerProcRunning {
     // -----
     // private methods.
 
-    fn is_target_cycle(&self, cycle: i64, config: &ClientConfig) -> bool {
+    fn is_target_cycle(&self, running_cycle: i64, config: &ClientConfig) -> bool {
         let target_cycle = config.cycle as i64;
         let target_cycle_offset = config.cycle_offset as i64;
-        return cycle % target_cycle == target_cycle_offset;
+        return running_cycle % target_cycle == target_cycle_offset;
     }
 
     fn update_stats(&self, context: &mut ManagerContext, changes: &[ProcessStateChange]) {

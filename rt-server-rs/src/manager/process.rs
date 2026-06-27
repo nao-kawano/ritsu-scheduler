@@ -53,7 +53,7 @@ pub trait ManagerProc {
         if client.state == ClientState::None {
             warn!(
                 "<STAT> CYC:{:012} CID:{:03} MID:{} EXIT (Retransmit)",
-                context.cycle_current, message.cid, message.mid
+                context.running_cycle, message.cid, message.mid
             );
             return Ok(vec![
                 Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap(),
@@ -62,10 +62,10 @@ pub trait ManagerProc {
         // send ok to trigger client.
         debug!(
             "<STAT> CYC:{:012} CID:{:03} MID:{} EXIT",
-            context.cycle_current, message.cid, message.mid
+            context.running_cycle, message.cid, message.mid
         );
         let mut responses: Vec<Message> = Vec::new();
-        client.set_client_state(ClientState::None, context.cycle_current);
+        client.set_client_state(ClientState::None, context.running_cycle);
         context.num_active_clients -= 1;
         context.exit_reason = Some(vec![
             ("reason".to_string(), "ClientExit".to_string()),
@@ -97,13 +97,13 @@ pub trait ManagerProc {
         if context.num_active_clients == 0 {
             debug!(
                 "CYC:{:012} no clients connected, go to Exited",
-                context.cycle_current
+                context.running_cycle
             );
             context.set_state(ManagerState::Exited);
         } else {
             debug!(
                 "CYC:{:012} {} clients connected, go to Exiting",
-                context.cycle_current, context.num_active_clients
+                context.running_cycle, context.num_active_clients
             );
             let ready_clients: Vec<u16> = context.sched.get_ready_processes();
             for ready_client in ready_clients {
@@ -119,7 +119,7 @@ pub trait ManagerProc {
                             )
                             .unwrap(),
                         );
-                        client.set_client_state(ClientState::Exiting, context.cycle_current);
+                        client.set_client_state(ClientState::Exiting, context.running_cycle);
                     }
                 }
             }
