@@ -21,8 +21,8 @@ stateDiagram-v2
     note left of Ready : (entry) Send READY
 
     State Active {
-        Ready --> Running : Recv START,cycle=N
-        Ready --> Ready : Recv SKIP,cycle=N or LATE,cycle=N
+        Ready --> Running : Recv START,cycle=N (running_cycle)
+        Ready --> Ready : Recv SKIP,cycle=N or LATE,cycle=N (running_cycle)
 
         Running --> Idle : Process Complete
         note right of Idle : (entry) Send DONE

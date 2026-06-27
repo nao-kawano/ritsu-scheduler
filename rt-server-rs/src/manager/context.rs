@@ -115,8 +115,8 @@ impl ClientInfo {
 pub struct ServerStats {
     pub interval_cycle: u32,
     pub start_at: Option<time::Instant>,
-    pub start_cycle: u64,
-    pub last_cycle: u64,
+    pub start_global_cycle: u64,
+    pub last_global_cycle: u64,
 }
 
 pub struct ManagerContext {
@@ -128,7 +128,7 @@ pub struct ManagerContext {
     pub clients: HashMap<u16, ClientInfo>,
     pub num_active_clients: usize,
     // for execution.
-    pub cycle_current: i64, // -1..CYCLE_MAX
+    pub running_cycle: i64, // -1..CYCLE_MAX
     pub sched: Scheduler,
     pub graph_start: Vec<u16>, // shortcut for cycle start.
     // for stats.
@@ -184,14 +184,14 @@ impl ManagerContext {
             exit_reason: None,
             clients,
             num_active_clients: 0,
-            cycle_current: -1,
+            running_cycle: -1,
             sched,
             graph_start,
             stats: ServerStats {
                 interval_cycle: stats_interval_cycle,
                 start_at: None,
-                start_cycle: 0,
-                last_cycle: 0,
+                start_global_cycle: 0,
+                last_global_cycle: 0,
             },
         }
     }
@@ -199,7 +199,7 @@ impl ManagerContext {
     pub fn set_state(&mut self, state: ManagerState) -> bool {
         info!(
             "<STAT> CYC:{:012} [Manager] {:?} -> {:?}",
-            self.cycle_current, self.state, state
+            self.running_cycle, self.state, state
         );
         if self.state != state {
             self.state = state;
@@ -215,7 +215,7 @@ impl ManagerContext {
 
         if let Some(start_at) = self.stats.start_at {
             let elapsed = start_at.elapsed().as_millis();
-            let cycles = current_global_cycle.saturating_sub(self.stats.start_cycle);
+            let cycles = current_global_cycle.saturating_sub(self.stats.start_global_cycle);
             info!(
                 "[STATS] Server: Elapsed Time: {} ms, Cycles: {}",
                 elapsed, cycles

@@ -1,7 +1,7 @@
 # Message Sequence of SKIP scenario
 
 Each process has an execution cycle and dependencies.  
-The scheduler attempts to maintain these cycles and dependencies as much as possible using SKIP and LATE message.
+The scheduler attempts to maintain these cycles and dependencies as much as possible using SKIP and LATE messages.
 
 At the start of each cycle, verify that the process and its dependent processes are in the Ready state.
 
@@ -49,14 +49,14 @@ sequenceDiagram
 Note over S,B: << cycle N >>
 
   Note over S: Check process A status.<br />-> OK (B waits for A to complete)
-  S --) A: START,cycle=N
+  S --) A: START,cycle=N (running_cycle)
   Note over A: Running
   A ->> A: process
 
 Note over S,B: << cycle N+1 >>
   Note over S: cycle N+1 starts.<br />A reaches next startup timing -> mark as Overrun.<br />B is in the same cycle group -> B is skipped.
 
-  S --) B: SKIP,cycle=N+1
+  S --) B: SKIP,cycle=N+1 (running_cycle)
   Note over B: send READY again
   B -) S: READY
 
@@ -69,7 +69,7 @@ Note over S,B: << cycle N+1 >>
   A -) S: READY
   Note over A: Ready
   Note over S: skip this cycle (A overrun in this cycle)
-  S --) A: *LATE,cycle=N+1*
+  S --) A: *LATE,cycle=N+1 (running_cycle)*
     Note over A: send READY again
 
   A -) S: READY
@@ -100,14 +100,14 @@ sequenceDiagram
 Note over S,B: << cycle N (offset=0) >>
 
   Note over S: cycle N starts.<br />A reaches startup timing -> OK.
-  S --) A: START,cycle=N
+  S --) A: START,cycle=N (running_cycle)
   Note over A: Running
   A ->> A: process
 
 Note over S,B: << cycle N+1 (offset=1) >>
   Note over S: cycle N+1 starts.<br />B reaches startup timing, but A is still running.<br />-> B triggers autonomous skip (A remains Running).
 
-  S --) B: SKIP,cycle=N+1
+  S --) B: SKIP,cycle=N+1 (running_cycle)
   Note over B: send READY again
   B -) S: READY
 
@@ -121,7 +121,7 @@ Note over S,B: << cycle N+1 (offset=1) >>
 
 Note over S,B: << cycle N+2 (offset=0) >>
   Note over S: cycle N+2 starts.<br />A reaches startup timing.
-  S --) A: START,cycle=N+2
+  S --) A: START,cycle=N+2 (running_cycle)
 ```
 
 ## Examples

@@ -53,7 +53,7 @@ impl ManagerProc for ManagerProcStarting {
             if version != PROTOCOL_VERSION {
                 warn!(
                     "CYC:{:012} CID:{:03} MID:{} Incompatible version: {}",
-                    context.cycle_current, message.cid, message.mid, version
+                    context.running_cycle, message.cid, message.mid, version
                 );
                 responses.push(
                     Message::new(
@@ -72,7 +72,7 @@ impl ManagerProc for ManagerProcStarting {
         } else {
             warn!(
                 "CYC:{:012} CID:{:03} MID:{} Missing version extra",
-                context.cycle_current, message.cid, message.mid
+                context.running_cycle, message.cid, message.mid
             );
             responses.push(
                 Message::new(
@@ -95,9 +95,9 @@ impl ManagerProc for ManagerProcStarting {
                 ClientState::None => {
                     debug!(
                         "<STAT> CYC:{:012} CID:{:03} MID:{} JOIN",
-                        context.cycle_current, message.cid, message.mid
+                        context.running_cycle, message.cid, message.mid
                     );
-                    client.set_client_state(ClientState::Sync, context.cycle_current);
+                    client.set_client_state(ClientState::Sync, context.running_cycle);
                     context.num_active_clients += 1;
                     responses.push(
                         Message::new(
@@ -113,7 +113,7 @@ impl ManagerProc for ManagerProcStarting {
                     // maybe retransmission, send JOINED.
                     warn!(
                         "<STAT> CYC:{:012} CID:{:03} MID:{} JOIN (Retransmit)",
-                        context.cycle_current, message.cid, message.mid
+                        context.running_cycle, message.cid, message.mid
                     );
                     responses.push(
                         Message::new(
@@ -128,7 +128,7 @@ impl ManagerProc for ManagerProcStarting {
                 _ => {
                     warn!(
                         "CYC:{:012} CID:{:03} MID:{} is already joined, dropped.",
-                        context.cycle_current, message.cid, message.mid
+                        context.running_cycle, message.cid, message.mid
                     );
                 }
             }
@@ -142,7 +142,7 @@ impl ManagerProc for ManagerProcStarting {
         if let Some(client) = context.clients.get_mut(&message.cid) {
             match client.state {
                 ClientState::Sync => {
-                    client.set_client_state(ClientState::Active, context.cycle_current);
+                    client.set_client_state(ClientState::Active, context.running_cycle);
                     // holding response for waiting others and trigger.
                     // update graph.
                     let r = context.sched.on_ready(message.cid);
@@ -151,7 +151,7 @@ impl ManagerProc for ManagerProcStarting {
                             for change in changes {
                                 debug!(
                                     "<STAT> CYC:{:012} CID:{:03} MID:{} {:?} -> {:?}",
-                                    context.cycle_current,
+                                    context.running_cycle,
                                     change.cid,
                                     message.mid,
                                     change.before,
@@ -166,13 +166,13 @@ impl ManagerProc for ManagerProcStarting {
                     // maybe retransmission, keep waiting others.
                     debug!(
                         "<STAT> CYC:{:012} CID:{:03} MID:{} READY (Retransmit)",
-                        context.cycle_current, message.cid, message.mid
+                        context.running_cycle, message.cid, message.mid
                     );
                 }
                 _ => {
                     warn!(
                         "CYC:{:012} CID:{:03} MID:{} is not in Sync, dropped.",
-                        context.cycle_current, message.cid, message.mid
+                        context.running_cycle, message.cid, message.mid
                     );
                 }
             }

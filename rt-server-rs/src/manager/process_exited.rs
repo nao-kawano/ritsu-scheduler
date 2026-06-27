@@ -35,7 +35,7 @@ pub struct ManagerProcExited;
 impl ManagerProc for ManagerProcExited {
     fn enter_state(&self, context: &mut ManagerContext) {
         trace!("enter_state");
-        context.dump_stats(context.stats.last_cycle);
+        context.dump_stats(context.stats.last_global_cycle);
     }
 
     fn on_cycle_start(&self, _context: &mut ManagerContext, _global_cycle: u64) -> EventResult {
@@ -57,7 +57,7 @@ impl ManagerProc for ManagerProcExited {
     fn on_client_exit(&self, context: &mut ManagerContext, message: &Message) -> EventResult {
         warn!(
             "<STAT> CYC:{:012} CID:{:03} MID:{} None -> None (Retransmit)",
-            context.cycle_current, message.cid, message.mid
+            context.running_cycle, message.cid, message.mid
         );
         return Ok(vec![
             Message::new(MessageType::Ok, message.mid, message.cid, None).unwrap(),

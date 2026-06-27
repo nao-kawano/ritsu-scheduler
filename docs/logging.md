@@ -29,6 +29,7 @@ To ensure logs are easily searchable, use the following fixed-width formats for 
 - **ClientID (CID):** `CID:{:03}` (e.g., `CID:010`)
 - **MessageID (MID):** `MID:{}` (e.g., `MID:3`)
 - **Cycle Number (CYC):** `CYC:{:012}` (e.g., `CYC:000000000042`)
+  - Represents the current `running_cycle`.
 
 ## Action Tags
 
@@ -65,7 +66,7 @@ Example:
 The `<STAT>` tag is specifically designed for timeline visualization tools. It covers both client-specific transitions and system-level events.
 
 ### Client-specific Transitions
-`<STAT> CYC:{Cycle} CID:{ClientID} MID:{MessageID} {Event/Transition} ({Details})`
+`<STAT> CYC:{RunningCycle} CID:{ClientID} MID:{MessageID} {Event/Transition} ({Details})`
 
 For state changes, use the `{Before} -> {After}` format. Use prefixes to distinguish between connection layers and internal process layers.
 
@@ -77,7 +78,7 @@ For state changes, use the `{Before} -> {After}` format. Use prefixes to disting
 ### System-level Events
 For global events like cycle starts or server-initiated aborts, `MID` and `CID` are omitted or set to N/A.
 
-`<STAT> CYC:{Cycle} {Event} ({Details})`
+`<STAT> CYC:{RunningCycle} {Event} ({Details})`
 
 - **Cycle Start:** `<STAT> CYC:000000000008 START`
 - **Manager Transition:** `<STAT> CYC:000000000008 [Manager] Starting -> Running`
