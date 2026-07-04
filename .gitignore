@@ -31,9 +31,9 @@ Thumbs.db
 **/.pytest_cache/
 
 # --- Project Specific ---
-logs
+**/_tmp/
+**/logs/
 *.log
 **/test_logs/
 /utils/release-pkg/
-/_tmp/
-/_plans/
+/.agent-memory/
