@@ -21,6 +21,7 @@ use simulator::simulate_plan;
 
 #[tauri::command]
 fn load_config(path: &str) -> Result<SchedulerConfig, String> {
+    log::info!("Loading config from: {}", path);
     let content =
         std::fs::read_to_string(path).map_err(|e| format!("Failed to read file: {}", e))?;
     let config: SchedulerConfig =
@@ -30,6 +31,7 @@ fn load_config(path: &str) -> Result<SchedulerConfig, String> {
 
 #[tauri::command]
 fn save_config(path: &str, config: SchedulerConfig) -> Result<(), String> {
+    log::info!("Saving config to: {}", path);
     let content =
         toml::to_string(&config).map_err(|e| format!("Failed to serialize TOML: {}", e))?;
     std::fs::write(path, content).map_err(|e| format!("Failed to write file: {}", e))?;
@@ -38,6 +40,26 @@ fn save_config(path: &str, config: SchedulerConfig) -> Result<(), String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    #[cfg(debug_assertions)]
+    {
+        let env = env_logger::Env::default().default_filter_or("debug");
+        env_logger::Builder::from_env(env)
+            .format(|buf, record| {
+                use std::io::Write;
+                let target = record.target();
+                let module = target.split("::").last().unwrap_or(target);
+                writeln!(
+                    buf,
+                    "{} [{:5}] {} - {}",
+                    chrono::Local::now().format("%Y/%m/%d %H:%M:%S%.6f"),
+                    record.level(),
+                    module,
+                    record.args()
+                )
+            })
+            .init();
+    }
+
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())

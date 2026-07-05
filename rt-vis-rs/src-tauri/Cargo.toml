@@ -17,6 +17,9 @@ crate-type = ["staticlib", "cdylib", "rlib"]
 tauri-build = { version = "2", features = [] }
 
 [dependencies]
+chrono.workspace = true
+env_logger.workspace = true
+log.workspace = true
 rt-config.workspace = true
 rt-core.workspace = true
 serde.workspace = true

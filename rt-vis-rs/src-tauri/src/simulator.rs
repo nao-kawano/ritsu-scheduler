@@ -299,8 +299,15 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
 
     // Static validation: Check rules and collect errors.
     if let Err(errs) = config.validate() {
+        log::warn!(
+            "Static validation failed: {} processes have errors",
+            errs.len()
+        );
         return Ok(SimulationResult::error(errs));
     }
+
+    log::info!("Starting plan simulation...");
+    let start_time = std::time::Instant::now();
 
     // Derive execution rules.
     let rules = config.get_client_rules();
@@ -346,6 +353,10 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
         // Prevent infinite loop.
         loop_count += 1;
         if loop_count > MAX_SIMULATION_LOOPS {
+            log::warn!(
+                "Simulation reached loop limit in {:?}",
+                start_time.elapsed()
+            );
             return Err("Simulation reached loop limit".to_string());
         }
         // Process events.
@@ -410,6 +421,7 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
         }
     }
 
+    log::info!("Finished plan simulation in {:?}", start_time.elapsed());
     Ok(SimulationResult::new(
         state.executions,
         state.metrics,
