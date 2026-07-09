@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-//     http://www.apache.org/licenses/LICENSE-2.0
+// http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,7 @@
 import { ref, reactive, watch } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
-const { mode, config, newConfig, loadConfig, saveConfig } = useAppState();
+const { appVersion, mode, config, newConfig, loadConfig, saveConfig } = useAppState();
 
 // -----------------------------------------------------------------------------
 // Props and Emits
@@ -100,12 +100,13 @@ const resetNewConfirm = () => {
 <template>
   <header class="global-control-pane">
     <div class="top-row">
-      <div class="brand">Ritsu Vis</div>
+      <div class="brand">
+        Ritsu Vis <span class="version-label" v-if="appVersion">v{{ appVersion }}</span>
+      </div>
       <div class="rt-toggle-container">
         <button :class="{ active: mode === 'Create' }" class="rt-toggle-item" @click="mode = 'Create'">Create</button>
-        <button :class="{ active: mode === 'Analyze' }" class="rt-toggle-item"
-          :disabled="true" title="Under Development"
-          @click="mode = 'Analyze'">Analyze</button>
+        <button :class="{ active: mode === 'Analyze' }" class="rt-toggle-item" :disabled="true"
+          title="Under Development" @click="mode = 'Analyze'">Analyze</button>
       </div>
     </div>
     <div class="bottom-row">
@@ -127,7 +128,8 @@ const resetNewConfirm = () => {
           <span class="rt-input-hint" v-if="localServerConfig.stats_interval_cycle === 0">
             (= Disabled)
           </span>
-          <span class="rt-input-hint" v-else-if="localServerConfig.stats_interval_cycle && localServerConfig.cycle_time_ms">
+          <span class="rt-input-hint"
+            v-else-if="localServerConfig.stats_interval_cycle && localServerConfig.cycle_time_ms">
             (= {{ formatDuration(localServerConfig.stats_interval_cycle * localServerConfig.cycle_time_ms) }})
           </span>
         </div>
@@ -169,6 +171,8 @@ const resetNewConfirm = () => {
 }
 
 .brand {
+  display: inline-flex;
+  align-items: baseline;
   font-size: var(--rt-font-brand);
   font-weight: 800;
   color: var(--rt-color-primary);
@@ -188,5 +192,12 @@ const resetNewConfirm = () => {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+}
+
+.version-label {
+  font-size: var(--rt-font-m);
+  color: var(--rt-color-text-dim);
+  margin-left: 0.5rem;
+  font-weight: normal;
 }
 </style>

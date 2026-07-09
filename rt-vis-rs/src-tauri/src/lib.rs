@@ -38,6 +38,11 @@ fn save_config(path: &str, config: SchedulerConfig) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(debug_assertions)]
@@ -81,6 +86,7 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            get_app_version,
             load_config,
             save_config,
             simulate_plan

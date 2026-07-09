@@ -19,6 +19,20 @@ import type { AppMode } from "../types/app"
 import type { SchedulerConfig, ClientConfig, SchedulerConfigUI, ClientConfigUI } from "../types/config";
 import type { PlannedExecution, PlannedMetricPoint, SimulationResult } from "../types/simulation";
 
+// --- App Metadata ---
+const appVersion = ref<string>("");
+
+const loadAppVersion = async () => {
+  try {
+    appVersion.value = await invoke<string>("get_app_version");
+  } catch (e) {
+    console.error("Failed to load app version:", e);
+  }
+};
+
+// Fetch version on module initialization
+loadAppVersion();
+
 // --- Global ID Counters ---
 let nextSessionId = 1;
 let nextConfigId = 1;
@@ -289,6 +303,7 @@ const moveClientConfig = (fromIndex: number, toIndex: number) => {
  */
 export function useAppState() {
   return {
+    appVersion,
     mode,
     selectedClientWrap,
     config,
