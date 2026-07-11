@@ -60,6 +60,7 @@ fn test_enter_state() {
 
     // setup condition.
     ctx.running_cycle = 5;
+    ctx.stats.running_start_at = None;
 
     // send event.
     proc.enter_state(&mut ctx);
@@ -67,6 +68,7 @@ fn test_enter_state() {
     // check result.
     assert_eq!(ctx.state, ManagerState::Running);
     assert_eq!(ctx.running_cycle, -1);
+    assert!(ctx.stats.running_start_at.is_some());
 }
 
 #[test]

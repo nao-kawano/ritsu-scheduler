@@ -114,9 +114,9 @@ impl ClientInfo {
 
 pub struct ServerStats {
     pub interval_cycle: u32,
-    pub start_at: Option<time::Instant>,
-    pub start_global_cycle: u64,
-    pub last_global_cycle: u64,
+    pub created_at: time::Instant,
+    pub running_start_at: Option<time::Instant>,
+    pub exiting_start_at: Option<time::Instant>,
 }
 
 pub struct ManagerContext {
@@ -189,9 +189,9 @@ impl ManagerContext {
             graph_start,
             stats: ServerStats {
                 interval_cycle: stats_interval_cycle,
-                start_at: None,
-                start_global_cycle: 0,
-                last_global_cycle: 0,
+                created_at: time::Instant::now(),
+                running_start_at: None,
+                exiting_start_at: None,
             },
         }
     }
@@ -208,21 +208,38 @@ impl ManagerContext {
         return true; /* always ok */
     }
 
-    pub fn dump_stats(&self, current_global_cycle: u64) {
+    pub fn calc_elapsed_times(&self, now: time::Instant) -> (u64, u64, u64, u64) {
+        let exit_start = self.stats.exiting_start_at.unwrap_or(now);
+        let run_start = self.stats.running_start_at.unwrap_or(exit_start);
+
+        let total = now
+            .saturating_duration_since(self.stats.created_at)
+            .as_millis() as u64;
+        let starting = run_start
+            .saturating_duration_since(self.stats.created_at)
+            .as_millis() as u64;
+        let running = exit_start.saturating_duration_since(run_start).as_millis() as u64;
+        let exiting = now.saturating_duration_since(exit_start).as_millis() as u64;
+
+        (total, starting, running, exiting)
+    }
+
+    pub fn dump_stats(&self) {
         if self.stats.interval_cycle == 0 {
             return;
         }
 
-        if let Some(start_at) = self.stats.start_at {
-            let elapsed = start_at.elapsed().as_millis();
-            let cycles = current_global_cycle.saturating_sub(self.stats.start_global_cycle);
-            info!(
-                "[STATS] Server: Elapsed Time: {} ms, Cycles: {}",
-                elapsed, cycles
-            );
-        } else {
-            info!("[STATS] Server: Elapsed Time: 0 ms, Cycles: 0");
-        }
+        let now = time::Instant::now();
+        let (total, starting, running, exiting) = self.calc_elapsed_times(now);
+
+        info!(
+            "[STATS] Server Elapsed: {}ms (S:{}, R:{}, E:{}), Cycles: {}",
+            total,
+            starting,
+            running,
+            exiting,
+            self.running_cycle.max(0)
+        );
 
         let mut cids: Vec<&u16> = self.clients.keys().collect();
         cids.sort();

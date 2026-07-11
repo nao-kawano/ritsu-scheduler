@@ -118,3 +118,96 @@ fn test_manager_context_new_no_rule() {
     // When
     ManagerContext::new(configs, rules, 0);
 }
+
+#[test]
+fn test_server_stats_calc_elapsed_times_normal() {
+    // Given
+    let configs = vec![ClientConfig::new(0, 1, 0, vec![], 0).unwrap()];
+    let scheduler_config = SchedulerConfig {
+        server_config: ServerConfig {
+            port: 8080,
+            cycle_time_ms: 50,
+            stats_interval_cycle: 0,
+        },
+        client_configs: configs,
+    };
+    let rules = scheduler_config.get_client_rules();
+    let mut context = ManagerContext::new(scheduler_config.client_configs, rules, 0);
+
+    let t0 = std::time::Instant::now();
+    context.stats.created_at = t0;
+    context.stats.running_start_at = Some(t0 + std::time::Duration::from_millis(100));
+    context.stats.exiting_start_at = Some(t0 + std::time::Duration::from_millis(500));
+    let now = t0 + std::time::Duration::from_millis(1000);
+
+    // When
+    let (total, starting, running, exiting) = context.calc_elapsed_times(now);
+
+    // Then
+    assert_eq!(total, 1000);
+    assert_eq!(starting, 100);
+    assert_eq!(running, 400);
+    assert_eq!(exiting, 500);
+}
+
+#[test]
+fn test_server_stats_calc_elapsed_times_bypass_running() {
+    // Given
+    let configs = vec![ClientConfig::new(0, 1, 0, vec![], 0).unwrap()];
+    let scheduler_config = SchedulerConfig {
+        server_config: ServerConfig {
+            port: 8080,
+            cycle_time_ms: 50,
+            stats_interval_cycle: 0,
+        },
+        client_configs: configs,
+    };
+    let rules = scheduler_config.get_client_rules();
+    let mut context = ManagerContext::new(scheduler_config.client_configs, rules, 0);
+
+    let t0 = std::time::Instant::now();
+    context.stats.created_at = t0;
+    context.stats.running_start_at = None;
+    context.stats.exiting_start_at = Some(t0 + std::time::Duration::from_millis(500));
+    let now = t0 + std::time::Duration::from_millis(1000);
+
+    // When
+    let (total, starting, running, exiting) = context.calc_elapsed_times(now);
+
+    // Then
+    assert_eq!(total, 1000);
+    assert_eq!(starting, 500); // run_start falls back to exit_start
+    assert_eq!(running, 0);
+    assert_eq!(exiting, 500);
+}
+
+#[test]
+fn test_server_stats_calc_elapsed_times_direct_exit() {
+    // Given
+    let configs = vec![ClientConfig::new(0, 1, 0, vec![], 0).unwrap()];
+    let scheduler_config = SchedulerConfig {
+        server_config: ServerConfig {
+            port: 8080,
+            cycle_time_ms: 50,
+            stats_interval_cycle: 0,
+        },
+        client_configs: configs,
+    };
+    let rules = scheduler_config.get_client_rules();
+    let mut context = ManagerContext::new(scheduler_config.client_configs, rules, 0);
+
+    let t0 = std::time::Instant::now();
+    context.stats.created_at = t0;
+    context.stats.running_start_at = None;
+    context.stats.exiting_start_at = None;
+    let now = t0 + std::time::Duration::from_millis(1000);
+
+    // When
+    let (total, starting, running, exiting) = context.calc_elapsed_times(now);
+
+    // Then
+    assert_eq!(total, 1000);
+    assert_eq!(starting, 1000); // both fall back to now
+    assert_eq!(running, 0);
+    assert_eq!(exiting, 0);
+}

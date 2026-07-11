@@ -34,8 +34,11 @@ mod process_exiting_test;
 
 pub struct ManagerProcExiting;
 impl ManagerProc for ManagerProcExiting {
-    fn enter_state(&self, _context: &mut ManagerContext) {
+    fn enter_state(&self, context: &mut ManagerContext) {
         trace!("enter_state");
+        if context.stats.exiting_start_at.is_none() {
+            context.stats.exiting_start_at = Some(std::time::Instant::now());
+        }
     }
 
     fn on_cycle_start(&self, _context: &mut ManagerContext, _global_cycle: u64) -> EventResult {

@@ -55,7 +55,7 @@ fn test_enter_state() {
     let proc = ManagerProcExiting;
 
     // setup condition.
-    // do nothing.
+    ctx.stats.exiting_start_at = None;
 
     // send event.
     proc.enter_state(&mut ctx);
@@ -67,6 +67,7 @@ fn test_enter_state() {
     assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::Active);
     assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
     assert_eq!(ctx.num_active_clients, 3);
+    assert!(ctx.stats.exiting_start_at.is_some());
 }
 
 #[test]

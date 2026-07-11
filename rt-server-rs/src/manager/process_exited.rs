@@ -35,7 +35,7 @@ pub struct ManagerProcExited;
 impl ManagerProc for ManagerProcExited {
     fn enter_state(&self, context: &mut ManagerContext) {
         trace!("enter_state");
-        context.dump_stats(context.stats.last_global_cycle);
+        context.dump_stats();
     }
 
     fn on_cycle_start(&self, _context: &mut ManagerContext, _global_cycle: u64) -> EventResult {

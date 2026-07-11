@@ -40,15 +40,12 @@ impl ManagerProc for ManagerProcRunning {
     fn enter_state(&self, context: &mut ManagerContext) {
         trace!("enter_state");
         context.running_cycle = -1;
+        if context.stats.running_start_at.is_none() {
+            context.stats.running_start_at = Some(time::Instant::now());
+        }
     }
 
-    fn on_cycle_start(&self, context: &mut ManagerContext, global_cycle: u64) -> EventResult {
-        if context.stats.start_at.is_none() {
-            context.stats.start_at = Some(time::Instant::now());
-            context.stats.start_global_cycle = global_cycle;
-        }
-        context.stats.last_global_cycle = global_cycle;
-
+    fn on_cycle_start(&self, context: &mut ManagerContext, _global_cycle: u64) -> EventResult {
         // Increment cycle and check safety limit.
         context.running_cycle += 1;
         if context.running_cycle >= ManagerContext::CYCLE_MAX {
@@ -147,7 +144,7 @@ impl ManagerProc for ManagerProcRunning {
             && context.running_cycle > 0
             && context.running_cycle % (context.stats.interval_cycle as i64) == 0
         {
-            context.dump_stats(global_cycle);
+            context.dump_stats();
         }
 
         Ok(responses)
