@@ -33,6 +33,7 @@ use cycle::{CycleGenerator, interval::IntervalTrigger};
 use event::Event;
 use manager::{EventManager, ManagerState};
 
+use clap::Parser;
 use std::fs;
 use std::io::Write;
 use std::sync::mpsc;
@@ -41,15 +42,26 @@ use std::time;
 
 /* -------------------------------------------------------------------------- */
 
+/// Command line arguments for Ritsu server.
+#[derive(Parser, Debug)]
+#[command(version, about = "Ritsu server")]
+struct Args {
+    /// Path to the configuration file
+    #[arg(short, long, default_value_t = String::from("./config.toml"))]
+    config: String,
+}
+
+/* -------------------------------------------------------------------------- */
+
 fn load_config(path: &str) -> SchedulerConfig {
     let r = fs::read_to_string(path);
     let Ok(content) = r else {
-        panic!("failed to read config file {}, {}", path, r.unwrap_err());
+        panic!("Failed to read config file {}, {}", path, r.unwrap_err());
     };
 
     let r: Result<SchedulerConfig, toml::de::Error> = toml::from_str(&content);
     let Ok(config) = r else {
-        panic!("failed to parse config file {}, {}", path, r.unwrap_err());
+        panic!("Failed to parse config file {}, {}", path, r.unwrap_err());
     };
 
     // Output raw configuration with <CONFIG> prefix for each line after successful parse.
@@ -153,6 +165,10 @@ impl PerfMetrics {
 /* -------------------------------------------------------------------------- */
 
 fn main() {
+    // Parse command line arguments first to handle --help/--version options or syntax errors
+    // without printing any log initialization messages.
+    let args = Args::parse();
+
     // setup logger.
     let env = env_logger::Env::default().default_filter_or("info");
     env_logger::Builder::from_env(env)
@@ -170,10 +186,11 @@ fn main() {
         })
         .init();
     info!("# Starting Ritsu server v{}", env!("CARGO_PKG_VERSION"));
+    info!("- Config file: {}", args.config);
     info!("----------------------------------------");
 
     // load configuration from file.
-    let config = load_config("./config.toml");
+    let config = load_config(&args.config);
 
     // validate configuration.
     if let Err(errors) = config.validate() {
@@ -182,7 +199,10 @@ fn main() {
                 error!("[ClientConfig CID:{:03}] {}", cid, err);
             }
         }
-        panic!("Configuration validation failed. Please check your config.toml");
+        panic!(
+            "Configuration validation failed for file {}. Please check your configuration.",
+            args.config
+        );
     }
 
     // derive execution rules.
