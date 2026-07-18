@@ -31,9 +31,10 @@ Thumbs.db
 **/.pytest_cache/
 
 # --- Project Specific ---
+/.agent-memory/
 **/_tmp/
 **/logs/
 *.log
 **/test_logs/
 /utils/release-pkg/
-/.agent-memory/
+/rt-client-c/examples/build/
