@@ -23,6 +23,13 @@
 #define RTCLIENT_IMPLEMENTATION
 #include "rtclient.h"
 
+#if defined(_WIN32)
+#include <timeapi.h>
+#if defined(_MSC_VER)
+#pragma comment(lib, "winmm.lib")
+#endif /* defined(_MSC_VER) */
+#endif /* defined(_WIN32) */
+
 // Helper function to output timestamped log messages matching the format used by Python/Rust clients (HH:MM:SS.mmm).
 void log_msg(const std::string& message) {
     auto now        = std::chrono::system_clock::now();
@@ -33,34 +40,6 @@ void log_msg(const std::string& message) {
     char buf[64];
     std::strftime(buf, sizeof(buf), "%H:%M:%S", std::localtime(&time_t_now));
     std::printf("%s.%03d %s\n", buf, (int)millis, message.c_str());
-}
-
-// Maps RtMessageType values to their string representations.
-const char* get_msg_type_name(RtMessageType mtype) {
-    switch (mtype) {
-        case RT_MSG_JOIN:
-            return "JOIN";
-        case RT_MSG_READY:
-            return "READY";
-        case RT_MSG_DONE:
-            return "DONE";
-        case RT_MSG_EXIT:
-            return "EXIT";
-        case RT_MSG_JOINED:
-            return "JOINED";
-        case RT_MSG_START:
-            return "START";
-        case RT_MSG_OK:
-            return "OK";
-        case RT_MSG_SKIP:
-            return "SKIP";
-        case RT_MSG_LATE:
-            return "LATE";
-        case RT_MSG_ERROR:
-            return "ERROR";
-        default:
-            return "UNKNOWN";
-    }
 }
 
 int main(int argc, char* argv[]) {
@@ -75,21 +54,16 @@ int main(int argc, char* argv[]) {
 
     // Simple parser for command line arguments.
     for (int i = 1; i < argc; ++i) {
+        // clang-format off
         std::string arg = argv[i];
-        if (arg == "--host" && i + 1 < argc)
-            host = argv[++i];
-        else if (arg == "--port" && i + 1 < argc)
-            port = std::stoi(argv[++i]);
-        else if (arg == "--client_id" && i + 1 < argc)
-            client_id = std::stoi(argv[++i]);
-        else if (arg == "--run_cycle_sec" && i + 1 < argc)
-            run_cycle_sec = std::stod(argv[++i]);
-        else if (arg == "--startup_wait_sec" && i + 1 < argc)
-            startup_wait_sec = std::stod(argv[++i]);
-        else if (arg == "--proc_time_sec" && i + 1 < argc)
-            proc_time_sec = std::stod(argv[++i]);
-        else if (arg == "--proc_count" && i + 1 < argc)
-            proc_count_max = std::stoi(argv[++i]);
+        if (arg == "--host" && i + 1 < argc) host = argv[++i];
+        else if (arg == "--port" && i + 1 < argc) port = std::stoi(argv[++i]);
+        else if (arg == "--client_id" && i + 1 < argc) client_id = std::stoi(argv[++i]);
+        else if (arg == "--run_cycle_sec" && i + 1 < argc) run_cycle_sec = std::stod(argv[++i]);
+        else if (arg == "--startup_wait_sec" && i + 1 < argc) startup_wait_sec = std::stod(argv[++i]);
+        else if (arg == "--proc_time_sec" && i + 1 < argc) proc_time_sec = std::stod(argv[++i]);
+        else if (arg == "--proc_count" && i + 1 < argc) proc_count_max = std::stoi(argv[++i]);
+        // clang-format on
     }
 
     RtClient client;
@@ -106,22 +80,27 @@ int main(int argc, char* argv[]) {
     log_msg("client joined");
 
     int proc_count = 0;
+    RtMessage msg;
     while (true) {
-        RtMessage msg         = rtclient_wait_next(&client);
+        rtclient_wait_next(&client, &msg);
         const char* cycle_str = rtclient_get_extra(&msg, "cycle");
         std::string cycle_val = cycle_str ? cycle_str : "N/A";
-
-        // Log the receipt of a message from wait_next.
-        log_msg("wait_next done: " + std::string(get_msg_type_name(msg.mtype)) + ", cycle=" + cycle_val + ", count=" + std::to_string(proc_count));
-
+        log_msg("wait_next done: " + std::string(rtclient_get_msg_str(msg.mtype)) + ", cycle=" + cycle_val + ", count=" + std::to_string(proc_count));
         if (msg.mtype == RT_MSG_START) {
             char proc_time_buf[32];
             std::sprintf(proc_time_buf, "%.3f", proc_time_sec);
             log_msg("got START, do some process with " + std::string(proc_time_buf) + " sec ...");
 
+#if defined(_WIN32)
+            timeBeginPeriod(1);
+#endif /* defined(_WIN32) */
             // Simulate workload processing with sleep.
             std::this_thread::sleep_for(std::chrono::milliseconds((int)(proc_time_sec * 1000)));
+#if defined(_WIN32)
+            timeEndPeriod(1);
+#endif /* defined(_WIN32) */
 
+            // Client must send DONE and send READY (wait_next).
             rtclient_notify_done(&client);
         } else if (msg.mtype == RT_MSG_SKIP) {
             log_msg("got SKIP, retry");
