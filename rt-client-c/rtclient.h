@@ -45,9 +45,9 @@ typedef int RT_SOCKET;
 #define RT_MESSAGE_LEN_MAX  512
 
 // Internal buffer capacity limits for the C client.
-#define RT_MESSAGE_EXTRAS_MAX 16
-#define RT_KEY_LEN_MAX        64
-#define RT_VAL_LEN_MAX        128
+#define RT_MESSAGE_EXTRAS_MAX 8
+#define RT_KEY_LEN_MAX        32
+#define RT_VAL_LEN_MAX        64
 
 // Protocol message type string representations.
 #define RT_STR_JOIN   "JOIN"
