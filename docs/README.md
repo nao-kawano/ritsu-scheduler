@@ -47,6 +47,9 @@ graph TD
     subgraph "rt-client-py (Python Client)"
         PCL[Python Client API]
     end
+    subgraph "rt-client-c (C/C++ Client)"
+        CCL[C/C++ Client API]
+    end
 
     %% Message Project
     subgraph "rt-message-rs (Common)"
@@ -69,10 +72,12 @@ graph TD
     %% for layout
     SCH ~~~ Msg
     PCL ~~~ Msg
+    CCL ~~~ Msg
 
     %% Communication Flow
     UT <-.->|UDP| RCL
     UT <-.->|UDP| PCL
+    UT <-.->|UDP| CCL
 
     %% Styling
     style CT fill:#f9f9f9,stroke:#666,stroke-dasharray: 5 5
