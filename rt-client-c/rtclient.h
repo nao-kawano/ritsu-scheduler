@@ -150,7 +150,8 @@ void rtclient_exit(RtClient* client);
 bool rtclient_wait_next(RtClient* client, RtMessage* out_msg);
 
 // Sends a DONE message to the server to notify cycle completion.
-RtMessageType rtclient_notify_done(RtClient* client);
+// Returns true if a matching response was received; false on error or timeout.
+bool rtclient_notify_done(RtClient* client, RtMessage* out_msg);
 
 // Retrieves the value of a specific extra parameter key from the message.
 // Returns NULL if the specified key is not found.
@@ -220,6 +221,17 @@ static double rt_get_time_sec(void) {
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (double)ts.tv_sec + (double)ts.tv_nsec * 1e-9;
 #endif /* defined(_WIN32) */
+}
+
+// Clears RtMessage as ERROR.
+static void rt_message_init_error(RtMessage* out_msg, uint16_t cid, uint8_t mid) {
+    if (!out_msg) {
+        return;
+    }
+    out_msg->mtype        = RT_MSG_ERROR;
+    out_msg->cid          = cid;
+    out_msg->mid          = mid;
+    out_msg->extras_count = 0;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -806,11 +818,7 @@ bool rtclient_wait_next(RtClient* client, RtMessage* out_msg) {
     }
 
     // Pre-set default error message (fallback for non-connected or timeout)
-    memset(out_msg, 0, sizeof(*out_msg));
-    out_msg->mtype        = RT_MSG_ERROR;
-    out_msg->cid          = client->client_id;
-    out_msg->mid          = client->message_id;
-    out_msg->extras_count = 0;
+    rt_message_init_error(out_msg, client->client_id, client->message_id);
 
     // Connection and socket check
     if (!client->connected || RT_SOCK_IS_INVALID(client->sock)) {
@@ -828,20 +836,20 @@ bool rtclient_wait_next(RtClient* client, RtMessage* out_msg) {
 }
 
 // Sends a DONE message to the server to notify cycle completion.
-RtMessageType rtclient_notify_done(RtClient* client) {
-    if (!client) {
-        return RT_MSG_ERROR;
+bool rtclient_notify_done(RtClient* client, RtMessage* out_msg) {
+    if (!client || !out_msg) {
+        return false;
     }
+
+    // Pre-set default error message
+    rt_message_init_error(out_msg, client->client_id, client->message_id);
+
     if (!client->connected || RT_SOCK_IS_INVALID(client->sock)) {
-        return RT_MSG_ERROR;
+        return false;
     }
 
-    RtMessage resp;
-    if (rt_send_request(client, RT_MSG_DONE, client->config.retry_sec_done, client->config.retry_count_done, NULL, 0, &resp)) {
-        return resp.mtype;
-    }
-
-    return RT_MSG_ERROR;
+    bool success = rt_send_request(client, RT_MSG_DONE, client->config.retry_sec_done, client->config.retry_count_done, NULL, 0, out_msg);
+    return success;
 }
 
 // Retrieves the value of a specific extra parameter key from the message.

@@ -70,7 +70,11 @@ int main() {
         if (msg.mtype == RT_MSG_START) {
             std::cout << "Got START message, executing task..." << std::endl;
             // Execute your processing logic here
-            rtclient_notify_done(&client);
+            rtclient_notify_done(&client, &msg);
+            if (msg.mtype == RT_MSG_ERROR) {
+                std::cerr << "Failed to notify done or got ERROR" << std::endl;
+                break;
+            }
         } else if (msg.mtype == RT_MSG_ERROR) {
             std::cerr << "Error message received" << std::endl;
             break;

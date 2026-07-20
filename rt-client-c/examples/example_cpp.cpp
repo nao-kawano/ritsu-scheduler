@@ -101,7 +101,11 @@ int main(int argc, char* argv[]) {
 #endif /* defined(_WIN32) */
 
             // Client must send DONE and send READY (wait_next).
-            rtclient_notify_done(&client);
+            rtclient_notify_done(&client, &msg);
+            if (msg.mtype == RT_MSG_ERROR) {
+                log_msg("failed to notify done or got ERROR, exit");
+                break;
+            }
         } else if (msg.mtype == RT_MSG_SKIP) {
             log_msg("got SKIP, retry");
         } else if (msg.mtype == RT_MSG_LATE) {
