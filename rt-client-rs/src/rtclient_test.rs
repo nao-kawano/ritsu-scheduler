@@ -160,7 +160,7 @@ fn test_join() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -195,7 +195,7 @@ fn test_join_retry_ok() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_join = 0.030;
 
     // setup condition.
@@ -231,7 +231,7 @@ fn test_join_retry_ng() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_join = 0.030;
 
     // setup condition.
@@ -272,7 +272,7 @@ fn test_join_precond() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -302,7 +302,7 @@ fn test_ready_startup() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -345,7 +345,7 @@ fn test_ready_startup_retry_ok() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -389,7 +389,7 @@ fn test_ready_startup_retry_ng() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -432,7 +432,7 @@ fn test_ready_startup_precond() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", 7878, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -455,7 +455,7 @@ fn test_ready() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -503,7 +503,7 @@ fn test_ready_retry_ok() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -552,7 +552,7 @@ fn test_ready_retry_ng() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
 
@@ -606,7 +606,7 @@ fn test_ready_skip() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -639,7 +639,7 @@ fn test_ready_late() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -672,7 +672,7 @@ fn test_ready_error() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -705,7 +705,7 @@ fn test_done() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -741,7 +741,7 @@ fn test_ready_mid_mismatch() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_ready = 0.1;
     client.config.retry_count_ready = 2;
 
@@ -784,7 +784,7 @@ fn test_done_retry_ng() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_done = 0.030;
 
     // setup condition.
@@ -831,7 +831,7 @@ fn test_done_precond() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", 7878, 0, 0.1, 1.0);
 
     // setup condition.
     // do nothing.
@@ -852,7 +852,7 @@ fn test_exit() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
 
     // setup condition.
     let responses: Vec<MockResponse> = vec![
@@ -890,7 +890,7 @@ fn test_exit_retry_ok() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_exit = 0.030;
 
     // setup condition.
@@ -930,7 +930,7 @@ fn test_exit_retry_ng() {
 
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), port, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
     client.config.retry_sec_exit = 0.030;
 
     // setup condition.
@@ -972,7 +972,7 @@ fn test_exit_precond() {
         .is_test(true)
         .format_timestamp_millis()
         .try_init();
-    let mut client: RtClient = RtClient::new("127.0.0.1".to_string(), 7878, 0, 0.1, 1.0);
+    let mut client: RtClient = RtClient::new("127.0.0.1", 7878, 0, 0.1, 1.0);
 
     // setup condition.
     // do nothing.
