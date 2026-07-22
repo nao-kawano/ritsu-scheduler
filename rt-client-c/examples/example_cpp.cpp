@@ -58,11 +58,11 @@ int main(int argc, char* argv[]) {
         std::string arg = argv[i];
         if (arg == "--host" && i + 1 < argc) host = argv[++i];
         else if (arg == "--port" && i + 1 < argc) port = static_cast<uint16_t>(std::stoi(argv[++i]));
-        else if (arg == "--client_id" && i + 1 < argc) client_id = static_cast<uint16_t>(std::stoi(argv[++i]));
-        else if (arg == "--run_cycle_sec" && i + 1 < argc) run_cycle_sec = std::stod(argv[++i]);
-        else if (arg == "--startup_wait_sec" && i + 1 < argc) startup_wait_sec = std::stod(argv[++i]);
-        else if (arg == "--proc_time_sec" && i + 1 < argc) proc_time_sec = std::stod(argv[++i]);
-        else if (arg == "--proc_count" && i + 1 < argc) proc_count_max = std::stoi(argv[++i]);
+        else if (arg == "--client-id" && i + 1 < argc) client_id = static_cast<uint16_t>(std::stoi(argv[++i]));
+        else if (arg == "--run-cycle-sec" && i + 1 < argc) run_cycle_sec = std::stod(argv[++i]);
+        else if (arg == "--startup-wait-sec" && i + 1 < argc) startup_wait_sec = std::stod(argv[++i]);
+        else if (arg == "--proc-time-sec" && i + 1 < argc) proc_time_sec = std::stod(argv[++i]);
+        else if (arg == "--proc-count" && i + 1 < argc) proc_count_max = std::stoi(argv[++i]);
         // clang-format on
     }
 

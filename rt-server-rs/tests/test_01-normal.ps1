@@ -73,7 +73,7 @@ foreach ($client in $Clients) {
     $procTime = $client.ProcTime
     $procCount = $client.ProcCount
     
-    $args = @($ClientScript, "--client_id", "$cid", "--run_cycle_sec", "0.100", "--port", "$ServerPort", "--proc_time_sec", "$procTime", "--proc_count", "$procCount")
+    $args = @($ClientScript, "--client-id", "$cid", "--run-cycle-sec", "0.100", "--port", "$ServerPort", "--proc-time-sec", "$procTime", "--proc-count", "$procCount")
     $proc = Start-Process -FilePath "python" `
                           -ArgumentList $args `
                           -WorkingDirectory $LogDir `

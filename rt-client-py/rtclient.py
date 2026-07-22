@@ -369,14 +369,14 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ritsu client with argparse")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address")
     parser.add_argument("--port", type=int, default=7878, help="Port number")
-    parser.add_argument("--client_id", type=int, default=1, help="Client ID: 0~999")
-    parser.add_argument("--run_cycle_sec", type=float, default=2.0,
+    parser.add_argument("--client-id", type=int, default=1, help="Client ID: 0~999")
+    parser.add_argument("--run-cycle-sec", type=float, default=2.0,
                         help="Execution cycle time (sec): 2.0 if cycle=2, cycle_time=1.0")
-    parser.add_argument("--startup_wait_sec", type=float, default=60.0,
+    parser.add_argument("--startup-wait-sec", type=float, default=60.0,
                         help="Startup wait time (sec)")
-    parser.add_argument("--proc_time_sec", type=float, default=0.4,
+    parser.add_argument("--proc-time-sec", type=float, default=0.4,
                         help="Simulated process time (sec)")
-    parser.add_argument("--proc_count", type=int, default=5,
+    parser.add_argument("--proc-count", type=int, default=5,
                         help="max run count (times)")
     args = parser.parse_args()
 
