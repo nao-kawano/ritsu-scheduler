@@ -17,7 +17,7 @@ import { ref } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
 // --- State and Composables ---
-const { config } = useAppState();
+const { activeConfig } = useAppState();
 
 // -----------------------------------------------------------------------------
 // Props and Emits
@@ -57,7 +57,7 @@ defineExpose({
 </script>
 
 <template>
-  <main class="timeline-pane" :key="config.sessionId">
+  <main class="timeline-pane" :key="activeConfig.sessionId">
     <!-- Time Header (Cycle and ms markers, synced across panes) -->
     <div class="timeline-header sb-hide-all sb-pad-v" ref="headerScrollEl">
       <div class="time-axis" :style="{ width: PIX_TOTAL_WIDTH + 'px' }">
@@ -74,7 +74,7 @@ defineExpose({
         width: PIX_TOTAL_WIDTH + 'px',
         backgroundSize: `${PIX_GRID_MAJOR}px 100%, ${PIX_GRID_MINOR}px 100%`
       }">
-        <div v-for="clientWrap in config.client_configs" :key="clientWrap.configId" class="timeline-row">
+        <div v-for="clientWrap in activeConfig.client_configs" :key="clientWrap.configId" class="timeline-row">
           <div class="plan-preview">Timeline Row for CID {{ clientWrap.data.client_id }}</div>
         </div>
         <div class="timeline-row add-btn-placeholder"></div>

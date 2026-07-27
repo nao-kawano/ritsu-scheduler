@@ -17,10 +17,11 @@ import { ref, computed } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useCreateModeLayout } from '../composables/useCreateModeLayout';
+import type { ClientConfigUI } from '../types/config';
 import type { PlannedExecution } from '../types/simulation';
 
 // --- State and Composables ---
-const { config, planned_executions, config_errors } = useAppState();
+const { configCreateMode, plannedExecutionsCreateMode, configErrors } = useAppState();
 const { cycleTimeMs, getPos, getMs } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
@@ -51,7 +52,7 @@ const onScroll = (e: Event) => {
 // --- Validation and Error Helpers ---
 
 const getErrors = (cid: number) => {
-  return config_errors.value[cid] || [];
+  return configErrors.value[cid] || [];
 };
 
 /**
@@ -76,8 +77,8 @@ const getDisplayErrors = (cid: number) => {
  * debounce period after a process deletion or CID change.
  */
 const activeExecutions = computed(() => {
-  const existingCids = new Set(config.client_configs.map(c => c.data.client_id));
-  return planned_executions.value.filter(e => existingCids.has(e.cid));
+  const existingCids = new Set(configCreateMode.client_configs.map((c: ClientConfigUI) => c.data.client_id));
+  return plannedExecutionsCreateMode.value.filter(e => existingCids.has(e.cid));
 });
 
 /**
@@ -155,7 +156,7 @@ const dragState = ref<{
  * Initialize drag operation for either Offset or Duration change.
  */
 const startDrag = (event: MouseEvent, exec: PlannedExecution, mode: DragMode) => {
-  const clientWrap = config.client_configs.find(c => c.data.client_id === exec.cid);
+  const clientWrap = configCreateMode.client_configs.find((c: ClientConfigUI) => c.data.client_id === exec.cid);
   if (!clientWrap) return;
 
   // Prevent text selection or other default browser behaviors during drag.
@@ -269,7 +270,7 @@ const guideRegion = computed(() => {
  * Aligns the bar to the vertical center of its corresponding row.
  */
 const getBarY = (cid: number) => {
-  const index = config.client_configs.findIndex(c => c.data.client_id === cid);
+  const index = configCreateMode.client_configs.findIndex((c: ClientConfigUI) => c.data.client_id === cid);
   if (index === -1) return -1000; // Position off-screen if process is not found
   return (index * ROW_HEIGHT) + (ROW_HEIGHT / 2) - (RECT_HEIGHT / 2);
 };
@@ -278,7 +279,7 @@ const getBarY = (cid: number) => {
  * Calculate the total height required for the SVG overlay.
  */
 const svgHeight = computed(() => {
-  return config.client_configs.length * ROW_HEIGHT;
+  return configCreateMode.client_configs.length * ROW_HEIGHT;
 });
 
 // --- Path Generation ---
@@ -331,7 +332,7 @@ defineExpose({
 </script>
 
 <template>
-  <main class="timeline-pane" :key="config.sessionId">
+  <main class="timeline-pane" :key="configCreateMode.sessionId">
     <!-- Time Header (Cycle and ms markers, synced across panes) -->
     <div class="timeline-header sb-hide-all sb-pad-v" ref="headerScrollEl">
       <div class="time-axis" :style="{ width: totalWidth + 'px' }">
@@ -349,10 +350,11 @@ defineExpose({
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
       }">
         <!-- Row Backgrounds for structural alignment -->
-        <div v-for="clientWrap in config.client_configs" :key="clientWrap.configId" class="timeline-row" :class="{
-          'has-warning': warningCids.has(clientWrap.data.client_id),
-          'has-error': getErrors(clientWrap.data.client_id).length > 0
-        }"></div>
+        <div v-for="clientWrap in configCreateMode.client_configs" :key="clientWrap.configId" class="timeline-row"
+          :class="{
+            'has-warning': warningCids.has(clientWrap.data.client_id),
+            'has-error': getErrors(clientWrap.data.client_id).length > 0
+          }"></div>
         <div class="timeline-row add-btn-placeholder"></div>
 
         <!-- SVG Layer for dynamic content (Arrows and Bars) -->
@@ -408,7 +410,7 @@ defineExpose({
           </g>
 
           <!-- Static Configuration Errors -->
-          <g v-for="(clientWrap, index) in config.client_configs" :key="'err-' + clientWrap.configId">
+          <g v-for="(clientWrap, index) in configCreateMode.client_configs" :key="'err-' + clientWrap.configId">
             <template v-if="getErrors(clientWrap.data.client_id).length > 0">
               <text v-for="(errObj, i) in getDisplayErrors(clientWrap.data.client_id)" :key="i" x="12"
                 :y="index * ROW_HEIGHT + 20 + (i * 16)" class="error-text-msg"

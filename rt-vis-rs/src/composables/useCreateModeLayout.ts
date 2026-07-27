@@ -21,7 +21,7 @@ import { useTimeScale } from './useTimeScale';
  * Provides layout calculations specific to the schedule editor (Create Mode).
  */
 export function useCreateModeLayout() {
-  const { config } = useAppState();
+  const { configCreateMode } = useAppState();
   const { pxPerCycle } = useTimeScale();
 
   /**
@@ -30,8 +30,8 @@ export function useCreateModeLayout() {
    * NOTE: Keep in sync with backend: simulator.rs -> max_manager_cycle
    */
   const totalCycles = computed(() => {
-    if (!config.client_configs || config.client_configs.length === 0) return 2;
-    const maxCycle = Math.max(...config.client_configs.map(c => c.data.cycle));
+    if (!configCreateMode.client_configs || configCreateMode.client_configs.length === 0) return 2;
+    const maxCycle = Math.max(...configCreateMode.client_configs.map(c => c.data.cycle));
     return maxCycle * 2;
   });
 

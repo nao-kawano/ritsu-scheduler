@@ -32,7 +32,7 @@ import MetricsChartCreate from "./components/MetricsChartCreate.vue";
 
 const {
   mode,
-  simulation_error,
+  simulationError,
   selectedClientWrap,
 } = useAppState();
 
@@ -47,7 +47,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
 
 // Derived state for common components
 const currentErrorMessage = computed(() => {
-  if (mode.value === 'Create') return simulation_error.value;
+  if (mode.value === 'Create') return simulationError.value;
   return null;
 });
 

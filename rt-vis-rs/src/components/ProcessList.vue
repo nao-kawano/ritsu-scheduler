@@ -17,7 +17,7 @@ import { ref } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
 // --- State and Composables ---
-const { config, config_errors, openEdit, addClient, moveClientConfig } = useAppState();
+const { activeConfig, configErrors, openEdit, addClient, moveClientConfig } = useAppState();
 
 // -----------------------------------------------------------------------------
 // Props and Emits
@@ -97,7 +97,7 @@ const updateTargetIndex = (clientY: number) => {
   }
 
   // Boundary Guard: prevent inserting below the add process button
-  const boundedIndex = Math.min(config.client_configs.length, Math.max(0, computedIndex));
+  const boundedIndex = Math.min(activeConfig.value.client_configs.length, Math.max(0, computedIndex));
 
   if (targetIndex.value !== boundedIndex) {
     targetIndex.value = boundedIndex;
@@ -179,7 +179,7 @@ const onMouseUp = () => {
 // --- Validation and Error Helpers ---
 
 const getErrors = (cid: number) => {
-  return config_errors.value[cid] || [];
+  return configErrors.value[cid] || [];
 };
 
 // -----------------------------------------------------------------------------
@@ -189,11 +189,11 @@ defineExpose({ scrollEl });
 </script>
 
 <template>
-  <aside class="process-list-pane" :key="config.sessionId">
+  <aside class="process-list-pane" :key="activeConfig.sessionId">
     <div class="pane-header">Processes</div>
     <div class="scroll-area process-list-scroll sb-hide-all" ref="scrollEl" @scroll="onScroll">
       <div class="process-list-content" style="position: relative;">
-        <template v-for="(clientWrap, index) in config.client_configs" :key="clientWrap.configId">
+        <template v-for="(clientWrap, index) in activeConfig.client_configs" :key="clientWrap.configId">
           <div class="drop-indicator" :class="{ 'is-active': targetIndex === index }"></div>
           <div class="process-row-wrapper" :class="{ 'is-dragging': draggingIndex === index }">
             <div class="drag-handle" @mousedown.prevent.stop="startDrag($event, index)">
@@ -225,7 +225,7 @@ defineExpose({ scrollEl });
             </div>
           </div>
         </template>
-        <div class="drop-indicator" :class="{ 'is-active': targetIndex === config.client_configs.length }"></div>
+        <div class="drop-indicator" :class="{ 'is-active': targetIndex === activeConfig.client_configs.length }"></div>
         <div class="process-row-wrapper add-btn-row">
           <button class="add-btn" @click="addClient">+ Add Process</button>
         </div>

@@ -16,11 +16,11 @@
 import { useAppState } from '../composables/useAppState';
 
 // --- State and Composables ---
-const { config } = useAppState();
+const { activeConfig } = useAppState();
 </script>
 
 <template>
-  <div class="metrics-labels-pane" :key="config.sessionId">
+  <div class="metrics-labels-pane" :key="activeConfig.sessionId">
     <div class="pane-header">Metrics Labels</div>
     <div class="metrics-labels">
       <div class="metric-label">Concurrent Processes</div>

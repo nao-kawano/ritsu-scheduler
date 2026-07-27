@@ -16,7 +16,7 @@
 import { ref, reactive, watch } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
-const { appVersion, mode, config, newConfig, loadConfig, saveConfig } = useAppState();
+const { appVersion, mode, activeConfig, newConfig, loadConfig, saveConfig } = useAppState();
 
 // -----------------------------------------------------------------------------
 // Props and Emits
@@ -30,7 +30,7 @@ const { appVersion, mode, config, newConfig, loadConfig, saveConfig } = useAppSt
  * updating the global Source of Truth (SSOT). This prevents invalid intermediate
  * states (like empty strings during typing) from triggering simulation errors.
  */
-const localServerConfig = reactive({ ...config.server_config });
+const localServerConfig = reactive({ ...activeConfig.value.server_config });
 
 /**
  * Watch local changes and sync to global state ONLY if the values are valid.
@@ -39,16 +39,16 @@ const localServerConfig = reactive({ ...config.server_config });
 watch(localServerConfig, (newVal) => {
   // 1. Port Validation (1024 - 65535)
   if (typeof newVal.port === 'number' && newVal.port >= 1024 && newVal.port <= 65535) {
-    config.server_config.port = newVal.port;
+    activeConfig.value.server_config.port = newVal.port;
   }
   // 2. Cycle Validation (>= 1ms)
   if (typeof newVal.cycle_time_ms === 'number' && newVal.cycle_time_ms >= 1) {
-    config.server_config.cycle_time_ms = newVal.cycle_time_ms;
+    activeConfig.value.server_config.cycle_time_ms = newVal.cycle_time_ms;
   }
   // 3. Stats Interval Validation (>= 0 cycles)
   const stats = newVal.stats_interval_cycle ?? 0;
   if (typeof stats === 'number' && stats >= 0) {
-    config.server_config.stats_interval_cycle = stats;
+    activeConfig.value.server_config.stats_interval_cycle = stats;
   }
 }, { deep: true });
 
@@ -56,7 +56,7 @@ watch(localServerConfig, (newVal) => {
  * Watch global state changes (e.g., from Load Config or New Config)
  * and sync them back to the local buffer.
  */
-watch(() => config.server_config, (newVal) => {
+watch(() => activeConfig.value.server_config, (newVal) => {
   // Object.assign provides a clean way to update all reactive properties at once.
   Object.assign(localServerConfig, newVal);
 }, { deep: true });

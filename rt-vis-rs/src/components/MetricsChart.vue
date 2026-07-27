@@ -17,7 +17,7 @@ import { ref } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
 // --- State and Composables ---
-const { config } = useAppState();
+const { activeConfig } = useAppState();
 
 // -----------------------------------------------------------------------------
 // Props and Emits
@@ -57,7 +57,7 @@ defineExpose({
 </script>
 
 <template>
-  <main class="metrics-pane" :key="config.sessionId">
+  <main class="metrics-pane" :key="activeConfig.sessionId">
     <!-- Time Header (Cycle and ms markers, synced across panes) -->
     <div class="timeline-header sb-hide-all sb-pad-v" ref="headerScrollEl">
       <div class="time-axis" :style="{ width: PIX_TOTAL_WIDTH + 'px' }">
