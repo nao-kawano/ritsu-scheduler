@@ -25,10 +25,10 @@ import GlobalError from "./components/GlobalError.vue";
 import EditPopup from "./components/EditPopup.vue";
 
 // Mode-specific components
-import TimelineViewGeneric from "./components/TimelineView.vue";
-import MetricsChartGeneric from "./components/MetricsChart.vue";
 import TimelineViewCreate from "./components/TimelineViewCreate.vue";
 import MetricsChartCreate from "./components/MetricsChartCreate.vue";
+import TimelineViewAnalyze from "./components/TimelineViewAnalyze.vue";
+import MetricsChartAnalyze from "./components/MetricsChartAnalyze.vue";
 
 const {
   mode,
@@ -86,7 +86,7 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
       <ProcessList :key="mode" ref="processListRef" @scroll="onProcessListScroll" />
 
       <!-- Right Pane -->
-      <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewGeneric" ref="timelineViewRef"
+      <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewAnalyze" ref="timelineViewRef"
         @scroll="onTimelineScroll" />
 
       <!-- Floating Zoom Control -->
@@ -96,7 +96,7 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
     <!-- Bottom Pane -->
     <footer class="metrics-section">
       <MetricsLabels />
-      <component :is="mode === 'Create' ? MetricsChartCreate : MetricsChartGeneric" ref="metricsChartRef"
+      <component :is="mode === 'Create' ? MetricsChartCreate : MetricsChartAnalyze" ref="metricsChartRef"
         @scroll="onMetricsScroll" />
     </footer>
 
