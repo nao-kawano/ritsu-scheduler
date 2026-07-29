@@ -172,7 +172,7 @@ defineExpose({
   flex-shrink: 0;
   justify-content: center;
   height: 100%;
-  padding: 0 0.5rem;
+  padding: 0 8px;
   border-right: var(--rt-border-main);
   font-size: var(--rt-font-xs);
 }
@@ -222,7 +222,7 @@ defineExpose({
 .info-row {
   display: flex;
   align-items: center;
-  padding: 0 1rem;
+  padding: 0 16px;
 }
 
 /* ==========================================================================
@@ -252,7 +252,7 @@ defineExpose({
    ========================================================================== */
 
 .placeholder-text {
-  font-size: 0.75rem;
+  font-size: 12px;
   color: var(--rt-color-text-dim);
   opacity: 0.4;
 }

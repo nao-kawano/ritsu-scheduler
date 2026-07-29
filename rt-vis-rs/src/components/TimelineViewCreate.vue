@@ -460,7 +460,7 @@ defineExpose({
   flex-shrink: 0;
   justify-content: center;
   height: 100%;
-  padding: 0 0.5rem;
+  padding: 0 8px;
   border-right: var(--rt-border-main);
   font-size: var(--rt-font-xs);
 }

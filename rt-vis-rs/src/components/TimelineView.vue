@@ -118,7 +118,7 @@ defineExpose({
   flex-shrink: 0;
   justify-content: center;
   height: 100%;
-  padding: 0 0.5rem;
+  padding: 0 8px;
   border-right: var(--rt-border-main);
   font-size: var(--rt-font-xs);
 }
@@ -162,7 +162,7 @@ defineExpose({
   display: flex;
   align-items: center;
   height: var(--row-height);
-  padding: 0 1rem;
+  padding: 0 16px;
   border-bottom: var(--rt-border-main);
 }
 

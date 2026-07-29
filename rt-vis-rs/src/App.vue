@@ -130,12 +130,12 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   --rt-spacing-s: 8px;
   --rt-spacing-m: 16px;
 
-  /* Typography Scale */
-  --rt-font-xs: 0.7rem;
-  --rt-font-s: 0.8rem;
-  --rt-font-m: 0.9rem;
-  --rt-font-l: 1.1rem;
-  --rt-font-brand: 1.4rem;
+  /* Typography Scale (Pixel Grid) */
+  --rt-font-xs: 11px;
+  --rt-font-s: 12px;
+  --rt-font-m: 14px;
+  --rt-font-l: 18px;
+  --rt-font-brand: 22px;
 }
 
 /* --- Semantic Color Mapping (Binds M3 to RT) --- */
@@ -222,7 +222,7 @@ textarea {
   align-items: center;
   justify-content: center;
   height: 38px;
-  padding: 0 1.2rem;
+  padding: 0 20px;
   border: 1px solid transparent;
   border-radius: var(--rt-radius-m);
   font-family: inherit;
@@ -297,7 +297,7 @@ textarea {
 .rt-toggle-item {
   display: flex;
   align-items: center;
-  padding: 0 1rem;
+  padding: 0 16px;
   border: none;
   border-radius: calc(var(--rt-radius-m) - 2px);
   background: transparent;

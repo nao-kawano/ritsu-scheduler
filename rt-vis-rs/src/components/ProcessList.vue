@@ -250,7 +250,7 @@ defineExpose({ scrollEl });
   flex-shrink: 0;
   align-items: center;
   height: var(--header-row-height);
-  padding: 0 1rem;
+  padding: 0 16px;
   border-bottom: var(--rt-border-main);
   background: var(--rt-color-surface-header);
   font-size: var(--rt-font-xs);
@@ -275,8 +275,8 @@ defineExpose({ scrollEl });
   display: flex;
   align-items: center;
   height: var(--row-height);
-  padding: 0.3rem 0.75rem;
-  gap: 0.25rem;
+  padding: 5px 12px;
+  gap: 4px;
 
   /* Border/Background */
   border-bottom: var(--rt-border-main);
@@ -288,7 +288,7 @@ defineExpose({ scrollEl });
   justify-content: center;
   width: 100%;
   height: 100%;
-  padding: 0.25rem 0.75rem;
+  padding: 4px 12px;
   background-color: var(--rt-color-surface);
   border: 1px solid var(--rt-color-border);
   border-radius: var(--rt-radius-m);
@@ -310,8 +310,8 @@ defineExpose({ scrollEl });
 .card-header .cid {
   width: 100%;
   overflow: hidden;
-  font-size: var(--rt-font-l);
-  font-weight: bold;
+  font-size: var(--rt-font-m);
+  font-weight: 600;
   color: var(--rt-color-text);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -418,7 +418,7 @@ defineExpose({ scrollEl });
 .drop-indicator {
   /* Box Model */
   height: 4px;
-  margin: -2px 0.75rem;
+  margin: -2px 12px;
 
   /* Border/Background */
   background-color: transparent;
