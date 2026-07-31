@@ -93,7 +93,7 @@ const areaPath = computed(() => {
 });
 
 // -----------------------------------------------------------------------------
-// Expose
+// Expose for App / ScrollSync
 
 defineExpose({
   headerScrollEl,

@@ -16,12 +16,12 @@
 import { ref, onMounted, onUnmounted, nextTick } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
-import { useCanvasRender } from '../composables/useCanvasRender';
+import { useCanvasRender, type ThemeStyles } from '../composables/useCanvasRender';
 
 // --- State and Composables ---
 const { activeConfig } = useAppState();
 const { totalCycles, totalWidth, gridInfo, cycleTimeMs } = useAnalyzeModeLayout();
-const { getThemeStyles, prepareCanvas, renderTimelineHeader } = useCanvasRender();
+const { getThemeStyles, prepareCanvas, renderTimelineHeader, renderBackgroundGrid } = useCanvasRender();
 
 // -----------------------------------------------------------------------------
 // Props and Emits
@@ -34,14 +34,31 @@ const emit = defineEmits<{
 // Layout Constants
 
 const ROW_HEIGHT = 70; // Height of each metric chart row in pixels (matching Create Mode)
+const METRIC_ROWS = 2; // Total metric chart rows (1: Concurrent Processes, 2: Cycle Jitter)
 
 // -----------------------------------------------------------------------------
-// Elements & Scroll Handling
+// State, Computed, and Logic
+
+// --- Elements & Scroll Handling ---
 
 const headerScrollEl = ref<HTMLElement | null>(null);
 const contentScrollEl = ref<HTMLElement | null>(null);
 const headerCanvasEl = ref<HTMLCanvasElement | null>(null);
 const contentCanvasEl = ref<HTMLCanvasElement | null>(null);
+
+// --- Theme Cache & Optimization ---
+
+const cachedThemeStyles = ref<ThemeStyles | null>(null);
+
+/**
+ * Extract and cache theme styles to avoid costly getComputedStyle calls on every scroll event.
+ */
+const updateThemeStyles = () => {
+  const container = contentScrollEl.value || headerScrollEl.value;
+  if (container) {
+    cachedThemeStyles.value = getThemeStyles(container);
+  }
+};
 
 // --- Render Logic ---
 
@@ -60,7 +77,10 @@ const renderHeader = () => {
   // Pin canvas overlay dynamically to current scroll viewport to avoid clipping or blank bleeding
   headerCanvasEl.value.style.transform = `translate(${scrollLeft}px, 0px)`;
 
-  const styles = getThemeStyles(headerScrollEl.value);
+  if (!cachedThemeStyles.value) {
+    updateThemeStyles();
+  }
+  if (!cachedThemeStyles.value) return;
 
   renderTimelineHeader(ctx, {
     scrollLeft,
@@ -68,8 +88,8 @@ const renderHeader = () => {
     height,
     totalCycles: totalCycles.value,
     cycleTimeMs: cycleTimeMs.value,
-    pxPerCycle: gridInfo.value.majorPx,
-    styles
+    majorPx: gridInfo.value.majorPx,
+    styles: cachedThemeStyles.value
   });
 };
 
@@ -89,49 +109,28 @@ const renderContent = () => {
   // Pin canvas overlay dynamically to current scroll viewport to avoid clipping or blank bleeding
   contentCanvasEl.value.style.transform = `translate(${scrollLeft}px, ${scrollTop}px)`;
 
-  const styles = getThemeStyles(container);
-  const pxPerCycle = gridInfo.value.majorPx;
-  const minorInterval = gridInfo.value.minorPx;
-  const numCycles = totalCycles.value;
-
-  // Background fill
-  ctx.fillStyle = styles.surface;
-  ctx.fillRect(0, 0, width, height);
-
-  // Minor Grids
-  const startMinor = Math.max(0, Math.floor(scrollLeft / minorInterval));
-  const endMinor = Math.min(numCycles * 10, Math.floor((scrollLeft + width) / minorInterval));
-
-  ctx.strokeStyle = styles.gridMinor;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let i = startMinor; i <= endMinor; i++) {
-    if (i % 10 === 0) continue; // Skip major grid lines
-    const x = Math.floor(i * minorInterval - scrollLeft) - 0.5;
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
+  if (!cachedThemeStyles.value) {
+    updateThemeStyles();
   }
-  ctx.stroke();
+  if (!cachedThemeStyles.value) return;
+  const styles = cachedThemeStyles.value;
 
-  // Major Grids (matching exact tick border X alignment)
-  const startMajor = Math.max(0, Math.floor(scrollLeft / pxPerCycle));
-  const endMajor = Math.min(numCycles, Math.floor((scrollLeft + width) / pxPerCycle));
-
-  ctx.strokeStyle = styles.gridMajor;
-  ctx.lineWidth = 1;
-  ctx.beginPath();
-  for (let i = startMajor; i <= endMajor; i++) {
-    const x = Math.floor(i * pxPerCycle - scrollLeft) - 0.5;
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
-  }
-  ctx.stroke();
+  // Render shared background grid surface and vertical time grid lines
+  renderBackgroundGrid(ctx, {
+    scrollLeft,
+    width,
+    height,
+    totalCycles: totalCycles.value,
+    majorPx: gridInfo.value.majorPx,
+    minorPx: gridInfo.value.minorPx,
+    styles
+  });
 
   // Metrics horizontal row borders (separating Concurrent Processes and Cycle Jitter rows)
   ctx.strokeStyle = styles.border;
   ctx.lineWidth = 1;
   ctx.beginPath();
-  for (let r = 1; r <= 2; r++) {
+  for (let r = 1; r <= METRIC_ROWS; r++) {
     const y = Math.floor(r * ROW_HEIGHT) - 0.5;
     ctx.moveTo(0, y);
     ctx.lineTo(width, y);
@@ -150,24 +149,42 @@ const onScroll = (e: Event) => {
 };
 
 // --- Lifecycle & Observers ---
+
 let resizeObserver: ResizeObserver | null = null;
+let themeMutationObserver: MutationObserver | null = null;
 
 onMounted(() => {
+  updateThemeStyles();
+
   nextTick(() => {
     renderAll();
   });
 
   if (contentScrollEl.value) {
     resizeObserver = new ResizeObserver(() => {
+      updateThemeStyles();
       renderAll();
     });
     resizeObserver.observe(contentScrollEl.value);
   }
+
+  // Observe theme class/attribute changes on root HTML element
+  themeMutationObserver = new MutationObserver(() => {
+    updateThemeStyles();
+    renderAll();
+  });
+  themeMutationObserver.observe(document.documentElement, {
+    attributes: true,
+    attributeFilter: ['class', 'style', 'data-theme']
+  });
 });
 
 onUnmounted(() => {
   if (resizeObserver) {
     resizeObserver.disconnect();
+  }
+  if (themeMutationObserver) {
+    themeMutationObserver.disconnect();
   }
 });
 

@@ -323,7 +323,7 @@ const dependencyArrows = computed(() => {
 });
 
 // -----------------------------------------------------------------------------
-// Expose
+// Expose for App / ScrollSync
 
 defineExpose({
   headerScrollEl,
