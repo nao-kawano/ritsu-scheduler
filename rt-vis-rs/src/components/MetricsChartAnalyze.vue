@@ -19,38 +19,39 @@ import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender, type ThemeStyles } from '../composables/useCanvasRender';
 
-// --- State and Composables ---
+// -----------------------------------------------------------------------------
+// Global State & Composables
+
 const { activeConfig, plannedMetricsAnalyzeMode } = useAppState();
 const { pxPerCycle } = useTimeScale();
 const { totalCycles, totalWidth, gridInfo, cycleTimeMs } = useAnalyzeModeLayout();
 const { getThemeStyles, prepareCanvas, renderTimelineHeader, renderBackgroundGrid } = useCanvasRender();
 
 // -----------------------------------------------------------------------------
-// Props and Emits
+// Props & Emits
 
 const emit = defineEmits<{
   (e: 'scroll', event: Event): void
 }>();
 
 // -----------------------------------------------------------------------------
-// Layout Constants
+// Constants & Layout
 
 const ROW_HEIGHT = 70; // Height of each metric chart row in pixels (matching Create Mode)
 const METRIC_ROWS = 2; // Total metric chart rows (1: Concurrent Processes, 2: Cycle Jitter)
 
 // -----------------------------------------------------------------------------
-// State, Computed, and Logic
-
-// --- Elements & Scroll Handling ---
+// Local State & Computed
 
 const headerScrollEl = ref<HTMLElement | null>(null);
 const contentScrollEl = ref<HTMLElement | null>(null);
 const headerCanvasEl = ref<HTMLCanvasElement | null>(null);
 const contentCanvasEl = ref<HTMLCanvasElement | null>(null);
 
-// --- Theme Cache & Optimization ---
-
 const cachedThemeStyles = ref<ThemeStyles | null>(null);
+
+// -----------------------------------------------------------------------------
+// Methods & Logic
 
 /**
  * Extract and cache theme styles to avoid costly getComputedStyle calls on every scroll event.
@@ -61,8 +62,6 @@ const updateThemeStyles = () => {
     cachedThemeStyles.value = getThemeStyles(container);
   }
 };
-
-// --- Render Logic ---
 
 /**
  * Render sticky time header canvas using shared canvas rendering composable.
@@ -145,10 +144,16 @@ const renderAll = () => {
   renderContent();
 };
 
+// -----------------------------------------------------------------------------
+// Event Handlers
+
 const onScroll = (e: Event) => {
   renderAll();
   emit('scroll', e);
 };
+
+// -----------------------------------------------------------------------------
+// Watchers & Reactive Triggers
 
 /**
  * Consolidated reactive dependency bundle for triggering canvas re-renders.
@@ -173,7 +178,8 @@ watch(renderDependencies, () => {
   });
 }, { deep: true });
 
-// --- Lifecycle & Observers ---
+// -----------------------------------------------------------------------------
+// Lifecycle Hooks & Observers
 
 /**
  * Handle viewport resize or theme attribute changes by updating theme cache and re-rendering.
@@ -203,7 +209,7 @@ onUnmounted(() => {
 });
 
 // -----------------------------------------------------------------------------
-// Expose for App / ScrollSync
+// Expose & Exports
 
 defineExpose({
   headerScrollEl,
@@ -211,6 +217,9 @@ defineExpose({
 });
 </script>
 
+<!-- ========================================================================== -->
+<!-- Template Section                                                           -->
+<!-- ========================================================================== -->
 <template>
   <main class="metrics-pane" :key="activeConfig.sessionId">
     <!-- Time Header Section (Cycle and time markers in Canvas overlay) -->
@@ -229,10 +238,13 @@ defineExpose({
   </main>
 </template>
 
+<!-- ========================================================================== -->
+<!-- Style Section                                                              -->
+<!-- ========================================================================== -->
 <style scoped>
-/* ==========================================================================
-   Layout and Containers
-   ========================================================================== */
+/* -----------------------------------------------------------------------------
+ * Layout & Containers
+ * ----------------------------------------------------------------------------- */
 
 .metrics-pane {
   display: flex;
@@ -278,6 +290,10 @@ defineExpose({
   position: relative;
   min-height: 100%;
 }
+
+/* -----------------------------------------------------------------------------
+ * Canvas & Visual Components
+ * ----------------------------------------------------------------------------- */
 
 /* --- Canvas Layer --- */
 .canvas-layer {
