@@ -150,42 +150,31 @@ const onScroll = (e: Event) => {
 
 // --- Lifecycle & Observers ---
 
-let resizeObserver: ResizeObserver | null = null;
-let themeMutationObserver: MutationObserver | null = null;
+/**
+ * Handle viewport resize or theme attribute changes by updating theme cache and re-rendering.
+ */
+const onLayoutOrThemeChange = () => {
+  updateThemeStyles();
+  renderAll();
+};
+
+const resizeObserver = new ResizeObserver(onLayoutOrThemeChange);
+const themeMutationObserver = new MutationObserver(onLayoutOrThemeChange);
 
 onMounted(() => {
   updateThemeStyles();
+  nextTick(() => renderAll());
 
-  nextTick(() => {
-    renderAll();
-  });
-
-  if (contentScrollEl.value) {
-    resizeObserver = new ResizeObserver(() => {
-      updateThemeStyles();
-      renderAll();
-    });
-    resizeObserver.observe(contentScrollEl.value);
-  }
-
-  // Observe theme class/attribute changes on root HTML element
-  themeMutationObserver = new MutationObserver(() => {
-    updateThemeStyles();
-    renderAll();
-  });
-  themeMutationObserver.observe(document.documentElement, {
+  contentScrollEl.value && resizeObserver.observe(contentScrollEl.value);
+  document.documentElement && themeMutationObserver.observe(document.documentElement, {
     attributes: true,
     attributeFilter: ['class', 'style', 'data-theme']
   });
 });
 
 onUnmounted(() => {
-  if (resizeObserver) {
-    resizeObserver.disconnect();
-  }
-  if (themeMutationObserver) {
-    themeMutationObserver.disconnect();
-  }
+  resizeObserver.disconnect();
+  themeMutationObserver.disconnect();
 });
 
 // -----------------------------------------------------------------------------
