@@ -15,11 +15,13 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useAppState } from '../composables/useAppState';
+import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender, type ThemeStyles } from '../composables/useCanvasRender';
 
 // --- State and Composables ---
-const { activeConfig } = useAppState();
+const { activeConfig, plannedExecutionsAnalyzeMode } = useAppState();
+const { pxPerCycle } = useTimeScale();
 const { totalCycles, totalWidth, gridInfo, cycleTimeMs } = useAnalyzeModeLayout();
 const { getThemeStyles, prepareCanvas, renderTimelineHeader, renderBackgroundGrid } = useCanvasRender();
 
@@ -160,6 +162,29 @@ const onScroll = (e: Event) => {
   emit('scroll', e);
 };
 
+/**
+ * Consolidated reactive dependency bundle for triggering canvas re-renders.
+ * Encapsulates all scale, layout, configuration, and simulation state changes
+ * into a single computed property to eliminate duplicate render churn.
+ */
+const renderDependencies = computed(() => ({
+  pxPerCycle: pxPerCycle.value,
+  cycleTimeMs: cycleTimeMs.value,
+  totalCycles: totalCycles.value,
+  totalWidth: totalWidth.value,
+  clientConfigs: activeConfig.value.client_configs,
+  plannedExecutions: plannedExecutionsAnalyzeMode.value,
+}));
+
+/**
+ * Automatically re-render header and background grid whenever any layout or content dependency changes.
+ */
+watch(renderDependencies, () => {
+  nextTick(() => {
+    renderAll();
+  });
+}, { deep: true });
+
 // --- Lifecycle & Observers ---
 
 /**
@@ -187,13 +212,6 @@ onMounted(() => {
 onUnmounted(() => {
   resizeObserver.disconnect();
   themeMutationObserver.disconnect();
-});
-
-// Watch activeConfig changes to re-render row borders
-watch(() => activeConfig.value.client_configs.length, () => {
-  nextTick(() => {
-    renderAll();
-  });
 });
 
 // -----------------------------------------------------------------------------
