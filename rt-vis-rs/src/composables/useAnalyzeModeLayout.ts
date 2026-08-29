@@ -14,33 +14,46 @@
 // =============================================================================
 import { computed } from 'vue';
 import { useTimeScale } from './useTimeScale';
+import { useAppState } from './useAppState';
 
 /**
  * Analyze Mode Layout Engine
  * Provides layout calculations specific to log analysis and execution visualization (Analyze Mode).
- * 
- * NOTE: Currently uses fixed values for early skeleton rendering, but designed
- * to mirror `useCreateModeLayout` so that log summary metadata (e.g. total logged cycles)
- * can easily replace these calculations in subsequent phases without breaking consumers.
  */
 export function useAnalyzeModeLayout() {
   const { pxPerCycle, cycleTimeMs } = useTimeScale();
-
-  /**
-   * Temporary constant for initial Analyze mode skeleton rendering.
-   * Will be replaced by log data bounds in Phase 4-C (Log Analysis Backend).
-   */
-  const TOTAL_CYCLES = 4;
+  const { logSummaryAnalyzeMode } = useAppState();
 
   /**
    * Calculate how many cycles to render in Analyze Mode.
+   * Dynamically derived from the loaded log summary metadata total_cycles.
    */
-  const totalCycles = computed(() => TOTAL_CYCLES);
+  const totalCycles = computed(() => {
+    if (logSummaryAnalyzeMode.value && logSummaryAnalyzeMode.value.total_cycles > 0) {
+      return logSummaryAnalyzeMode.value.total_cycles;
+    }
+    return 4; // Fallback skeleton cycle count before log is loaded
+  });
+
+  /**
+   * Total duration in milliseconds for Analyze Mode.
+   * Uses total_duration_ms from log metadata, or falls back to a 4-cycle skeleton duration before log load.
+   */
+  const totalDurationMs = computed(() => {
+    if (logSummaryAnalyzeMode.value && logSummaryAnalyzeMode.value.total_duration_ms > 0) {
+      return logSummaryAnalyzeMode.value.total_duration_ms;
+    }
+    return 4 * (cycleTimeMs.value || 50);
+  });
 
   /**
    * Total width of the timeline in pixels for the current zoom level.
+   * Based on linear physical time (pxPerMs).
    */
-  const totalWidth = computed(() => totalCycles.value * pxPerCycle.value);
+  const totalWidth = computed(() => {
+    const pxPerMs = cycleTimeMs.value > 0 ? pxPerCycle.value / cycleTimeMs.value : 0;
+    return Math.ceil(totalDurationMs.value * pxPerMs);
+  });
 
   /**
    * Grid intervals in pixels.
@@ -58,6 +71,5 @@ export function useAnalyzeModeLayout() {
     totalCycles,
     totalWidth,
     gridInfo,
-    cycleTimeMs
   };
 }

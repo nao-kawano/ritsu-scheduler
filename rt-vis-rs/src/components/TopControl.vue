@@ -16,7 +16,7 @@
 import { ref, reactive, watch } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
-const { appVersion, mode, activeConfig, newConfig, loadConfig, saveConfig } = useAppState();
+const { appVersion, mode, activeConfig, newConfig, loadConfig, saveConfig, loadLog, isLogLoading } = useAppState();
 
 // -----------------------------------------------------------------------------
 // Props and Emits
@@ -135,13 +135,21 @@ const resetNewConfirm = () => {
         </div>
       </div>
       <div class="actions">
-        <div class="rt-input-label">Config:</div>
-        <button class="rt-btn rt-btn-secondary" :class="{ 'rt-btn-danger active': isConfirmingNew }" @click="onNew"
-          @mouseleave="resetNewConfirm">
-          {{ isConfirmingNew ? 'Confirm New' : 'New' }}
-        </button>
-        <button class="rt-btn rt-btn-secondary" @click="loadConfig">Load</button>
-        <button class="rt-btn rt-btn-primary" @click="saveConfig">Save</button>
+        <template v-if="mode === 'Create'">
+          <div class="rt-input-label">Config:</div>
+          <button class="rt-btn rt-btn-secondary" :class="{ 'rt-btn-danger active': isConfirmingNew }" @click="onNew"
+            @mouseleave="resetNewConfirm">
+            {{ isConfirmingNew ? 'Confirm New' : 'New' }}
+          </button>
+          <button class="rt-btn rt-btn-secondary" @click="loadConfig">Load</button>
+          <button class="rt-btn rt-btn-primary" @click="saveConfig">Save</button>
+        </template>
+        <template v-else>
+          <div class="rt-input-label">Log:</div>
+          <button class="rt-btn rt-btn-primary" :disabled="isLogLoading" @click="loadLog">
+            {{ isLogLoading ? 'Loading...' : 'Load' }}
+          </button>
+        </template>
       </div>
     </div>
   </header>

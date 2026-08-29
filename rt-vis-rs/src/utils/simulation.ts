@@ -14,6 +14,8 @@
 // =============================================================================
 
 import type { ClientConfig, ClientConfigUI } from "../types/config";
+import type { PlannedExecution } from "../types/simulation";
+import type { ActualCycle } from "../types/analyze";
 
 /**
  * Calculates the total simulation cycles to render/calculate.
@@ -34,4 +36,36 @@ export function getSimulationCycles(configs: ClientConfig[] | ClientConfigUI[]):
   );
 
   return maxCycle * 2;
+}
+
+/**
+ * Group planned executions by anchor cycle phase for efficient lookup.
+ * Optionally exclude skipped execution instances.
+ */
+export function groupPlansByAnchorCycle(
+  plans: PlannedExecution[],
+  excludeSkips: boolean = false
+): Map<number, PlannedExecution[]> {
+  const map = new Map<number, PlannedExecution[]>();
+
+  plans.forEach(plan => {
+    if (excludeSkips && plan.status === 'skip') return;
+
+    const list = map.get(plan.anchor_cycle) || [];
+    list.push(plan);
+    map.set(plan.anchor_cycle, list);
+  });
+
+  return map;
+}
+
+/**
+ * Filter actual cycle records that fall within the specified physical time range.
+ */
+export function filterVisibleActualCycles(
+  actualCycles: ActualCycle[],
+  startMs: number,
+  endMs: number
+): ActualCycle[] {
+  return actualCycles.filter(ac => ac.start_ms >= startMs && ac.start_ms <= endMs);
 }
