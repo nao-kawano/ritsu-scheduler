@@ -22,8 +22,8 @@ export type ExecutionStatus = 'normal' | 'overrun' | 'skip';
 export interface PlannedExecution {
   instance_id: number;
   cid: number;
-  cycle: number;
-  cycle_offset_ms: number;
+  anchor_cycle: number;
+  anchor_offset_ms: number;
   start_ms: number;
   duration_ms: number;
   depends_instance_ids: number[];
