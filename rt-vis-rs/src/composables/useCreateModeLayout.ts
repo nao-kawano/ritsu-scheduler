@@ -15,6 +15,7 @@
 import { computed } from 'vue';
 import { useAppState } from './useAppState';
 import { useTimeScale } from './useTimeScale';
+import { getSimulationCycles } from '../utils/simulation';
 
 /**
  * Create Mode Layout Engine
@@ -25,15 +26,10 @@ export function useCreateModeLayout() {
   const { pxPerCycle } = useTimeScale();
 
   /**
-   * Calculate how many cycles to show in Create Mode.
-   * Based on (maxCycle * 2) to cover all process patterns including offsets.
-   * NOTE: Keep in sync with backend: simulator.rs -> max_manager_cycle
+   * Calculate how many cycles to render in Create Mode.
+   * Derived from the shared simulation cycle formula.
    */
-  const totalCycles = computed(() => {
-    if (!configCreateMode.client_configs || configCreateMode.client_configs.length === 0) return 2;
-    const maxCycle = Math.max(...configCreateMode.client_configs.map(c => c.data.cycle));
-    return maxCycle * 2;
-  });
+  const totalCycles = computed(() => getSimulationCycles(configCreateMode.client_configs));
 
   /**
    * Total width of the timeline in pixels for the current zoom level.

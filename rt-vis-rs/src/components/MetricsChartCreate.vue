@@ -36,6 +36,8 @@ const emit = defineEmits<{
 // --- Layout Constants ---
 
 const METRICS_HEIGHT = 70; // Height of each metric chart row (px) - Matching ROW_HEIGHT in Timeline
+const CHART_TOP_MARGIN = 10; // Top margin to prevent charts from touching top row border (px)
+const CHART_STROKE_WIDTH = 2; // Stroke line width for step chart contour (px)
 
 // --- Viewport and Scrolling ---
 
@@ -49,9 +51,8 @@ const onScroll = (e: Event) => {
 // --- Path Generation ---
 
 /**
- * Calculate the SVG path for the "Concurrent Processes" Area Chart.
- * This generates a "Staircase" (Step) chart to accurately reflect
- * instantaneous changes in the number of running processes.
+ * Calculate the SVG path for the "Concurrent Processes" Area Fill.
+ * Generates a closed staircase polygon for background area fill.
  */
 const areaPath = computed(() => {
   if (plannedMetricsCreateMode.value.length === 0) return '';
@@ -69,8 +70,7 @@ const areaPath = computed(() => {
     const x = getPos(current.time_ms);
 
     // Calculate Y coordinate (inverted for SVG coordinates)
-    // Leaves a small top margin (10px) for visual comfort.
-    const y = METRICS_HEIGHT - (current.running_count / maxCount) * (METRICS_HEIGHT - 10);
+    const y = METRICS_HEIGHT - (current.running_count / maxCount) * (METRICS_HEIGHT - CHART_TOP_MARGIN);
 
     if (i === 0) {
       // First point: move to ground, then up to the value
@@ -80,7 +80,7 @@ const areaPath = computed(() => {
       // 1. Draw horizontal line from previous X to current X (holding previous value)
       // 2. Draw vertical line at current X to the new value
       const prev = plannedMetricsCreateMode.value[i - 1];
-      const prevY = METRICS_HEIGHT - (prev.running_count / maxCount) * (METRICS_HEIGHT - 10);
+      const prevY = METRICS_HEIGHT - (prev.running_count / maxCount) * (METRICS_HEIGHT - CHART_TOP_MARGIN);
       path += ` L ${x},${prevY} L ${x},${y}`;
     }
   }
@@ -88,6 +88,43 @@ const areaPath = computed(() => {
   // Close the area by dropping to the ground line and closing back to start
   const lastX = getPos(plannedMetricsCreateMode.value[plannedMetricsCreateMode.value.length - 1].time_ms);
   path += ` L ${lastX},${METRICS_HEIGHT} Z`;
+
+  return path;
+});
+
+/**
+ * Calculate the SVG path for the "Concurrent Processes" Top Edge Line.
+ * Generates an open staircase polyline tracing the upper contour of running processes.
+ * Clamps bottom Y coordinate by half stroke width to keep the line fully within the row boundary.
+ */
+const linePath = computed(() => {
+  if (plannedMetricsCreateMode.value.length === 0) return '';
+
+  // Find maximum count for normalization (Y-scaling)
+  const counts = plannedMetricsCreateMode.value.map(m => m.running_count);
+  let maxCount = counts.length > 0 ? Math.max(...counts) : 1;
+  if (maxCount === 0) maxCount = 1;
+
+  const maxLineY = METRICS_HEIGHT - CHART_STROKE_WIDTH / 2;
+  let path = '';
+
+  for (let i = 0; i < plannedMetricsCreateMode.value.length; i++) {
+    const current = plannedMetricsCreateMode.value[i];
+    const x = getPos(current.time_ms);
+
+    // Calculate Y coordinate with bottom boundary clamping for stroke width preservation
+    const rawY = METRICS_HEIGHT - (current.running_count / maxCount) * (METRICS_HEIGHT - CHART_TOP_MARGIN);
+    const y = Math.min(rawY, maxLineY);
+
+    if (i === 0) {
+      path += `M ${x},${y}`;
+    } else {
+      const prev = plannedMetricsCreateMode.value[i - 1];
+      const prevRawY = METRICS_HEIGHT - (prev.running_count / maxCount) * (METRICS_HEIGHT - CHART_TOP_MARGIN);
+      const prevY = Math.min(prevRawY, maxLineY);
+      path += ` L ${x},${prevY} L ${x},${y}`;
+    }
+  }
 
   return path;
 });
@@ -123,7 +160,8 @@ defineExpose({
         <div class="metrics-row" :class="{ 'info-row': plannedMetricsCreateMode.length === 0 }">
           <svg v-if="plannedMetricsCreateMode.length > 0" class="metrics-svg" :width="totalWidth"
             :height="METRICS_HEIGHT">
-            <path :d="areaPath" class="planned-processes-path" />
+            <path :d="areaPath" class="planned-processes-area" />
+            <path :d="linePath" class="planned-processes-line" />
           </svg>
           <div v-else class="placeholder-text">No simulation data available</div>
         </div>
@@ -237,12 +275,20 @@ defineExpose({
   pointer-events: none;
 }
 
-/* Concurrent processes count area chart (staircase style) */
-.planned-processes-path {
-  stroke: var(--rt-color-primary);
-  stroke-width: 1.5;
+/* Concurrent processes count area fill (translucent filled step polygon) */
+.planned-processes-area {
   fill: var(--rt-color-primary);
   fill-opacity: 0.4;
+  stroke: none;
+  /* Smooth transition for path changes */
+  transition: d 0.3s ease;
+}
+
+/* Concurrent processes count step line (solid top contour) */
+.planned-processes-line {
+  stroke: var(--rt-color-primary);
+  stroke-width: v-bind('CHART_STROKE_WIDTH + "px"');
+  fill: none;
   /* Smooth transition for path changes */
   transition: d 0.3s ease;
 }
