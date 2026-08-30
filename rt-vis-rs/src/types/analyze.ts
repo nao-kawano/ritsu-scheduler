@@ -24,6 +24,7 @@ export type InstantEventType = 'ready' | 'exit' | 'overrun' | 'skip' | 'late' | 
  * Point-in-time event recorded during execution.
  */
 export interface ActualInstantEvent {
+  log_line_no: number;
   instance_id: number;
   time_ms: number;
   event_type: InstantEventType;
@@ -33,6 +34,8 @@ export interface ActualInstantEvent {
  * Actual execution bar data for a client process.
  */
 export interface ActualExecution {
+  log_line_no_start: number;
+  log_line_no_end: number | null;
   instance_id: number;
   cycle: number;
   start_ms: number;

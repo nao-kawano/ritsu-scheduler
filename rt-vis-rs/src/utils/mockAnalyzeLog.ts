@@ -173,6 +173,7 @@ function generateFullLogDataset(): FullLogDataset {
   }
 
   // Helper utilities for recording executions, metrics, and instant events
+  let nextLogLineNo = 100;
   let nextExecutionId = 1;
   let nextInstantEventId = 1;
   const rawMetricEvents: { time_ms: number; change: number }[] = [];
@@ -192,6 +193,8 @@ function generateFullLogDataset(): FullLogDataset {
     const executionId = nextExecutionId++;
 
     actualExecutionsByCid.get(cid)?.push({
+      log_line_no_start: nextLogLineNo++,
+      log_line_no_end: nextLogLineNo++,
       instance_id: executionId,
       cycle,
       start_ms: roundedStart,
@@ -206,6 +209,7 @@ function generateFullLogDataset(): FullLogDataset {
     // Ready event sent shortly after process completion
     const readyTime = endMs + getRandom(MOCK_PARAMS.ready_delay.min, MOCK_PARAMS.ready_delay.max);
     actualInstantEventsByCid.get(cid)?.push({
+      log_line_no: nextLogLineNo++,
       instance_id: nextInstantEventId++,
       time_ms: Math.round(readyTime * 10) / 10,
       event_type: 'ready',
@@ -214,12 +218,14 @@ function generateFullLogDataset(): FullLogDataset {
     if (isOverrun) {
       // Overrun event recorded when scheduler crosses cycle boundary
       actualInstantEventsByCid.get(cid)?.push({
+        log_line_no: nextLogLineNo++,
         instance_id: nextInstantEventId++,
         time_ms: Math.round(boundaryMs * 10) / 10,
         event_type: 'overrun',
       });
       // Late event recorded when the overrun task finishes
       actualInstantEventsByCid.get(cid)?.push({
+        log_line_no: nextLogLineNo++,
         instance_id: nextInstantEventId++,
         time_ms: endMs,
         event_type: 'late',
@@ -233,6 +239,7 @@ function generateFullLogDataset(): FullLogDataset {
     const roundedTime = Math.round(skipTimeMs * 10) / 10;
 
     actualInstantEventsByCid.get(cid)?.push({
+      log_line_no: nextLogLineNo++,
       instance_id: nextInstantEventId++,
       time_ms: roundedTime,
       event_type: 'skip',
@@ -241,6 +248,7 @@ function generateFullLogDataset(): FullLogDataset {
     // Ready event sent shortly after skip notification
     const readyTime = roundedTime + getRandom(MOCK_PARAMS.ready_delay.min, MOCK_PARAMS.ready_delay.max);
     actualInstantEventsByCid.get(cid)?.push({
+      log_line_no: nextLogLineNo++,
       instance_id: nextInstantEventId++,
       time_ms: Math.round(readyTime * 10) / 10,
       event_type: 'ready',
@@ -429,4 +437,3 @@ export async function mockGetLogRange(start_ms: number, end_ms: number): Promise
     is_truncated: false
   };
 }
-
