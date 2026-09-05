@@ -16,14 +16,13 @@
 //! Simulation Engine.
 //!
 
-use serde::{Deserialize, Serialize};
-
 use rt_config::{ClientConfig, SchedulerConfig};
 use rt_core::{ProcessEntry, ProcessState, ProcessStateChange, Scheduler};
 
+use crate::types::{ExecutionStatus, PlannedExecution, PlannedMetricPoint, SimulationResult};
+
 use std::cmp::Ordering;
 use std::collections::{BinaryHeap, HashMap};
-use std::u32;
 
 #[cfg(test)]
 #[path = "simulator_test.rs"]
@@ -33,68 +32,6 @@ mod simulator_test;
 
 const MAX_SIMULATION_LOOPS: u32 = 100_000;
 const MIN_DURATION_MS: u32 = 1;
-
-/* -------------------------------------------------------------------------- */
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum ExecutionStatus {
-    Normal,
-    Overrun,
-    Skip,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct PlannedExecution {
-    pub instance_id: u32,
-    pub cid: u16,
-    pub anchor_cycle: i64,
-    pub anchor_offset_ms: u32,
-    pub start_ms: u32,
-    pub duration_ms: u32,
-    pub depends_instance_ids: Vec<u32>,
-    pub status: ExecutionStatus,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct PlannedMetricPoint {
-    pub time_ms: u32,
-    pub running_count: u32,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub struct SimulationResult {
-    pub executions: Vec<PlannedExecution>,
-    pub metrics: Vec<PlannedMetricPoint>,
-    pub config_errors: HashMap<u16, Vec<String>>,
-}
-
-impl SimulationResult {
-    fn new(
-        executions: Vec<PlannedExecution>,
-        metrics: Vec<PlannedMetricPoint>,
-        config_errors: HashMap<u16, Vec<String>>,
-    ) -> Self {
-        Self {
-            executions,
-            metrics,
-            config_errors,
-        }
-    }
-
-    /// Creates a result with no executions or errors.
-    fn empty() -> Self {
-        Self::new(Vec::new(), Vec::new(), HashMap::new())
-    }
-
-    /// Creates a result representing static configuration errors.
-    fn error(config_errors: HashMap<u16, Vec<String>>) -> Self {
-        Self::new(Vec::new(), Vec::new(), config_errors)
-    }
-}
 
 /* -------------------------------------------------------------------------- */
 

@@ -12,13 +12,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
-mod log_store;
-mod simulator;
 
 use rt_config::SchedulerConfig;
-use tauri::Manager;
+
+mod log_parser;
+mod log_store;
+mod simulator;
+mod types;
 
 use simulator::simulate_plan;
+
+use tauri::Manager;
 
 #[tauri::command]
 fn load_config(path: &str) -> Result<SchedulerConfig, String> {

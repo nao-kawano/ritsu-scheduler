@@ -18,7 +18,7 @@ import type { ExecutionStatus } from './simulation';
 /**
  * Event types for point-in-time execution events.
  */
-export type InstantEventType = 'ready' | 'exit' | 'overrun' | 'skip' | 'late' | 'error';
+export type InstantEventType = 'ready' | 'overrun' | 'skip' | 'late' | 'error' | 'exit' | 'retransmit';
 
 /**
  * Point-in-time event recorded during execution.
