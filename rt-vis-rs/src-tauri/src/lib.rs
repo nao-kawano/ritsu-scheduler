@@ -20,9 +20,36 @@ mod log_store;
 mod simulator;
 mod types;
 
+use log_store::LogStore;
 use simulator::simulate_plan;
+use types::{LogRangeData, LogSummary};
 
+use std::fs::File;
+use std::io::BufReader;
+use std::sync::Mutex;
 use tauri::Manager;
+
+/* -------------------------------------------------------------------------- */
+
+/// Session state managed by Tauri runtime across IPC invocations.
+pub struct AppState {
+    pub log_store: Mutex<Option<LogStore>>,
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            log_store: Mutex::new(None),
+        }
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+
+#[tauri::command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
 
 #[tauri::command]
 fn load_config(path: &str) -> Result<SchedulerConfig, String> {
@@ -44,9 +71,40 @@ fn save_config(path: &str, config: SchedulerConfig) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn get_app_version() -> String {
-    env!("CARGO_PKG_VERSION").to_string()
+fn load_log(path: &str, state: tauri::State<'_, AppState>) -> Result<LogSummary, String> {
+    log::info!("Loading log from: {}", path);
+    let file = File::open(path).map_err(|e| format!("Failed to open log file: {}", e))?;
+    let reader = BufReader::new(file);
+    let store = log_parser::parse_log(reader).map_err(|e| format!("Failed to parse log: {}", e))?;
+    let summary = store.summary.clone();
+
+    let mut lock = state
+        .log_store
+        .lock()
+        .map_err(|e| format!("Failed to acquire log store lock: {}", e))?;
+    *lock = Some(store);
+
+    Ok(summary)
 }
+
+#[tauri::command]
+fn get_log_range(
+    start_ms: u64,
+    end_ms: u64,
+    state: tauri::State<'_, AppState>,
+) -> Result<LogRangeData, String> {
+    let lock = state
+        .log_store
+        .lock()
+        .map_err(|e| format!("Failed to acquire log store lock: {}", e))?;
+    let store = lock
+        .as_ref()
+        .ok_or_else(|| "No log file has been loaded yet".to_string())?;
+
+    Ok(store.get_range(start_ms, end_ms))
+}
+
+/* -------------------------------------------------------------------------- */
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -71,6 +129,7 @@ pub fn run() {
     }
 
     tauri::Builder::default()
+        .manage(AppState::default())
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
@@ -94,7 +153,9 @@ pub fn run() {
             get_app_version,
             load_config,
             save_config,
-            simulate_plan
+            simulate_plan,
+            load_log,
+            get_log_range
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
