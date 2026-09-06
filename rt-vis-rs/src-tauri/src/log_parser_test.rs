@@ -55,6 +55,11 @@ const SAMPLE_LOG_RETRANSMIT: &str = r#"2026/09/06 00:00:00.000000 [INFO ] main -
 /* Test Cases                                                                 */
 /* -------------------------------------------------------------------------- */
 
+/// Helper to parse log from an in-memory string for unit testing.
+fn parse_log_str(content: &str) -> Result<LogStore, String> {
+    parse_log(content.as_bytes())
+}
+
 /// Validates complete parsing of a normal multi-client execution using real server log.
 #[test]
 fn test_parse_real_log_normal() {

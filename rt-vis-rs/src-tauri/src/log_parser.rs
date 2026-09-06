@@ -400,11 +400,6 @@ pub fn parse_log<R: BufRead>(reader: R) -> Result<LogStore, String> {
     ctx.finish()
 }
 
-/// Helper to parse log from an in-memory string.
-pub fn parse_log_str(content: &str) -> Result<LogStore, String> {
-    parse_log(content.as_bytes())
-}
-
 /* -------------------------------------------------------------------------- */
 
 /// Extracts configuration line content if the line contains the <CONFIG> tag.

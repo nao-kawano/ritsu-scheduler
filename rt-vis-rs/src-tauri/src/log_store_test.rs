@@ -14,7 +14,7 @@
 // =============================================================================
 
 use super::*;
-use crate::log_parser::parse_log_str;
+use crate::log_parser::parse_log;
 
 /* -------------------------------------------------------------------------- */
 /* Test Fixtures (Embedded Real Server Logs)                                  */
@@ -29,7 +29,7 @@ const LOG_NORMAL: &str = include_str!("../fixtures/logs/server_normal.log");
 /// Validates extracting the entire time range returns all parsed data across all 5 fields in deterministic CID order.
 #[test]
 fn test_get_range_full_span() {
-    let store = parse_log_str(LOG_NORMAL).expect("Failed to parse normal fixture log");
+    let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
     let total_duration_ms = store.summary.total_duration_ms;
 
     let range_data = store.get_range(0, total_duration_ms + 100);
@@ -97,7 +97,7 @@ fn test_get_range_full_span() {
 /// Validates extracting a partial time window verifies all 5 fields against strict time and margin boundaries.
 #[test]
 fn test_get_range_partial_slice() {
-    let store = parse_log_str(LOG_NORMAL).expect("Failed to parse normal fixture log");
+    let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
 
     // Target a window around Cycle 1 and Cycle 2 (roughly 50ms to 149ms)
     let start_ms = 50;
@@ -165,7 +165,7 @@ fn test_get_range_partial_slice() {
 /// Validates query with inverted arguments returns an empty result across all fields safely.
 #[test]
 fn test_get_range_inverted_bounds() {
-    let store = parse_log_str(LOG_NORMAL).expect("Failed to parse normal fixture log");
+    let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
 
     let range_data = store.get_range(200, 100);
 
@@ -179,7 +179,7 @@ fn test_get_range_inverted_bounds() {
 /// Validates query out of log bounds returns empty collections across all 5 fields.
 #[test]
 fn test_get_range_out_of_bounds() {
-    let store = parse_log_str(LOG_NORMAL).expect("Failed to parse normal fixture log");
+    let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
 
     // Request a window far beyond the end of the log
     let range_data = store.get_range(50_000, 60_000);
@@ -213,7 +213,7 @@ fn test_get_range_out_of_bounds() {
 /// Validates safety cap limits trigger truncation flag and clamp returned element counts across categories.
 #[test]
 fn test_get_range_safety_cap_truncation() {
-    let store = parse_log_str(LOG_NORMAL).expect("Failed to parse normal fixture log");
+    let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
     let total_duration_ms = store.summary.total_duration_ms;
 
     // Test execution cap truncation
