@@ -88,6 +88,13 @@ const sampleConfigCreateMode: SchedulerConfig = {
 const mode = ref<AppMode>('Create');
 const selectedClientWrap = ref<ClientConfigUI | null>(null);
 
+// --- Mock Configuration ---
+/**
+ * Toggle between real Tauri IPC and in-memory mock log generator.
+ * Set to `true` during offline UI prototyping or benchmarking.
+ */
+const USE_MOCK_LOG = false;
+
 // --- Create Mode State ---
 const currentConfigPathCreateMode = ref<string>("");
 const configCreateMode = reactive<SchedulerConfigUI>(wrapConfig(sampleConfigCreateMode));
@@ -96,6 +103,7 @@ const plannedMetricsCreateMode = ref<PlannedMetricPoint[]>([]);
 
 // --- Analyze Mode State ---
 const currentConfigPathAnalyzeMode = ref<string>("");
+const currentLogPathAnalyzeMode = ref<string>("");
 const configAnalyzeMode = reactive<SchedulerConfigUI>(wrapConfig(sampleConfigCreateMode));
 const plannedExecutionsAnalyzeMode = ref<PlannedExecution[]>([]);
 const plannedMetricsAnalyzeMode = ref<PlannedMetricPoint[]>([]);
@@ -193,6 +201,7 @@ const newConfig = () => {
     plannedExecutionsAnalyzeMode.value = [];
     plannedMetricsAnalyzeMode.value = [];
     currentConfigPathAnalyzeMode.value = "";
+    currentLogPathAnalyzeMode.value = "";
   }
   configErrors.value = {};
   simulationError.value = null;
@@ -303,9 +312,28 @@ const saveConfig = async () => {
 const loadLog = async () => {
   isLogLoading.value = true;
   try {
-    // In production, plugin-dialog will be used to pick a log file.
-    // For now, invoke mockLoadLog()
-    const summary = await mockLoadLog();
+    let summary: LogSummary;
+    let logPath = "";
+
+    if (USE_MOCK_LOG) {
+      summary = await mockLoadLog();
+      logPath = "mock://server.log";
+    } else {
+      const selectedPath = await open({
+        title: 'Select Log File',
+        filters: [{ name: 'Scheduler Log File', extensions: ['log', 'txt'] }],
+        defaultPath: currentLogPathAnalyzeMode.value || undefined
+      });
+
+      if (selectedPath === null) {
+        return; // User cancelled
+      }
+
+      logPath = selectedPath as string;
+      summary = await invoke<LogSummary>("load_log", { path: logPath });
+    }
+
+    currentLogPathAnalyzeMode.value = logPath;
     logSummaryAnalyzeMode.value = summary;
 
     // Sync restored config from log to configAnalyzeMode
@@ -326,7 +354,7 @@ const loadLog = async () => {
     inFlightRangeAnalyzeMode.value = null;
     logRangeDataAnalyzeMode.value = null;
 
-    console.log("Log loaded successfully (mock).", summary);
+    console.log(`Log loaded successfully (${USE_MOCK_LOG ? "mock" : logPath}).`, summary);
   } catch (e) {
     console.error("Failed to load log:", e);
     alert(`Failed to load log:\n${e}`);
@@ -385,7 +413,9 @@ const fetchLogRange = (startMs: number, endMs: number) => {
     inFlightRangeAnalyzeMode.value = { start_ms: reqStart, end_ms: reqEnd };
 
     try {
-      const rangeData = await mockGetLogRange(reqStart, reqEnd);
+      const rangeData = USE_MOCK_LOG
+        ? await mockGetLogRange(reqStart, reqEnd)
+        : await invoke<LogRangeData>("get_log_range", { startMs: reqStart, endMs: reqEnd });
       logRangeDataAnalyzeMode.value = rangeData;
       cachedWindowRangeAnalyzeMode.value = { start_ms: reqStart, end_ms: reqEnd };
     } catch (e) {
@@ -496,6 +526,7 @@ export function useAppState() {
 
     // Analyze Mode State
     currentConfigPathAnalyzeMode,
+    currentLogPathAnalyzeMode,
     configAnalyzeMode,
     plannedExecutionsAnalyzeMode,
     plannedMetricsAnalyzeMode,
