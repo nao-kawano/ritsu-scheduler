@@ -47,6 +47,7 @@ const emit = defineEmits<{
 const ROW_HEIGHT = 70;         // Fixed height of each process row in pixels (matching Create Mode)
 const PLAN_RECT_HEIGHT = 46;  // Outer planned execution box height (matching Create Mode bar height)
 const ACTUAL_RECT_HEIGHT = 28; // Inner solid actual execution bar height
+const EVENT_DIAMOND_RADIUS_PX = 8; // Radius of instant event diamond marker in pixels
 
 // -----------------------------------------------------------------------------
 // Local State & Computed
@@ -266,6 +267,83 @@ const renderActualBars = (
 };
 
 /**
+ * Render point-in-time execution events (diamond markers) into canvas context.
+ */
+const renderInstantEvents = (
+  ctx: CanvasRenderingContext2D,
+  scrollLeft: number,
+  scrollTop: number,
+  width: number,
+  height: number,
+  styles: ThemeStyles,
+  cidToRowIndex: Map<number, number>
+) => {
+  if (!logSummaryAnalyzeMode.value) return;
+
+  const rangeData = logRangeDataAnalyzeMode.value;
+  if (!rangeData || !rangeData.actual_instant_events_by_cid) return;
+
+  rangeData.actual_instant_events_by_cid.forEach(([cid, events]) => {
+    const r = cidToRowIndex.get(cid);
+    if (r === undefined) return;
+
+    const yCenter = Math.floor(r * ROW_HEIGHT - scrollTop + ROW_HEIGHT / 2);
+    // Early vertical viewport culling for the process row
+    if (yCenter + EVENT_DIAMOND_RADIUS_PX < 0 || yCenter - EVENT_DIAMOND_RADIUS_PX > height) return;
+
+    events.forEach(event => {
+      const x = Math.floor(event.time_ms * pxPerMs.value - scrollLeft);
+      // Horizontal viewport culling
+      if (x + EVENT_DIAMOND_RADIUS_PX < 0 || x - EVENT_DIAMOND_RADIUS_PX > width) return;
+
+      ctx.save();
+      {
+        let fillColor = styles.eventReadyColor;
+        switch (event.event_type) {
+          case 'ready':
+            fillColor = styles.eventReadyColor;
+            break;
+          case 'exit':
+            fillColor = styles.eventExitColor;
+            break;
+          case 'overrun':
+            fillColor = styles.eventOverrunColor;
+            break;
+          case 'error':
+            fillColor = styles.eventErrorColor;
+            break;
+          case 'skip':
+            fillColor = styles.eventSkipColor;
+            break;
+          case 'late':
+            fillColor = styles.eventLateColor;
+            break;
+          case 'retransmit':
+            fillColor = styles.eventRetransmitColor;
+            break;
+        }
+
+        // Diamond marker path centered at (x, yCenter)
+        ctx.fillStyle = fillColor;
+        ctx.beginPath();
+        ctx.moveTo(x, yCenter - EVENT_DIAMOND_RADIUS_PX);
+        ctx.lineTo(x + EVENT_DIAMOND_RADIUS_PX, yCenter);
+        ctx.lineTo(x, yCenter + EVENT_DIAMOND_RADIUS_PX);
+        ctx.lineTo(x - EVENT_DIAMOND_RADIUS_PX, yCenter);
+        ctx.closePath();
+        ctx.fill();
+
+        // Subtle outline stroke for high contrast against bars and background
+        ctx.strokeStyle = 'rgba(255, 255, 255, 0.85)';
+        ctx.lineWidth = 1;
+        ctx.stroke();
+      }
+      ctx.restore();
+    });
+  });
+};
+
+/**
  * Render horizontal process row separator borders.
  */
 const renderRowBorders = (
@@ -364,6 +442,7 @@ const renderContent = () => {
 
   renderPlanBoxes(ctx, scrollLeft, scrollTop, width, height, styles, cidToRowIndex.value);
   renderActualBars(ctx, scrollLeft, scrollTop, width, height, styles, cidToRowIndex.value);
+  renderInstantEvents(ctx, scrollLeft, scrollTop, width, height, styles, cidToRowIndex.value);
 
   requestVisibleLogRange(scrollLeft, width);
 };

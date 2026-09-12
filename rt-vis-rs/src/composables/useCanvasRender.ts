@@ -25,8 +25,16 @@ export interface ThemeStyles {
   primaryColor: string;
   accentColor: string;
   errorColor: string;
+  warningColor: string;
   fontSizePx: string;
   fontFamily: string;
+  eventReadyColor: string;
+  eventExitColor: string;
+  eventOverrunColor: string;
+  eventErrorColor: string;
+  eventSkipColor: string;
+  eventLateColor: string;
+  eventRetransmitColor: string;
 }
 
 export interface RenderHeaderOptions {
@@ -91,8 +99,16 @@ export function useCanvasRender() {
       primaryColor: getVar('--rt-color-primary', '#415F91'),
       accentColor: getVar('--rt-color-accent', '#6f5575'),
       errorColor: getVar('--rt-color-error', '#ba1a1a'),
+      warningColor: getVar('--rt-color-warning', '#e6a23c'),
       fontSizePx: getVar('--rt-font-xs', '11px'),
-      fontFamily: style.fontFamily?.trim() || getVar('--rt-font-family', 'Inter, system-ui, sans-serif')
+      fontFamily: style.fontFamily?.trim() || getVar('--rt-font-family', 'Inter, system-ui, sans-serif'),
+      eventReadyColor: getVar('--rt-color-event-ready', '#415F91'),
+      eventExitColor: getVar('--rt-color-event-exit', '#74777f'),
+      eventOverrunColor: getVar('--rt-color-event-overrun', '#ba1a1a'),
+      eventErrorColor: getVar('--rt-color-event-error', '#ba1a1a'),
+      eventSkipColor: getVar('--rt-color-event-skip', '#f5e389'),
+      eventLateColor: getVar('--rt-color-event-late', '#f5e389'),
+      eventRetransmitColor: getVar('--rt-color-event-retransmit', '#705575')
     };
   };
 

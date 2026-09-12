@@ -168,12 +168,22 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   --rt-color-error-container: var(--md-sys-color-error-container);
   --rt-color-on-error-container: var(--md-sys-color-on-error-container);
 
+  --rt-color-warning: var(--md-extended-color-warning-color);
   --rt-color-warning-container: var(--md-extended-color-warning-color-container);
   --rt-color-on-warning-container: var(--md-extended-color-warning-on-color-container);
 
   /* Borders & Grid */
   --rt-color-border: var(--md-sys-color-outline-variant);
   --rt-color-outline: var(--md-sys-color-outline);
+
+  /* Instant Events (Timeline Diamond Markers) */
+  --rt-color-event-ready: var(--md-sys-color-primary);
+  --rt-color-event-exit: var(--md-sys-color-outline);
+  --rt-color-event-overrun: var(--md-sys-color-error);
+  --rt-color-event-error: var(--md-sys-color-error);
+  --rt-color-event-skip: var(--md-extended-color-warning-color-container);
+  --rt-color-event-late: var(--md-extended-color-warning-color-container);
+  --rt-color-event-retransmit: var(--md-sys-color-tertiary);
 
   /* Derived Tokens */
   --rt-border-main: 1px solid var(--rt-color-border);
