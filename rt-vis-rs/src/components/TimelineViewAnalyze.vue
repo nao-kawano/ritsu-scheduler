@@ -19,6 +19,34 @@ import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender, type ThemeStyles } from '../composables/useCanvasRender';
 import { getSimulationCycles, groupPlansByAnchorCycle, filterVisibleActualCycles } from '../utils/simulation';
+import type { ActualExecution, ActualInstantEvent, ActualCycle } from '../types/analyze';
+
+/**
+ * Cached hit item for rendered actual execution bar.
+ */
+interface HitBarItem {
+  cid: number;
+  clientName: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  actual: ActualExecution;
+  planDurationMs: number | null;
+  planStartMs: number | null;
+}
+
+/**
+ * Cached hit item for rendered instant event diamond marker.
+ */
+interface HitEventItem {
+  cid: number;
+  clientName: string;
+  x: number;
+  y: number;
+  event: ActualInstantEvent;
+  cycle: number;
+}
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
@@ -48,6 +76,7 @@ const ROW_HEIGHT = 70;         // Fixed height of each process row in pixels (ma
 const PLAN_RECT_HEIGHT = 46;  // Outer planned execution box height (matching Create Mode bar height)
 const ACTUAL_RECT_HEIGHT = 28; // Inner solid actual execution bar height
 const EVENT_DIAMOND_RADIUS_PX = 8; // Radius of instant event diamond marker in pixels
+const HIT_RADIUS_PX = 8;       // Hit detection radius for instant event markers in pixels
 
 // -----------------------------------------------------------------------------
 // Local State & Computed
@@ -59,12 +88,51 @@ const contentCanvasEl = ref<HTMLCanvasElement | null>(null);
 
 const cachedThemeStyles = ref<ThemeStyles | null>(null);
 
+// Primary caches for visible elements populated during canvas render
+let visibleHitBars: HitBarItem[] = [];
+let visibleHitEvents: HitEventItem[] = [];
+
+// Interactive hover and tooltip states
+const hoveredBar = ref<HitBarItem | null>(null);
+const hoveredEvents = ref<HitEventItem[] | null>(null);
+const tooltipPos = ref<{
+  mouseX: number;
+  mouseY: number;
+  scrollLeft: number;
+  scrollTop: number;
+} | null>(null);
+
+const hasHoverTarget = computed(() => {
+  return !!hoveredBar.value || (hoveredEvents.value !== null && hoveredEvents.value.length > 0);
+});
+
 /**
  * Map Client ID to process row index for alignment.
  */
 const cidToRowIndex = computed(() => {
   const map = new Map<number, number>();
   activeConfig.value.client_configs.forEach((c, idx) => map.set(c.data.client_id, idx));
+  return map;
+});
+
+/**
+ * Map Client ID to process display name.
+ */
+const cidToClientName = computed(() => {
+  const map = new Map<number, string>();
+  activeConfig.value.client_configs.forEach(c => map.set(c.data.client_id, c.data.display_name));
+  return map;
+});
+
+/**
+ * Map Cycle number to ActualCycle object for O(1) lookup.
+ */
+const actualCyclesMap = computed(() => {
+  const map = new Map<number, ActualCycle>();
+  const cycles = logRangeDataAnalyzeMode.value?.actual_cycles;
+  if (cycles) {
+    cycles.forEach(c => map.set(c.cycle, c));
+  }
   return map;
 });
 
@@ -78,8 +146,77 @@ const totalContentHeight = computed(() => {
   return count * ROW_HEIGHT;
 });
 
+/**
+ * Compute floating tooltip placement with boundary-aware smart clamping.
+ * Uses anchor positioning with CSS transform translation (-100%) when flipped,
+ * ensuring seamless edge-aligned gap (14px) regardless of dynamic tooltip dimensions.
+ */
+const tooltipStyle = computed(() => {
+  if (!tooltipPos.value || !contentScrollEl.value) return { display: 'none' };
+
+  const { mouseX, mouseY, scrollLeft, scrollTop } = tooltipPos.value;
+  const containerWidth = contentScrollEl.value.clientWidth;
+  const containerHeight = contentScrollEl.value.clientHeight;
+
+  // Estimated bounding box thresholds for boundary overflow detection
+  const ESTIMATED_MAX_WIDTH = 340;
+  const ESTIMATED_MAX_HEIGHT = 210;
+  const offset = 14;
+
+  // Determine flip state for right and bottom container edges
+  const flipX = mouseX + offset + ESTIMATED_MAX_WIDTH > containerWidth;
+  const flipY = mouseY + offset + ESTIMATED_MAX_HEIGHT > containerHeight;
+
+  // Anchor point: offset cursor by 14px in either positive or negative direction
+  const left = mouseX + scrollLeft + (flipX ? -offset : offset);
+  const top = mouseY + scrollTop + (flipY ? -offset : offset);
+
+  // Shift by 100% of element's actual rendered dimensions when flipped
+  const translateX = flipX ? '-100%' : '0%';
+  const translateY = flipY ? '-100%' : '0%';
+
+  return {
+    left: `${left}px`,
+    top: `${top}px`,
+    transform: `translate(${translateX}, ${translateY})`
+  };
+});
+
 // -----------------------------------------------------------------------------
 // Methods & Logic
+
+/**
+ * Format delta value with sign and units for tooltip display.
+ * Clamps near-zero floating point residuals to clean positive zero (+0.00 ms).
+ */
+const formatDelta = (delta: number): string => {
+  if (Math.abs(delta) < 0.005) {
+    return '+0.00 ms';
+  }
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${delta.toFixed(2)} ms`;
+};
+
+/**
+ * Find the latest actual cycle whose start_ms is less than or equal to the given timeMs.
+ * Uses binary search for O(log N) lookup.
+ */
+const findCycleForTime = (cycles: ActualCycle[], timeMs: number): number => {
+  if (!cycles || cycles.length === 0) return 0;
+  let low = 0;
+  let high = cycles.length - 1;
+  let result = cycles[0].cycle;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (cycles[mid].start_ms <= timeMs) {
+      result = cycles[mid].cycle;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return result;
+};
 
 /**
  * Extract and cache theme styles to avoid costly getComputedStyle calls on every scroll event.
@@ -227,9 +364,15 @@ const renderActualBars = (
   const rangeData = logRangeDataAnalyzeMode.value;
   if (!rangeData || !rangeData.actual_executions_by_cid) return;
 
+  const plans = plannedExecutionsAnalyzeMode.value;
+  const templateCycles = getSimulationCycles(activeConfig.value.client_configs);
+  const plansByAnchorCycle = plans && plans.length > 0 ? groupPlansByAnchorCycle(plans) : null;
+
   rangeData.actual_executions_by_cid.forEach(([cid, actuals]) => {
     const r = cidToRowIndex.get(cid);
     if (r === undefined) return;
+
+    const clientName = cidToClientName.value.get(cid) || `Client ${cid}`;
 
     actuals.forEach(actual => {
       // Guard against non-running or skipped executions with no elapsed duration
@@ -240,6 +383,33 @@ const renderActualBars = (
       const y = Math.floor(r * ROW_HEIGHT - scrollTop + (ROW_HEIGHT - ACTUAL_RECT_HEIGHT) / 2);
 
       if (y + ACTUAL_RECT_HEIGHT >= 0 && y <= height && x + barWidth >= 0 && x <= width) {
+        // Resolve corresponding planned duration and planned start time for tooltip comparison
+        let planDurationMs: number | null = null;
+        let planStartMs: number | null = null;
+        if (plansByAnchorCycle && templateCycles > 0) {
+          const matchingPlans = plansByAnchorCycle.get(actual.cycle % templateCycles);
+          const plan = matchingPlans?.find(p => p.cid === cid);
+          if (plan) {
+            planDurationMs = plan.duration_ms;
+            const actualCycle = actualCyclesMap.value.get(actual.cycle);
+            const cycleStartMs = actualCycle ? actualCycle.start_ms : (actual.cycle * cycleTimeMs.value);
+            planStartMs = cycleStartMs + (plan.anchor_offset_ms || 0);
+          }
+        }
+
+        // Cache hit item in container viewport coordinates
+        visibleHitBars.push({
+          cid,
+          clientName,
+          x,
+          y,
+          width: barWidth,
+          height: ACTUAL_RECT_HEIGHT,
+          actual,
+          planDurationMs,
+          planStartMs
+        });
+
         ctx.save();
         {
           // Status color fill: use evaluated theme error color for overrun
@@ -283,10 +453,13 @@ const renderInstantEvents = (
   const rangeData = logRangeDataAnalyzeMode.value;
   if (!rangeData || !rangeData.actual_instant_events_by_cid) return;
 
+  const actualCycles = rangeData.actual_cycles || [];
+
   rangeData.actual_instant_events_by_cid.forEach(([cid, events]) => {
     const r = cidToRowIndex.get(cid);
     if (r === undefined) return;
 
+    const clientName = cidToClientName.value.get(cid) || `Client ${cid}`;
     const yCenter = Math.floor(r * ROW_HEIGHT - scrollTop + ROW_HEIGHT / 2);
     // Early vertical viewport culling for the process row
     if (yCenter + EVENT_DIAMOND_RADIUS_PX < 0 || yCenter - EVENT_DIAMOND_RADIUS_PX > height) return;
@@ -295,6 +468,17 @@ const renderInstantEvents = (
       const x = Math.floor(event.time_ms * pxPerMs.value - scrollLeft);
       // Horizontal viewport culling
       if (x + EVENT_DIAMOND_RADIUS_PX < 0 || x - EVENT_DIAMOND_RADIUS_PX > width) return;
+
+      // Reverse lookup cycle number and cache hit item for tooltip hit testing
+      const cycle = findCycleForTime(actualCycles, event.time_ms);
+      visibleHitEvents.push({
+        cid,
+        clientName,
+        x,
+        y: yCenter,
+        event,
+        cycle
+      });
 
       ctx.save();
       {
@@ -390,6 +574,10 @@ const requestVisibleLogRange = (scrollLeft: number, width: number) => {
 const renderContent = () => {
   if (!contentCanvasEl.value || !contentScrollEl.value) return;
 
+  // Clear hit testing primary caches before collecting visible items
+  visibleHitBars = [];
+  visibleHitEvents = [];
+
   const container = contentScrollEl.value;
 
   // Clamp scrollLeft to valid boundary if layout width shrank (e.g. cycle time increased)
@@ -458,6 +646,10 @@ const renderAll = () => {
 let renderRafId: number | null = null;
 
 const onScroll = (e: Event) => {
+  // Clear tooltip when actively scrolling to prevent stale floating overlays
+  hoveredBar.value = null;
+  hoveredEvents.value = null;
+
   if (renderRafId === null) {
     renderRafId = window.requestAnimationFrame(() => {
       renderAll();
@@ -465,6 +657,68 @@ const onScroll = (e: Event) => {
     });
   }
   emit('scroll', e);
+};
+
+/**
+ * Handle mouse move over timeline content for hit testing.
+ */
+const onMouseMove = (e: MouseEvent) => {
+  if (!contentScrollEl.value) return;
+
+  const rect = contentScrollEl.value.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  const scrollLeft = contentScrollEl.value.scrollLeft;
+  const scrollTop = contentScrollEl.value.scrollTop;
+
+  // Priority 1: Instant event diamond markers (Hit Radius = 8px)
+  const hitEvents: HitEventItem[] = [];
+  for (let i = 0; i < visibleHitEvents.length; i++) {
+    const item = visibleHitEvents[i];
+    const dx = item.x - mouseX;
+    const dy = item.y - mouseY;
+    if (dx * dx + dy * dy <= HIT_RADIUS_PX * HIT_RADIUS_PX) {
+      hitEvents.push(item);
+    }
+  }
+
+  if (hitEvents.length > 0) {
+    // Sort events by timestamp ascending
+    hitEvents.sort((a, b) => a.event.time_ms - b.event.time_ms);
+    hoveredEvents.value = hitEvents;
+    hoveredBar.value = null;
+    tooltipPos.value = { mouseX, mouseY, scrollLeft, scrollTop };
+    return;
+  }
+
+  // Priority 2: Actual execution bars (traverse in reverse order to prefer topmost rendered bar)
+  for (let i = visibleHitBars.length - 1; i >= 0; i--) {
+    const bar = visibleHitBars[i];
+    if (
+      mouseX >= bar.x &&
+      mouseX <= bar.x + bar.width &&
+      mouseY >= bar.y &&
+      mouseY <= bar.y + bar.height
+    ) {
+      hoveredBar.value = bar;
+      hoveredEvents.value = null;
+      tooltipPos.value = { mouseX, mouseY, scrollLeft, scrollTop };
+      return;
+    }
+  }
+
+  // Clear tooltip when mouse is outside of any hit target
+  hoveredBar.value = null;
+  hoveredEvents.value = null;
+};
+
+/**
+ * Handle mouse leaving timeline content area.
+ */
+const onMouseLeave = () => {
+  hoveredBar.value = null;
+  hoveredEvents.value = null;
+  tooltipPos.value = null;
 };
 
 // -----------------------------------------------------------------------------
@@ -577,9 +831,102 @@ defineExpose({
     </div>
 
     <!-- Scrollable Content Section (Background Grid & Process Timeline) -->
-    <div class="scroll-area timeline-scroll sb-hide-h" ref="contentScrollEl" @scroll="onScroll">
+    <div class="scroll-area timeline-scroll sb-hide-h" :class="{ 'has-hover': hasHoverTarget }" ref="contentScrollEl"
+      @scroll="onScroll" @mousemove="onMouseMove" @mouseleave="onMouseLeave">
       <div class="timeline-content" :style="{ width: totalWidth + 'px', height: totalContentHeight + 'px' }">
         <canvas ref="contentCanvasEl" class="canvas-layer"></canvas>
+
+        <!-- Floating Tooltip Overlay -->
+        <div v-if="hoveredBar || (hoveredEvents && hoveredEvents.length > 0)" class="timeline-tooltip"
+          :style="tooltipStyle">
+          <!-- Actual Bar Tooltip -->
+          <div v-if="hoveredBar" class="tooltip-card">
+            <div class="tooltip-header">
+              <div class="tooltip-title">
+                <span class="tooltip-process-name">{{ hoveredBar.clientName }}</span>
+                <span class="tooltip-cid-badge">CID: {{ hoveredBar.cid }}</span>
+              </div>
+              <span class="tooltip-bar-badge" :class="'status-' + hoveredBar.actual.status">
+                {{ hoveredBar.actual.status.toUpperCase() }}
+              </span>
+            </div>
+            <div class="tooltip-bar-body">
+              <div class="tooltip-bar-row">
+                <span class="tooltip-bar-label">Cycle:</span>
+                <span class="tooltip-bar-value tooltip-mono">#{{ hoveredBar.actual.cycle }} (Instance #{{ hoveredBar.actual.instance_id }})</span>
+              </div>
+              <div class="tooltip-bar-row">
+                <span class="tooltip-bar-label">Duration:</span>
+                <span class="tooltip-bar-value tooltip-mono">
+                  {{ hoveredBar.actual.duration_ms.toFixed(2) }} ms
+                  <template v-if="hoveredBar.planDurationMs !== null">
+                    <span class="tooltip-bar-sub">(Plan: {{ hoveredBar.planDurationMs.toFixed(2) }} ms / Δ{{
+                      formatDelta(hoveredBar.actual.duration_ms - hoveredBar.planDurationMs) }})</span>
+                  </template>
+                </span>
+              </div>
+              <div class="tooltip-bar-row">
+                <span class="tooltip-bar-label">Start:</span>
+                <span class="tooltip-bar-value tooltip-mono">
+                  {{ hoveredBar.actual.start_ms.toFixed(2) }} ms
+                  <template v-if="hoveredBar.planStartMs !== null">
+                    <span class="tooltip-bar-sub">(Plan: {{ hoveredBar.planStartMs.toFixed(2) }} ms / Δ{{
+                      formatDelta(hoveredBar.actual.start_ms - hoveredBar.planStartMs) }})</span>
+                  </template>
+                </span>
+              </div>
+              <div class="tooltip-bar-row">
+                <span class="tooltip-bar-label">End:</span>
+                <span class="tooltip-bar-value tooltip-mono">
+                  {{ (hoveredBar.actual.start_ms + hoveredBar.actual.duration_ms).toFixed(2) }} ms
+                  <template v-if="hoveredBar.planStartMs !== null && hoveredBar.planDurationMs !== null">
+                    <span class="tooltip-bar-sub">(Plan: {{ (hoveredBar.planStartMs + hoveredBar.planDurationMs).toFixed(2) }}
+                      ms / Δ{{ formatDelta((hoveredBar.actual.start_ms + hoveredBar.actual.duration_ms) -
+                        (hoveredBar.planStartMs + hoveredBar.planDurationMs)) }})</span>
+                  </template>
+                </span>
+              </div>
+              <div class="tooltip-bar-row">
+                <span class="tooltip-bar-label">Log Line:</span>
+                <span class="tooltip-bar-value tooltip-mono">
+                  L{{ hoveredBar.actual.log_line_no_start }}
+                  <template v-if="hoveredBar.actual.log_line_no_end"> - L{{ hoveredBar.actual.log_line_no_end }}</template>
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Instant Event(s) Tooltip -->
+          <div v-else-if="hoveredEvents && hoveredEvents.length > 0" class="tooltip-card">
+            <div class="tooltip-header">
+              <div class="tooltip-title">
+                <span class="tooltip-process-name">{{ hoveredEvents[0].clientName }}</span>
+                <span class="tooltip-cid-badge">CID: {{ hoveredEvents[0].cid }}</span>
+              </div>
+            </div>
+            <div v-if="hoveredEvents.length > 1" class="tooltip-event-nearby-header">
+              Nearby Events ({{ hoveredEvents.length }})
+            </div>
+            <div class="tooltip-event-list">
+              <div v-for="item in hoveredEvents.slice(0, 4)" :key="item.event.log_line_no" class="tooltip-event-item">
+                <div class="tooltip-event-row-top">
+                  <span class="tooltip-event-badge" :class="'event-' + item.event.event_type">
+                    {{ item.event.event_type.toUpperCase() }}
+                  </span>
+                  <span class="tooltip-mono">Cycle #{{ item.cycle }} (Instance #{{ item.event.instance_id }})</span>
+                </div>
+                <div class="tooltip-event-row-bottom">
+                  <span class="tooltip-mono">Time: {{ item.event.time_ms.toFixed(2) }} ms</span>
+                  <span class="tooltip-event-divider">|</span>
+                  <span class="tooltip-mono">Log Line: L{{ item.event.log_line_no }}</span>
+                </div>
+              </div>
+              <div v-if="hoveredEvents.length > 4" class="tooltip-event-more">
+                + {{ hoveredEvents.length - 4 }} more events
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -650,5 +997,217 @@ defineExpose({
   display: block;
   z-index: 1;
   pointer-events: auto;
+}
+
+/* --- Hover State --- */
+.timeline-scroll.has-hover .canvas-layer {
+  cursor: pointer;
+}
+
+/* -----------------------------------------------------------------------------
+ * Tooltip Overlay Components
+ * ----------------------------------------------------------------------------- */
+
+/* --- Base Tooltip --- */
+.timeline-tooltip {
+  position: absolute;
+  z-index: 30;
+  width: max-content;
+  max-width: 380px;
+  padding: 10px 12px;
+  background-color: var(--rt-color-surface-elevated, #24272e);
+  border: var(--rt-border-main);
+  border-radius: var(--rt-radius-m, 6px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  color: var(--rt-color-text);
+  font-size: var(--rt-font-s, 12px);
+  line-height: 1.4;
+  user-select: none;
+  pointer-events: none;
+}
+
+.tooltip-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tooltip-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--rt-color-border);
+}
+
+.tooltip-title {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.tooltip-process-name {
+  color: var(--rt-color-text);
+  font-size: var(--rt-font-s, 12px);
+  font-weight: 600;
+}
+
+.tooltip-cid-badge {
+  color: var(--rt-color-text-dim);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: var(--rt-font-xs, 11px);
+}
+
+.tooltip-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Actual Bar Tooltip (tooltip-bar-*) --- */
+.tooltip-bar-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: var(--rt-font-xs, 11px);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.tooltip-bar-badge.status-normal {
+  background-color: var(--rt-color-primary);
+  color: var(--rt-color-on-primary, #ffffff);
+}
+
+.tooltip-bar-badge.status-overrun {
+  background-color: var(--rt-color-error);
+  color: var(--rt-color-on-error, #ffffff);
+}
+
+.tooltip-bar-badge.status-skip {
+  background-color: var(--rt-color-event-skip);
+  color: #000000;
+}
+
+.tooltip-bar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tooltip-bar-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.tooltip-bar-label {
+  min-width: 54px;
+  color: var(--rt-color-text-dim);
+  font-size: var(--rt-font-xs, 11px);
+}
+
+.tooltip-bar-value {
+  color: var(--rt-color-text);
+  font-size: var(--rt-font-xs, 11px);
+}
+
+.tooltip-bar-sub {
+  margin-left: 4px;
+  color: var(--rt-color-text-dim);
+}
+
+/* --- Instant Event Tooltip (tooltip-event-*) --- */
+.tooltip-event-nearby-header {
+  padding: 2px 0;
+  color: var(--rt-color-text-dim);
+  font-size: var(--rt-font-xs, 11px);
+  font-weight: 600;
+}
+
+.tooltip-event-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tooltip-event-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 6px;
+  background-color: transparent;
+  border: 1px solid var(--rt-color-border);
+  border-radius: 4px;
+}
+
+.tooltip-event-row-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tooltip-event-row-bottom {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--rt-color-text-dim);
+}
+
+.tooltip-event-divider {
+  opacity: 0.4;
+}
+
+.tooltip-event-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 5px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.tooltip-event-badge.event-ready {
+  background-color: var(--rt-color-event-ready);
+  color: var(--rt-color-on-primary, #ffffff);
+}
+
+.tooltip-event-badge.event-exit {
+  background-color: var(--rt-color-event-exit);
+  color: #ffffff;
+}
+
+.tooltip-event-badge.event-overrun {
+  background-color: var(--rt-color-event-overrun);
+  color: var(--rt-color-on-error, #ffffff);
+}
+
+.tooltip-event-badge.event-error {
+  background-color: var(--rt-color-event-error);
+  color: var(--rt-color-on-error, #ffffff);
+}
+
+.tooltip-event-badge.event-skip {
+  background-color: var(--rt-color-event-skip);
+  color: #000000;
+}
+
+.tooltip-event-badge.event-late {
+  background-color: var(--rt-color-event-late);
+  color: #000000;
+}
+
+.tooltip-event-badge.event-retransmit {
+  background-color: var(--rt-color-event-retransmit);
+  color: #ffffff;
+}
+
+.tooltip-event-more {
+  padding-top: 2px;
+  color: var(--rt-color-text-dim);
+  font-size: var(--rt-font-xs, 11px);
+  text-align: center;
 }
 </style>

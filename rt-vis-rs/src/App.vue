@@ -145,6 +145,7 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   --rt-color-surface: var(--md-sys-color-surface-container-lowest);
   --rt-color-surface-header: var(--md-sys-color-surface-container-high);
   --rt-color-surface-input: var(--md-sys-color-surface-container-low);
+  --rt-color-surface-elevated: var(--md-sys-color-surface-container-highest);
 
   /* Text */
   --rt-color-text: var(--md-sys-color-on-surface);
