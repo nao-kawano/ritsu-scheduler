@@ -18,9 +18,14 @@ import { useAppState } from '../composables/useAppState';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender, type ThemeStyles } from '../composables/useCanvasRender';
-import { getSimulationCycles, groupPlansByAnchorCycle, filterVisibleActualCycles } from '../utils/simulation';
-import type { PlannedExecution } from '../types/simulation';
-import type { ActualCycle, ActualMetricPoint } from '../types/analyze';
+import { getSimulationCycles, findActualCycleForTime } from '../utils/cycle';
+import {
+  computePlannedConcurrencySteps,
+  findActualConcurrencyForTime,
+  findPlannedConcurrencyForTime,
+  type ConcurrencyStep
+} from '../utils/metrics';
+import { formatDelta, formatDeltaCount } from '../utils/format';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
@@ -56,14 +61,6 @@ interface MetricHoverData {
   actualConcurrency: number;
   plannedConcurrency: number | null;
   jitterMs: number | null;
-}
-
-/**
- * Discrete time and level step point for concurrency waveform rendering.
- */
-interface ConcurrencyStep {
-  timeMs: number;
-  count: number;
 }
 
 // -----------------------------------------------------------------------------
@@ -161,140 +158,6 @@ const crosshairStyle = computed(() => {
 
 // -----------------------------------------------------------------------------
 // Methods & Logic
-
-/**
- * Compute continuous concurrency step points on the actual physical timeline
- * by synthesizing visible planned executions across actual cycles.
- */
-const computePlannedConcurrencySteps = (
-  plannedExecs: PlannedExecution[],
-  actualCycles: ActualCycle[],
-  templateCycles: number,
-  startMs: number,
-  endMs: number
-): ConcurrencyStep[] => {
-  // Group planned executions by anchor cycle phase (excluding skipped tasks)
-  const plansByAnchorCycle = groupPlansByAnchorCycle(plannedExecs, true);
-
-  // Filter visible actual cycles within viewport time bounds
-  const visibleCycles = filterVisibleActualCycles(actualCycles, startMs, endMs);
-  if (visibleCycles.length === 0) return [];
-
-  // Collect discrete start (+1) and end (-1) time events across visible planned instances
-  const timeDeltaMap = new Map<number, number>();
-  visibleCycles.forEach(ac => {
-    const templateCycle = ac.cycle % templateCycles;
-    const matchingPlans = plansByAnchorCycle.get(templateCycle);
-    if (!matchingPlans) return;
-
-    matchingPlans.forEach(plan => {
-      const execStartMs = ac.start_ms + (plan.anchor_offset_ms || 0);
-      const execEndMs = execStartMs + plan.duration_ms;
-
-      timeDeltaMap.set(execStartMs, (timeDeltaMap.get(execStartMs) || 0) + 1);
-      timeDeltaMap.set(execEndMs, (timeDeltaMap.get(execEndMs) || 0) - 1);
-    });
-  });
-
-  if (timeDeltaMap.size === 0) return [];
-
-  // Synthesize running concurrency waveform sorted chronologically
-  const sortedTimes = Array.from(timeDeltaMap.keys()).sort((a, b) => a - b);
-  const steps: ConcurrencyStep[] = [];
-  let currentRunning = 0;
-
-  sortedTimes.forEach(timeMs => {
-    currentRunning += timeDeltaMap.get(timeMs)!;
-    steps.push({
-      timeMs,
-      count: Math.max(0, currentRunning)
-    });
-  });
-
-  return steps;
-};
-
-/**
- * Format delta value with sign and units for tooltip display.
- * Clamps near-zero floating point residuals to clean positive zero (+0.00 ms).
- */
-const formatDelta = (delta: number): string => {
-  if (Math.abs(delta) < 0.005) {
-    return '+0.00 ms';
-  }
-  const sign = delta > 0 ? '+' : '';
-  return `${sign}${delta.toFixed(2)} ms`;
-};
-
-/**
- * Format delta count with explicit positive sign for concurrency delta.
- */
-const formatDeltaCount = (delta: number): string => {
-  const sign = delta > 0 ? '+' : '';
-  return `${sign}${delta}`;
-};
-
-/**
- * Find the actual cycle corresponding to timeMs using binary search.
- * Returns the cycle whose start_ms is the greatest value <= timeMs.
- */
-const findActualCycleForTime = (cycles: ActualCycle[], timeMs: number): ActualCycle | null => {
-  if (!cycles || cycles.length === 0) return null;
-  let low = 0;
-  let high = cycles.length - 1;
-  let found: ActualCycle | null = null;
-  while (low <= high) {
-    const mid = (low + high) >> 1;
-    if (cycles[mid].start_ms <= timeMs) {
-      found = cycles[mid];
-      low = mid + 1;
-    } else {
-      high = mid - 1;
-    }
-  }
-  return found;
-};
-
-/**
- * Find the actual running process count at timeMs using binary search.
- */
-const findActualConcurrencyForTime = (actuals: ActualMetricPoint[], timeMs: number): number => {
-  if (!actuals || actuals.length === 0) return 0;
-  let low = 0;
-  let high = actuals.length - 1;
-  let count = 0;
-  while (low <= high) {
-    const mid = (low + high) >> 1;
-    if (actuals[mid].time_ms <= timeMs) {
-      count = actuals[mid].running_count;
-      low = mid + 1;
-    } else {
-      high = mid - 1;
-    }
-  }
-  return count;
-};
-
-/**
- * Find the planned running process count at timeMs using binary search on cached steps.
- */
-const findPlannedConcurrencyForTime = (steps: ConcurrencyStep[], timeMs: number): number | null => {
-  if (!steps || steps.length === 0) return null;
-  if (timeMs < steps[0].timeMs) return 0;
-  let low = 0;
-  let high = steps.length - 1;
-  let count = 0;
-  while (low <= high) {
-    const mid = (low + high) >> 1;
-    if (steps[mid].timeMs <= timeMs) {
-      count = steps[mid].count;
-      low = mid + 1;
-    } else {
-      high = mid - 1;
-    }
-  }
-  return count;
-};
 
 /**
  * Extract and cache theme styles to avoid costly getComputedStyle calls on every scroll event.

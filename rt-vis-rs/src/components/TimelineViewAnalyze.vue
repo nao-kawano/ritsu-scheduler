@@ -18,7 +18,8 @@ import { useAppState } from '../composables/useAppState';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender, type ThemeStyles } from '../composables/useCanvasRender';
-import { getSimulationCycles, groupPlansByAnchorCycle, filterVisibleActualCycles } from '../utils/simulation';
+import { getSimulationCycles, groupPlansByAnchorCycle, filterVisibleActualCycles, findActualCycleForTime } from '../utils/cycle';
+import { formatDelta } from '../utils/format';
 import type { ActualExecution, ActualInstantEvent, ActualCycle } from '../types/analyze';
 
 // -----------------------------------------------------------------------------
@@ -187,39 +188,6 @@ const tooltipStyle = computed(() => {
 
 // -----------------------------------------------------------------------------
 // Methods & Logic
-
-/**
- * Format delta value with sign and units for tooltip display.
- * Clamps near-zero floating point residuals to clean positive zero (+0.00 ms).
- */
-const formatDelta = (delta: number): string => {
-  if (Math.abs(delta) < 0.005) {
-    return '+0.00 ms';
-  }
-  const sign = delta > 0 ? '+' : '';
-  return `${sign}${delta.toFixed(2)} ms`;
-};
-
-/**
- * Find the latest actual cycle whose start_ms is less than or equal to the given timeMs.
- * Uses binary search for O(log N) lookup.
- */
-const findCycleForTime = (cycles: ActualCycle[], timeMs: number): number => {
-  if (!cycles || cycles.length === 0) return 0;
-  let low = 0;
-  let high = cycles.length - 1;
-  let result = cycles[0].cycle;
-  while (low <= high) {
-    const mid = (low + high) >> 1;
-    if (cycles[mid].start_ms <= timeMs) {
-      result = cycles[mid].cycle;
-      low = mid + 1;
-    } else {
-      high = mid - 1;
-    }
-  }
-  return result;
-};
 
 /**
  * Extract and cache theme styles to avoid costly getComputedStyle calls on every scroll event.
@@ -473,7 +441,7 @@ const renderInstantEvents = (
       if (x + EVENT_DIAMOND_RADIUS_PX < 0 || x - EVENT_DIAMOND_RADIUS_PX > width) return;
 
       // Reverse lookup cycle number and cache hit item for tooltip hit testing
-      const cycle = findCycleForTime(actualCycles, event.time_ms);
+      const cycle = findActualCycleForTime(actualCycles, event.time_ms)?.cycle ?? 0;
       visibleHitEvents.push({
         cid,
         clientName,
@@ -856,7 +824,8 @@ defineExpose({
             <div class="tooltip-bar-body">
               <div class="tooltip-bar-row">
                 <span class="tooltip-bar-label">Cycle:</span>
-                <span class="tooltip-bar-value tooltip-mono">#{{ hoveredBar.actual.cycle }} (Instance #{{ hoveredBar.actual.instance_id }})</span>
+                <span class="tooltip-bar-value tooltip-mono">#{{ hoveredBar.actual.cycle }} (Instance #{{
+                  hoveredBar.actual.instance_id }})</span>
               </div>
               <div class="tooltip-bar-row">
                 <span class="tooltip-bar-label">Duration:</span>
@@ -883,7 +852,8 @@ defineExpose({
                 <span class="tooltip-bar-value tooltip-mono">
                   {{ (hoveredBar.actual.start_ms + hoveredBar.actual.duration_ms).toFixed(2) }} ms
                   <template v-if="hoveredBar.planStartMs !== null && hoveredBar.planDurationMs !== null">
-                    <span class="tooltip-bar-sub">(Plan: {{ (hoveredBar.planStartMs + hoveredBar.planDurationMs).toFixed(2) }}
+                    <span class="tooltip-bar-sub">(Plan: {{ (hoveredBar.planStartMs +
+                      hoveredBar.planDurationMs).toFixed(2) }}
                       ms / Δ{{ formatDelta((hoveredBar.actual.start_ms + hoveredBar.actual.duration_ms) -
                         (hoveredBar.planStartMs + hoveredBar.planDurationMs)) }})</span>
                   </template>
@@ -893,7 +863,8 @@ defineExpose({
                 <span class="tooltip-bar-label">Log Line:</span>
                 <span class="tooltip-bar-value tooltip-mono">
                   L{{ hoveredBar.actual.log_line_no_start }}
-                  <template v-if="hoveredBar.actual.log_line_no_end"> - L{{ hoveredBar.actual.log_line_no_end }}</template>
+                  <template v-if="hoveredBar.actual.log_line_no_end"> - L{{
+                    hoveredBar.actual.log_line_no_end}}</template>
                 </span>
               </div>
             </div>

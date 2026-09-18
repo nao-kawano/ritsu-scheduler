@@ -15,7 +15,7 @@
 import { computed } from 'vue';
 import { useAppState } from './useAppState';
 import { useTimeScale } from './useTimeScale';
-import { getSimulationCycles } from '../utils/simulation';
+import { getSimulationCycles } from '../utils/cycle';
 
 /**
  * Create Mode Layout Engine
