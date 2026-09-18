@@ -21,6 +21,30 @@ import { useCanvasRender, type ThemeStyles } from '../composables/useCanvasRende
 import { getSimulationCycles, groupPlansByAnchorCycle, filterVisibleActualCycles } from '../utils/simulation';
 import type { ActualExecution, ActualInstantEvent, ActualCycle } from '../types/analyze';
 
+// -----------------------------------------------------------------------------
+// Global State & Composables
+
+const {
+  activeConfig,
+  plannedExecutionsAnalyzeMode,
+  logSummaryAnalyzeMode,
+  logRangeDataAnalyzeMode,
+  fetchLogRange
+} = useAppState();
+const { pxPerCycle, cycleTimeMs, pxPerMs } = useTimeScale();
+const { totalCycles, totalWidth, gridInfo } = useAnalyzeModeLayout();
+const { getThemeStyles, prepareCanvas, renderTimelineHeader, renderBackgroundGrid, renderActualCycleLines } = useCanvasRender();
+
+// -----------------------------------------------------------------------------
+// Props & Emits
+
+const emit = defineEmits<{
+  (e: 'scroll', event: Event): void
+}>();
+
+// -----------------------------------------------------------------------------
+// Types & Interfaces
+
 /**
  * Cached hit item for rendered actual execution bar.
  */
@@ -47,27 +71,6 @@ interface HitEventItem {
   event: ActualInstantEvent;
   cycle: number;
 }
-
-// -----------------------------------------------------------------------------
-// Global State & Composables
-
-const {
-  activeConfig,
-  plannedExecutionsAnalyzeMode,
-  logSummaryAnalyzeMode,
-  logRangeDataAnalyzeMode,
-  fetchLogRange
-} = useAppState();
-const { pxPerCycle, cycleTimeMs, pxPerMs } = useTimeScale();
-const { totalCycles, totalWidth, gridInfo } = useAnalyzeModeLayout();
-const { getThemeStyles, prepareCanvas, renderTimelineHeader, renderBackgroundGrid, renderActualCycleLines } = useCanvasRender();
-
-// -----------------------------------------------------------------------------
-// Props & Emits
-
-const emit = defineEmits<{
-  (e: 'scroll', event: Event): void
-}>();
 
 // -----------------------------------------------------------------------------
 // Constants & Layout

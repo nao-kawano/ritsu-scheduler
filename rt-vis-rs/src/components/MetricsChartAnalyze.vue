@@ -45,6 +45,28 @@ const emit = defineEmits<{
 }>();
 
 // -----------------------------------------------------------------------------
+// Types & Interfaces
+
+/**
+ * Hover payload data for metrics chart tooltip and crosshair tracking.
+ */
+interface MetricHoverData {
+  timeMs: number;
+  cycle: number;
+  actualConcurrency: number;
+  plannedConcurrency: number | null;
+  jitterMs: number | null;
+}
+
+/**
+ * Discrete time and level step point for concurrency waveform rendering.
+ */
+interface ConcurrencyStep {
+  timeMs: number;
+  count: number;
+}
+
+// -----------------------------------------------------------------------------
 // Constants & Layout
 
 const ROW_HEIGHT = 70; // Height of each metric chart row in pixels (matching Create Mode)
@@ -54,14 +76,6 @@ const CHART_STROKE_WIDTH = 2; // Stroke line width for metrics chart lines (px)
 
 // -----------------------------------------------------------------------------
 // Local State & Computed
-
-interface MetricHoverData {
-  timeMs: number;
-  cycle: number;
-  actualConcurrency: number;
-  plannedConcurrency: number | null;
-  jitterMs: number | null;
-}
 
 const headerScrollEl = ref<HTMLElement | null>(null);
 const contentScrollEl = ref<HTMLElement | null>(null);
@@ -146,11 +160,6 @@ const crosshairStyle = computed(() => {
 
 // -----------------------------------------------------------------------------
 // Methods & Logic
-
-interface ConcurrencyStep {
-  timeMs: number;
-  count: number;
-}
 
 /**
  * Compute continuous concurrency step points on the actual physical timeline
