@@ -72,6 +72,7 @@ interface ConcurrencyStep {
 const ROW_HEIGHT = 70; // Height of each metric chart row in pixels (matching Create Mode)
 const METRIC_ROWS = 2; // Total metric chart rows (1: Concurrent Processes, 2: Cycle Jitter)
 const CHART_TOP_MARGIN = 10; // Top margin to prevent charts from touching top row border (px)
+const CHART_BOTTOM_MARGIN = 10; // Bottom margin to prevent charts and baselines from touching bottom row border (px)
 const CHART_STROKE_WIDTH = 2; // Stroke line width for metrics chart lines (px)
 
 // -----------------------------------------------------------------------------
@@ -493,7 +494,7 @@ const renderMetricsRow2Jitter = (
   scrollLeft: number,
   row2ZeroY: number,
   jitterSpan: number,
-  row2Height: number,
+  availableHeight: number,
   styles: ThemeStyles
 ) => {
   const actualCycles = logRangeDataAnalyzeMode.value?.actual_cycles;
@@ -502,12 +503,12 @@ const renderMetricsRow2Jitter = (
   ctx.save();
   {
     ctx.strokeStyle = styles.accentColor;
-    ctx.lineWidth = 2;
+    ctx.lineWidth = CHART_STROKE_WIDTH;
     ctx.beginPath();
 
     actualCycles.forEach((ac, idx) => {
       const x = Math.floor(ac.start_ms * pxPerMs.value - scrollLeft);
-      const jitterY = Math.floor(row2ZeroY - (ac.start_jitter_ms / jitterSpan) * row2Height);
+      const jitterY = Math.floor(row2ZeroY - (ac.start_jitter_ms / jitterSpan) * availableHeight);
 
       if (idx === 0) {
         ctx.moveTo(x, jitterY);
@@ -522,6 +523,8 @@ const renderMetricsRow2Jitter = (
 
 /**
  * Render Row 2: Server Cycle Jitter line chart with dynamic 0ms baseline positioning.
+ * Applies symmetrical top/bottom margins (10px) to guarantee breathing room for maximum jitter
+ * and prevent line clipping against row borders.
  */
 const renderMetricsRow2 = (
   ctx: CanvasRenderingContext2D,
@@ -532,8 +535,9 @@ const renderMetricsRow2 = (
   const summary = logSummaryAnalyzeMode.value;
   if (!summary) return;
 
-  const row2BottomY = ROW_HEIGHT * 2;
-  const row2Height = ROW_HEIGHT - 16;
+  const row2TopY = ROW_HEIGHT + CHART_TOP_MARGIN;
+  const row2BottomY = ROW_HEIGHT * 2 - CHART_BOTTOM_MARGIN;
+  const availableHeight = row2BottomY - row2TopY;
 
   // Dynamic baseline calculations using min/max start jitter metadata
   // Prevents negative jitter space from wasting 50% of the canvas when delays are predominantly positive.
@@ -542,12 +546,11 @@ const renderMetricsRow2 = (
   const jitterSpan = Math.max(0.1, maxJitter - minJitter);
 
   // Position 0ms baseline dynamically based on min/max ratio.
-  // Clamp ratio between 10% and 90% to guarantee the reference dashed line remains visible without border clipping.
-  const zeroRatio = Math.max(0.1, Math.min(0.9, (0 - minJitter) / jitterSpan));
-  const row2ZeroY = Math.floor(row2BottomY - 8 - zeroRatio * row2Height);
+  const zeroRatio = (0 - minJitter) / jitterSpan;
+  const row2ZeroY = Math.floor(row2BottomY - zeroRatio * availableHeight);
 
   renderMetricsRow2JitterBaseline(ctx, row2ZeroY, width, styles);
-  renderMetricsRow2Jitter(ctx, scrollLeft, row2ZeroY, jitterSpan, row2Height, styles);
+  renderMetricsRow2Jitter(ctx, scrollLeft, row2ZeroY, jitterSpan, availableHeight, styles);
 };
 
 /**
