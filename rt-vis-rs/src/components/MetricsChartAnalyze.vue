@@ -20,7 +20,7 @@ import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender, type ThemeStyles } from '../composables/useCanvasRender';
 import { getSimulationCycles, groupPlansByAnchorCycle, filterVisibleActualCycles } from '../utils/simulation';
 import type { PlannedExecution } from '../types/simulation';
-import type { ActualCycle } from '../types/analyze';
+import type { ActualCycle, ActualMetricPoint } from '../types/analyze';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
@@ -55,12 +55,94 @@ const CHART_STROKE_WIDTH = 2; // Stroke line width for metrics chart lines (px)
 // -----------------------------------------------------------------------------
 // Local State & Computed
 
+interface MetricHoverData {
+  timeMs: number;
+  cycle: number;
+  actualConcurrency: number;
+  plannedConcurrency: number | null;
+  jitterMs: number | null;
+}
+
 const headerScrollEl = ref<HTMLElement | null>(null);
 const contentScrollEl = ref<HTMLElement | null>(null);
 const headerCanvasEl = ref<HTMLCanvasElement | null>(null);
 const contentCanvasEl = ref<HTMLCanvasElement | null>(null);
 
 const cachedThemeStyles = ref<ThemeStyles | null>(null);
+
+// Cached steps for planned concurrency across visible range
+let visiblePlannedSteps: ConcurrencyStep[] = [];
+
+// Interactive hover and tooltip states
+const hoveredMetric = ref<MetricHoverData | null>(null);
+const tooltipPos = ref<{
+  mouseX: number;
+  mouseY: number;
+  scrollLeft: number;
+  scrollTop: number;
+} | null>(null);
+
+const hasHoverTarget = computed(() => hoveredMetric.value !== null);
+
+/**
+ * Compute floating tooltip placement with boundary-aware smart clamping.
+ * Uses anchor positioning with CSS transform translation (-100%) when flipped,
+ * ensuring seamless edge-aligned gap (12px) regardless of dynamic tooltip dimensions.
+ * Applies vertical safety clamping tailored for compact 2-row layout (140px)
+ * to completely eliminate top and bottom clipping.
+ */
+const tooltipStyle = computed(() => {
+  if (!tooltipPos.value || !contentScrollEl.value) return { display: 'none' };
+
+  const { mouseX, mouseY, scrollLeft, scrollTop } = tooltipPos.value;
+  const containerWidth = contentScrollEl.value.clientWidth;
+  const containerHeight = contentScrollEl.value.clientHeight;
+
+  // Estimated bounding box thresholds for boundary overflow detection
+  // Aligned with actual rendered tooltip dimensions (~80-82px) to preserve design parity with TimelineView
+  const ESTIMATED_MAX_WIDTH = 300;
+  const ESTIMATED_MAX_HEIGHT = 84;
+  const MARGIN_Y = 6;
+  const offset = 12;
+
+  // Determine flip state for right container edge
+  const flipX = mouseX + offset + ESTIMATED_MAX_WIDTH > containerWidth;
+  // Determine vertical direction based on container center (row boundary: Row 1 vs Row 2)
+  const isLowerHalf = mouseY >= containerHeight / 2;
+
+  // Horizontal anchor point: offset cursor by 12px in either positive or negative direction
+  const left = mouseX + scrollLeft + (flipX ? -offset : offset);
+
+  // Vertical anchor point with safety boundary clamping:
+  // When cursor is in lower half (Row 2), flip upward: ensure anchor top >= ESTIMATED_MAX_HEIGHT + MARGIN_Y
+  // so that translateY(-100%) guarantees top edge maintains at least MARGIN_Y margin from container top.
+  // When cursor is in upper half (Row 1), position downward: ensure anchor top <= containerHeight - ESTIMATED_MAX_HEIGHT - MARGIN_Y
+  // so that bottom edge maintains at least MARGIN_Y margin from container bottom.
+  const top = isLowerHalf
+    ? Math.max(ESTIMATED_MAX_HEIGHT + MARGIN_Y, mouseY - offset) + scrollTop
+    : Math.min(containerHeight - ESTIMATED_MAX_HEIGHT - MARGIN_Y, mouseY + offset) + scrollTop;
+
+  // Shift by 100% of element's actual rendered dimensions when flipped
+  const translateX = flipX ? '-100%' : '0%';
+  const translateY = isLowerHalf ? '-100%' : '0%';
+
+  return {
+    left: `${left}px`,
+    top: `${top}px`,
+    transform: `translate(${translateX}, ${translateY})`
+  };
+});
+
+/**
+ * Compute vertical crosshair placement along physical time axis.
+ */
+const crosshairStyle = computed(() => {
+  if (!tooltipPos.value) return { display: 'none' };
+  const { mouseX, scrollLeft } = tooltipPos.value;
+  return {
+    left: `${mouseX + scrollLeft}px`
+  };
+});
 
 // -----------------------------------------------------------------------------
 // Methods & Logic
@@ -123,6 +205,88 @@ const computePlannedConcurrencySteps = (
 };
 
 /**
+ * Format delta value with sign and units for tooltip display.
+ * Clamps near-zero floating point residuals to clean positive zero (+0.00 ms).
+ */
+const formatDelta = (delta: number): string => {
+  if (Math.abs(delta) < 0.005) {
+    return '+0.00 ms';
+  }
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${delta.toFixed(2)} ms`;
+};
+
+/**
+ * Format delta count with explicit positive sign for concurrency delta.
+ */
+const formatDeltaCount = (delta: number): string => {
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${delta}`;
+};
+
+/**
+ * Find the actual cycle corresponding to timeMs using binary search.
+ * Returns the cycle whose start_ms is the greatest value <= timeMs.
+ */
+const findActualCycleForTime = (cycles: ActualCycle[], timeMs: number): ActualCycle | null => {
+  if (!cycles || cycles.length === 0) return null;
+  let low = 0;
+  let high = cycles.length - 1;
+  let found: ActualCycle | null = null;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (cycles[mid].start_ms <= timeMs) {
+      found = cycles[mid];
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return found;
+};
+
+/**
+ * Find the actual running process count at timeMs using binary search.
+ */
+const findActualConcurrencyForTime = (actuals: ActualMetricPoint[], timeMs: number): number => {
+  if (!actuals || actuals.length === 0) return 0;
+  let low = 0;
+  let high = actuals.length - 1;
+  let count = 0;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (actuals[mid].time_ms <= timeMs) {
+      count = actuals[mid].running_count;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return count;
+};
+
+/**
+ * Find the planned running process count at timeMs using binary search on cached steps.
+ */
+const findPlannedConcurrencyForTime = (steps: ConcurrencyStep[], timeMs: number): number | null => {
+  if (!steps || steps.length === 0) return null;
+  if (timeMs < steps[0].timeMs) return 0;
+  let low = 0;
+  let high = steps.length - 1;
+  let count = 0;
+  while (low <= high) {
+    const mid = (low + high) >> 1;
+    if (steps[mid].timeMs <= timeMs) {
+      count = steps[mid].count;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return count;
+};
+
+/**
  * Extract and cache theme styles to avoid costly getComputedStyle calls on every scroll event.
  */
 const updateThemeStyles = () => {
@@ -178,7 +342,10 @@ const renderMetricsRow1Planned = (
 ) => {
   const plannedExecs = plannedExecutionsAnalyzeMode.value;
   const actualCycles = logRangeDataAnalyzeMode.value?.actual_cycles;
-  if (!plannedExecs || plannedExecs.length === 0 || !actualCycles || actualCycles.length === 0) return;
+  if (!plannedExecs || plannedExecs.length === 0 || !actualCycles || actualCycles.length === 0) {
+    visiblePlannedSteps = [];
+    return;
+  }
 
   const curCycleTime = cycleTimeMs.value;
   const templateCycles = getSimulationCycles(activeConfig.value.client_configs);
@@ -188,6 +355,7 @@ const renderMetricsRow1Planned = (
   const endMs = (scrollLeft + width) / pxPerMs.value + marginMs;
 
   const steps = computePlannedConcurrencySteps(plannedExecs, actualCycles, templateCycles, startMs, endMs);
+  visiblePlannedSteps = steps;
   if (steps.length === 0) return;
 
   ctx.save();
@@ -481,6 +649,9 @@ const renderAll = () => {
 let renderRafId: number | null = null;
 
 const onScroll = (e: Event) => {
+  // Clear tooltip and crosshair when actively scrolling to prevent stale floating overlays
+  hoveredMetric.value = null;
+
   if (renderRafId === null) {
     renderRafId = window.requestAnimationFrame(() => {
       renderAll();
@@ -488,6 +659,55 @@ const onScroll = (e: Event) => {
     });
   }
   emit('scroll', e);
+};
+
+/**
+ * Handle mouse move over metrics content for crosshair and tooltip tracking.
+ */
+const onMouseMove = (e: MouseEvent) => {
+  if (!contentScrollEl.value || pxPerMs.value <= 0) return;
+
+  const rect = contentScrollEl.value.getBoundingClientRect();
+  const mouseX = e.clientX - rect.left;
+  const mouseY = e.clientY - rect.top;
+  const scrollLeft = contentScrollEl.value.scrollLeft;
+  const scrollTop = contentScrollEl.value.scrollTop;
+
+  // Calculate physical time on timeline
+  const timeMs = (mouseX + scrollLeft) / pxPerMs.value;
+  if (timeMs < 0) {
+    hoveredMetric.value = null;
+    return;
+  }
+
+  const actualCycles = logRangeDataAnalyzeMode.value?.actual_cycles;
+  const actualMetrics = logRangeDataAnalyzeMode.value?.actual_metrics;
+
+  const matchedCycle = actualCycles ? findActualCycleForTime(actualCycles, timeMs) : null;
+  if (!matchedCycle) {
+    hoveredMetric.value = null;
+    return;
+  }
+
+  const actualConcurrency = actualMetrics ? findActualConcurrencyForTime(actualMetrics, timeMs) : 0;
+  const plannedConcurrency = findPlannedConcurrencyForTime(visiblePlannedSteps, timeMs);
+
+  hoveredMetric.value = {
+    timeMs,
+    cycle: matchedCycle.cycle,
+    actualConcurrency,
+    plannedConcurrency,
+    jitterMs: matchedCycle.start_jitter_ms
+  };
+
+  tooltipPos.value = { mouseX, mouseY, scrollLeft, scrollTop };
+};
+
+/**
+ * Handle mouse leaving metrics content area.
+ */
+const onMouseLeave = () => {
+  hoveredMetric.value = null;
 };
 
 // -----------------------------------------------------------------------------
@@ -601,9 +821,43 @@ defineExpose({
     </div>
 
     <!-- Scrollable Content Section (Background Grid & Metrics Viewer) -->
-    <div class="scroll-area metrics-scroll sb-hide-v sb-pad-v" ref="contentScrollEl" @scroll="onScroll">
+    <div class="scroll-area metrics-scroll sb-hide-v sb-pad-v" :class="{ 'has-hover': hasHoverTarget }"
+      ref="contentScrollEl" @scroll="onScroll" @mousemove="onMouseMove" @mouseleave="onMouseLeave">
       <div class="metrics-content" :style="{ width: totalWidth + 'px', height: (ROW_HEIGHT * 2) + 'px' }">
         <canvas ref="contentCanvasEl" class="canvas-layer"></canvas>
+
+        <!-- Vertical Crosshair Line -->
+        <div v-if="hoveredMetric" class="metrics-crosshair" :style="crosshairStyle"></div>
+
+        <!-- Floating Tooltip Overlay -->
+        <div v-if="hoveredMetric" class="metrics-tooltip" :style="tooltipStyle">
+          <div class="tooltip-card">
+            <div class="tooltip-header">
+              <span class="tooltip-cycle">Cycle #{{ hoveredMetric.cycle }}</span>
+              <span class="tooltip-time tooltip-mono">{{ hoveredMetric.timeMs.toFixed(2) }} ms</span>
+            </div>
+            <div class="tooltip-metric-body">
+              <div class="tooltip-metric-row">
+                <span class="tooltip-metric-label">Concurrency:</span>
+                <span class="tooltip-metric-value tooltip-mono">
+                  Actual {{ hoveredMetric.actualConcurrency }}
+                  <template v-if="hoveredMetric.plannedConcurrency !== null">
+                    <span class="tooltip-metric-sub">
+                      (Plan {{ hoveredMetric.plannedConcurrency }} / Δ{{
+                        formatDeltaCount(hoveredMetric.actualConcurrency - hoveredMetric.plannedConcurrency) }})
+                    </span>
+                  </template>
+                </span>
+              </div>
+              <div class="tooltip-metric-row">
+                <span class="tooltip-metric-label">Cycle Jitter:</span>
+                <span class="tooltip-metric-value tooltip-mono">
+                  {{ hoveredMetric.jitterMs !== null ? formatDelta(hoveredMetric.jitterMs) : 'N/A' }}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -674,5 +928,106 @@ defineExpose({
   display: block;
   z-index: 1;
   pointer-events: auto;
+}
+
+/* --- Hover State --- */
+.metrics-scroll.has-hover .canvas-layer {
+  cursor: default;
+}
+
+/* -----------------------------------------------------------------------------
+ * Crosshair & Tooltip Overlay Components
+ * ----------------------------------------------------------------------------- */
+
+/* --- Crosshair Line --- */
+.metrics-crosshair {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1px dashed var(--rt-color-text, #ffffff);
+  opacity: 0.5;
+  z-index: 20;
+  pointer-events: none;
+}
+
+/* --- Base Tooltip --- */
+.metrics-tooltip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 30;
+  width: max-content;
+  max-width: 320px;
+  padding: 8px 12px;
+  background-color: var(--rt-color-surface-elevated, #24272e);
+  border: var(--rt-border-main);
+  border-radius: var(--rt-radius-m, 6px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+  color: var(--rt-color-text);
+  font-size: var(--rt-font-s, 12px);
+  line-height: 1.4;
+  user-select: none;
+  pointer-events: none;
+}
+
+.tooltip-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tooltip-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--rt-color-border);
+}
+
+.tooltip-cycle {
+  color: var(--rt-color-text);
+  font-size: var(--rt-font-s, 12px);
+  font-weight: 700;
+}
+
+.tooltip-time {
+  color: var(--rt-color-text-dim);
+  font-size: var(--rt-font-xs, 11px);
+}
+
+.tooltip-mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Metric Tooltip Rows (tooltip-metric-*) --- */
+.tooltip-metric-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.tooltip-metric-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: var(--rt-font-xs, 11px);
+}
+
+.tooltip-metric-label {
+  flex-shrink: 0;
+  color: var(--rt-color-text-dim);
+}
+
+.tooltip-metric-value {
+  color: var(--rt-color-text);
+}
+
+.tooltip-metric-sub {
+  margin-left: 4px;
+  color: var(--rt-color-text-dim);
 }
 </style>
