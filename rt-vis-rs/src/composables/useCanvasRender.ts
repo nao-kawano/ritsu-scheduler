@@ -28,6 +28,10 @@ export interface ThemeStyles {
   warningColor: string;
   fontSizePx: string;
   fontFamily: string;
+  statusNormalColor: string;
+  statusOverrunColor: string;
+  statusSkipColor: string;
+  statusIncompleteColor: string;
   eventReadyColor: string;
   eventExitColor: string;
   eventOverrunColor: string;
@@ -102,6 +106,10 @@ export function useCanvasRender() {
       warningColor: getVar('--rt-color-warning', '#e6a23c'),
       fontSizePx: getVar('--rt-font-xs', '11px'),
       fontFamily: style.fontFamily?.trim() || getVar('--rt-font-family', 'Inter, system-ui, sans-serif'),
+      statusNormalColor: getVar('--rt-color-status-normal', '#705575'),
+      statusOverrunColor: getVar('--rt-color-status-overrun', '#ba1a1a'),
+      statusSkipColor: getVar('--rt-color-status-skip', '#f5e389'),
+      statusIncompleteColor: getVar('--rt-color-status-incomplete', '#74777f'),
       eventReadyColor: getVar('--rt-color-event-ready', '#415F91'),
       eventExitColor: getVar('--rt-color-event-exit', '#74777f'),
       eventOverrunColor: getVar('--rt-color-event-overrun', '#ba1a1a'),

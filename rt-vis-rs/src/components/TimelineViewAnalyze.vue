@@ -409,9 +409,9 @@ const renderActualBars = (
 
         ctx.save();
         {
-          // Status color fill: use evaluated theme error color for overrun
-          let barColor = styles.accentColor;
-          if (actual.status === 'overrun') barColor = styles.errorColor;
+          // Status color fill: use dedicated status semantic tokens matching tooltip badges
+          let barColor = styles.statusNormalColor;
+          if (actual.status === 'overrun') barColor = styles.statusOverrunColor;
 
           // Apply translucency for incomplete executions cut off at log end
           if (actual.log_line_no_end === null) {
@@ -1094,23 +1094,23 @@ defineExpose({
 }
 
 .tooltip-bar-badge.status-normal {
-  background-color: var(--rt-color-primary);
-  color: var(--rt-color-on-primary, #ffffff);
+  background-color: var(--rt-color-status-normal);
+  color: var(--rt-color-on-status-normal);
 }
 
 .tooltip-bar-badge.status-overrun {
-  background-color: var(--rt-color-error);
-  color: var(--rt-color-on-error, #ffffff);
+  background-color: var(--rt-color-status-overrun);
+  color: var(--rt-color-on-status-overrun);
 }
 
 .tooltip-bar-badge.status-skip {
-  background-color: var(--rt-color-event-skip);
-  color: #000000;
+  background-color: var(--rt-color-status-skip);
+  color: var(--rt-color-on-status-skip);
 }
 
 .tooltip-bar-badge.status-incomplete {
-  background-color: var(--rt-color-text-dim);
-  color: var(--rt-color-on-primary, #ffffff);
+  background-color: var(--rt-color-status-incomplete);
+  color: var(--rt-color-on-status-incomplete);
 }
 
 .tooltip-bar-body {
@@ -1194,37 +1194,37 @@ defineExpose({
 
 .tooltip-event-badge.event-ready {
   background-color: var(--rt-color-event-ready);
-  color: var(--rt-color-on-primary, #ffffff);
+  color: var(--rt-color-on-event-ready);
 }
 
 .tooltip-event-badge.event-exit {
   background-color: var(--rt-color-event-exit);
-  color: #ffffff;
+  color: var(--rt-color-on-event-exit);
 }
 
 .tooltip-event-badge.event-overrun {
   background-color: var(--rt-color-event-overrun);
-  color: var(--rt-color-on-error, #ffffff);
+  color: var(--rt-color-on-event-overrun);
 }
 
 .tooltip-event-badge.event-error {
   background-color: var(--rt-color-event-error);
-  color: var(--rt-color-on-error, #ffffff);
+  color: var(--rt-color-on-event-error);
 }
 
 .tooltip-event-badge.event-skip {
   background-color: var(--rt-color-event-skip);
-  color: #000000;
+  color: var(--rt-color-on-event-skip);
 }
 
 .tooltip-event-badge.event-late {
   background-color: var(--rt-color-event-late);
-  color: #000000;
+  color: var(--rt-color-on-event-late);
 }
 
 .tooltip-event-badge.event-retransmit {
   background-color: var(--rt-color-event-retransmit);
-  color: #ffffff;
+  color: var(--rt-color-on-event-retransmit);
 }
 
 .tooltip-event-more {
