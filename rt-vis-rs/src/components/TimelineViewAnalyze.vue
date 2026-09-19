@@ -243,7 +243,7 @@ const updateThemeStyles = () => {
 /**
  * Render sticky time header canvas using shared canvas rendering composable.
  */
-const renderHeader = () => {
+const renderHeader = (styles: ThemeStyles) => {
   if (!headerCanvasEl.value || !headerScrollEl.value) return;
 
   const { width, height, ctx } = prepareCanvas(headerCanvasEl.value, headerScrollEl.value);
@@ -255,11 +255,6 @@ const renderHeader = () => {
   // Pin canvas overlay dynamically to current scroll viewport to avoid clipping or blank bleeding
   headerCanvasEl.value.style.transform = `translate(${scrollLeft}px, 0px)`;
 
-  if (!cachedThemeStyles.value) {
-    updateThemeStyles();
-  }
-  if (!cachedThemeStyles.value) return;
-
   renderTimelineHeader(ctx, {
     scrollLeft,
     width,
@@ -267,7 +262,7 @@ const renderHeader = () => {
     totalCycles: totalCycles.value,
     cycleTimeMs: cycleTimeMs.value,
     majorPx: gridInfo.value.majorPx,
-    styles: cachedThemeStyles.value,
+    styles,
     actualCycles: logRangeDataAnalyzeMode.value?.actual_cycles,
     pxPerMs: pxPerMs.value
   });
@@ -579,7 +574,7 @@ const requestVisibleLogRange = (scrollLeft: number, width: number) => {
 /**
  * Render timeline content background grid, process row borders, plan boxes, and actual bars.
  */
-const renderContent = () => {
+const renderContent = (styles: ThemeStyles) => {
   if (!contentCanvasEl.value || !contentScrollEl.value) return;
 
   // Clear hit testing primary caches before collecting visible items
@@ -604,12 +599,6 @@ const renderContent = () => {
 
   // Pin canvas overlay dynamically to current scroll viewport to avoid clipping or blank bleeding
   contentCanvasEl.value.style.transform = `translate(${scrollLeft}px, ${scrollTop}px)`;
-
-  if (!cachedThemeStyles.value) {
-    updateThemeStyles();
-  }
-  if (!cachedThemeStyles.value) return;
-  const styles = cachedThemeStyles.value;
 
   // Render shared background grid surface and vertical time grid lines
   renderBackgroundGrid(ctx, {
@@ -644,8 +633,14 @@ const renderContent = () => {
 };
 
 const renderAll = () => {
-  renderHeader();
-  renderContent();
+  if (!cachedThemeStyles.value) {
+    updateThemeStyles();
+  }
+  const styles = cachedThemeStyles.value;
+  if (!styles) return;
+
+  renderHeader(styles);
+  renderContent(styles);
 };
 
 // -----------------------------------------------------------------------------
