@@ -34,7 +34,8 @@ Thumbs.db
 /.agent-memory/
 **/_tmp/
 **/logs/
-*.log
 **/test_logs/
+*.log
+!**/fixtures/**
 /utils/release-pkg/
 /rt-client-c/examples/build/

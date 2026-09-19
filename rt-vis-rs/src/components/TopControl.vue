@@ -4,7 +4,7 @@
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
 //
-// http://www.apache.org/licenses/LICENSE-2.0
+//     http://www.apache.org/licenses/LICENSE-2.0
 //
 // Unless required by applicable law or agreed to in writing, software
 // distributed under the License is distributed on an "AS IS" BASIS,
@@ -16,7 +16,7 @@
 import { ref, reactive, watch } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
-const { appVersion, mode, config, newConfig, loadConfig, saveConfig } = useAppState();
+const { appVersion, mode, activeConfig, newConfig, loadConfig, saveConfig, loadLog, isLogLoading } = useAppState();
 
 // -----------------------------------------------------------------------------
 // Props and Emits
@@ -30,7 +30,7 @@ const { appVersion, mode, config, newConfig, loadConfig, saveConfig } = useAppSt
  * updating the global Source of Truth (SSOT). This prevents invalid intermediate
  * states (like empty strings during typing) from triggering simulation errors.
  */
-const localServerConfig = reactive({ ...config.server_config });
+const localServerConfig = reactive({ ...activeConfig.value.server_config });
 
 /**
  * Watch local changes and sync to global state ONLY if the values are valid.
@@ -39,16 +39,16 @@ const localServerConfig = reactive({ ...config.server_config });
 watch(localServerConfig, (newVal) => {
   // 1. Port Validation (1024 - 65535)
   if (typeof newVal.port === 'number' && newVal.port >= 1024 && newVal.port <= 65535) {
-    config.server_config.port = newVal.port;
+    activeConfig.value.server_config.port = newVal.port;
   }
   // 2. Cycle Validation (>= 1ms)
   if (typeof newVal.cycle_time_ms === 'number' && newVal.cycle_time_ms >= 1) {
-    config.server_config.cycle_time_ms = newVal.cycle_time_ms;
+    activeConfig.value.server_config.cycle_time_ms = newVal.cycle_time_ms;
   }
   // 3. Stats Interval Validation (>= 0 cycles)
   const stats = newVal.stats_interval_cycle ?? 0;
   if (typeof stats === 'number' && stats >= 0) {
-    config.server_config.stats_interval_cycle = stats;
+    activeConfig.value.server_config.stats_interval_cycle = stats;
   }
 }, { deep: true });
 
@@ -56,7 +56,7 @@ watch(localServerConfig, (newVal) => {
  * Watch global state changes (e.g., from Load Config or New Config)
  * and sync them back to the local buffer.
  */
-watch(() => config.server_config, (newVal) => {
+watch(() => activeConfig.value.server_config, (newVal) => {
   // Object.assign provides a clean way to update all reactive properties at once.
   Object.assign(localServerConfig, newVal);
 }, { deep: true });
@@ -105,8 +105,8 @@ const resetNewConfirm = () => {
       </div>
       <div class="rt-toggle-container">
         <button :class="{ active: mode === 'Create' }" class="rt-toggle-item" @click="mode = 'Create'">Create</button>
-        <button :class="{ active: mode === 'Analyze' }" class="rt-toggle-item" :disabled="true"
-          title="Under Development" @click="mode = 'Analyze'">Analyze</button>
+        <button :class="{ active: mode === 'Analyze' }" class="rt-toggle-item"
+          @click="mode = 'Analyze'">Analyze</button>
       </div>
     </div>
     <div class="bottom-row">
@@ -135,13 +135,21 @@ const resetNewConfirm = () => {
         </div>
       </div>
       <div class="actions">
-        <div class="rt-input-label">Config:</div>
-        <button class="rt-btn rt-btn-secondary" :class="{ 'rt-btn-danger active': isConfirmingNew }" @click="onNew"
-          @mouseleave="resetNewConfirm">
-          {{ isConfirmingNew ? 'Confirm New' : 'New' }}
-        </button>
-        <button class="rt-btn rt-btn-secondary" @click="loadConfig">Load</button>
-        <button class="rt-btn rt-btn-primary" @click="saveConfig">Save</button>
+        <template v-if="mode === 'Create'">
+          <div class="rt-input-label">Config:</div>
+          <button class="rt-btn rt-btn-secondary" :class="{ 'rt-btn-danger active': isConfirmingNew }" @click="onNew"
+            @mouseleave="resetNewConfirm">
+            {{ isConfirmingNew ? 'Confirm New' : 'New' }}
+          </button>
+          <button class="rt-btn rt-btn-secondary" @click="loadConfig">Load</button>
+          <button class="rt-btn rt-btn-primary" @click="saveConfig">Save</button>
+        </template>
+        <template v-else>
+          <div class="rt-input-label">Log:</div>
+          <button class="rt-btn rt-btn-primary" :disabled="isLogLoading" @click="loadLog">
+            {{ isLogLoading ? 'Loading...' : 'Load' }}
+          </button>
+        </template>
       </div>
     </div>
   </header>
@@ -152,7 +160,7 @@ const resetNewConfirm = () => {
   z-index: 100;
   display: flex;
   flex-direction: column;
-  padding: 0 1.5rem;
+  padding: 0 24px;
   background-color: var(--rt-color-surface);
   border-bottom: var(--rt-border-main);
 }
@@ -180,7 +188,7 @@ const resetNewConfirm = () => {
 
 .server-info-inputs {
   display: flex;
-  gap: 1.5rem;
+  gap: 24px;
   align-items: center;
 }
 
@@ -190,14 +198,14 @@ const resetNewConfirm = () => {
 
 .actions {
   display: flex;
-  gap: 0.5rem;
+  gap: 8px;
   align-items: center;
 }
 
 .version-label {
   font-size: var(--rt-font-m);
   color: var(--rt-color-text-dim);
-  margin-left: 0.5rem;
+  margin-left: 8px;
   font-weight: normal;
 }
 </style>

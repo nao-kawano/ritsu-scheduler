@@ -1,0 +1,119 @@
+2026/09/06 00:01:24.034747 [INFO ] rt_server - # Starting Ritsu server v0.2.0
+2026/09/06 00:01:24.035944 [INFO ] rt_server - - Config file: ./config.toml
+2026/09/06 00:01:24.036245 [INFO ] rt_server - ----------------------------------------
+2026/09/06 00:01:24.043695 [INFO ] rt_server - <CONFIG> [server_config]
+2026/09/06 00:01:24.044307 [INFO ] rt_server - <CONFIG> port = 7901
+2026/09/06 00:01:24.044609 [INFO ] rt_server - <CONFIG> cycle_time_ms = 50
+2026/09/06 00:01:24.044887 [INFO ] rt_server - <CONFIG> stats_interval_cycle = 200
+2026/09/06 00:01:24.045159 [INFO ] rt_server - <CONFIG> 
+2026/09/06 00:01:24.045420 [INFO ] rt_server - <CONFIG> [[client_configs]]
+2026/09/06 00:01:24.045681 [INFO ] rt_server - <CONFIG> client_id = 10
+2026/09/06 00:01:24.045941 [INFO ] rt_server - <CONFIG> cycle = 2
+2026/09/06 00:01:24.046051 [INFO ] rt_server - <CONFIG> cycle_offset = 0
+2026/09/06 00:01:24.046138 [INFO ] rt_server - <CONFIG> depends = []
+2026/09/06 00:01:24.046224 [INFO ] rt_server - <CONFIG> expected_duration_ms = 15
+2026/09/06 00:01:24.046321 [INFO ] rt_server - <CONFIG> 
+2026/09/06 00:01:24.046440 [INFO ] rt_server - <CONFIG> [[client_configs]]
+2026/09/06 00:01:24.046522 [INFO ] rt_server - <CONFIG> client_id = 11
+2026/09/06 00:01:24.046603 [INFO ] rt_server - <CONFIG> cycle = 2
+2026/09/06 00:01:24.046681 [INFO ] rt_server - <CONFIG> cycle_offset = 0
+2026/09/06 00:01:24.046763 [INFO ] rt_server - <CONFIG> depends = [10]
+2026/09/06 00:01:24.046843 [INFO ] rt_server - <CONFIG> expected_duration_ms = 20
+2026/09/06 00:01:24.046923 [INFO ] rt_server - <CONFIG> 
+2026/09/06 00:01:24.047004 [INFO ] rt_server - <CONFIG> [[client_configs]]
+2026/09/06 00:01:24.047084 [INFO ] rt_server - <CONFIG> client_id = 20
+2026/09/06 00:01:24.047162 [INFO ] rt_server - <CONFIG> cycle = 2
+2026/09/06 00:01:24.047241 [INFO ] rt_server - <CONFIG> cycle_offset = 1
+2026/09/06 00:01:24.047321 [INFO ] rt_server - <CONFIG> depends = []
+2026/09/06 00:01:24.047398 [INFO ] rt_server - <CONFIG> expected_duration_ms = 40
+2026/09/06 00:01:24.047747 [INFO ] clients - starting
+2026/09/06 00:01:24.047938 [INFO ] cycle - starting
+2026/09/06 00:01:24.048052 [DEBUG] clients - receive thread started
+2026/09/06 00:01:24.048164 [DEBUG] cycle - cycle thread started
+2026/09/06 00:01:24.048293 [INFO ] udp - on_start port=7901
+2026/09/06 00:01:24.048521 [INFO ] interval - on_start cycle=50ms
+2026/09/06 00:01:24.717711 [DEBUG] process_starting - <STAT> CYC:-00000000001 CID:020 MID:1 JOIN
+2026/09/06 00:01:24.718165 [INFO ] context - <STAT> CYC:-00000000001 CID:020 [Conn] None -> Sync
+2026/09/06 00:01:24.718434 [DEBUG] process_starting - <STAT> CYC:-00000000001 CID:011 MID:1 JOIN
+2026/09/06 00:01:24.718612 [INFO ] context - <STAT> CYC:-00000000001 CID:011 [Conn] None -> Sync
+2026/09/06 00:01:24.718746 [INFO ] context - <STAT> CYC:-00000000001 CID:020 [Conn] Sync -> Active
+2026/09/06 00:01:24.718922 [DEBUG] process_starting - <STAT> CYC:-00000000001 CID:020 MID:2 Idle -> Ready
+2026/09/06 00:01:24.719043 [DEBUG] process_starting - <STAT> CYC:-00000000001 CID:010 MID:1 JOIN
+2026/09/06 00:01:24.719138 [INFO ] context - <STAT> CYC:-00000000001 CID:010 [Conn] None -> Sync
+2026/09/06 00:01:24.719254 [INFO ] context - <STAT> CYC:-00000000001 CID:011 [Conn] Sync -> Active
+2026/09/06 00:01:24.719367 [DEBUG] process_starting - <STAT> CYC:-00000000001 CID:011 MID:2 Idle -> Ready
+2026/09/06 00:01:24.719470 [INFO ] context - <STAT> CYC:-00000000001 CID:010 [Conn] Sync -> Active
+2026/09/06 00:01:24.719559 [DEBUG] process_starting - <STAT> CYC:-00000000001 CID:010 MID:2 Idle -> Ready
+2026/09/06 00:01:24.719648 [DEBUG] process_starting - all client is ready, go to running
+2026/09/06 00:01:24.719734 [INFO ] context - <STAT> CYC:-00000000001 [Manager] Starting -> Running
+2026/09/06 00:01:24.752311 [DEBUG] process_running - <STAT> CYC:000000000000 START
+2026/09/06 00:01:24.752882 [DEBUG] process_running - <STAT> CYC:000000000000 CID:010 MID:2 Ready -> Running (Cycle)
+2026/09/06 00:01:24.763795 [DEBUG] process_running - <STAT> CYC:000000000000 CID:010 MID:3 Running -> Idle
+2026/09/06 00:01:24.764000 [DEBUG] process_running - <STAT> CYC:000000000000 CID:011 MID:2 Ready -> Running (Dependency)
+2026/09/06 00:01:24.765019 [DEBUG] process_running - <STAT> CYC:000000000000 CID:010 MID:4 Idle -> Ready
+2026/09/06 00:01:24.775338 [DEBUG] process_running - <STAT> CYC:000000000000 CID:011 MID:3 Running -> Idle
+2026/09/06 00:01:24.775632 [DEBUG] process_running - <STAT> CYC:000000000000 CID:011 MID:4 Idle -> Ready
+2026/09/06 00:01:24.802661 [DEBUG] process_running - <STAT> CYC:000000000001 START
+2026/09/06 00:01:24.803049 [DEBUG] process_running - <STAT> CYC:000000000001 CID:020 MID:2 Ready -> Running (Cycle)
+2026/09/06 00:01:24.814197 [DEBUG] process_running - <STAT> CYC:000000000001 CID:020 MID:3 Running -> Idle
+2026/09/06 00:01:24.814880 [DEBUG] process_running - <STAT> CYC:000000000001 CID:020 MID:4 Idle -> Ready
+2026/09/06 00:01:24.852848 [DEBUG] process_running - <STAT> CYC:000000000002 START
+2026/09/06 00:01:24.853296 [DEBUG] process_running - <STAT> CYC:000000000002 CID:010 MID:4 Ready -> Running (Cycle)
+2026/09/06 00:01:24.864201 [DEBUG] process_running - <STAT> CYC:000000000002 CID:010 MID:5 Running -> Idle
+2026/09/06 00:01:24.864418 [DEBUG] process_running - <STAT> CYC:000000000002 CID:011 MID:4 Ready -> Running (Dependency)
+2026/09/06 00:01:24.864845 [DEBUG] process_running - <STAT> CYC:000000000002 CID:010 MID:6 Idle -> Ready
+2026/09/06 00:01:24.875236 [DEBUG] process_running - <STAT> CYC:000000000002 CID:011 MID:5 Running -> Idle
+2026/09/06 00:01:24.875633 [DEBUG] process_running - <STAT> CYC:000000000002 CID:011 MID:6 Idle -> Ready
+2026/09/06 00:01:24.903211 [DEBUG] process_running - <STAT> CYC:000000000003 START
+2026/09/06 00:01:24.903637 [DEBUG] process_running - <STAT> CYC:000000000003 CID:020 MID:4 Ready -> Running (Cycle)
+2026/09/06 00:01:24.914606 [DEBUG] process_running - <STAT> CYC:000000000003 CID:020 MID:5 Running -> Idle
+2026/09/06 00:01:24.915255 [DEBUG] process_running - <STAT> CYC:000000000003 CID:020 MID:6 Idle -> Ready
+2026/09/06 00:01:24.953424 [DEBUG] process_running - <STAT> CYC:000000000004 START
+2026/09/06 00:01:24.953841 [DEBUG] process_running - <STAT> CYC:000000000004 CID:010 MID:6 Ready -> Running (Cycle)
+2026/09/06 00:01:24.964790 [DEBUG] process_running - <STAT> CYC:000000000004 CID:010 MID:7 Running -> Idle
+2026/09/06 00:01:24.965157 [DEBUG] process_running - <STAT> CYC:000000000004 CID:011 MID:6 Ready -> Running (Dependency)
+2026/09/06 00:01:24.965724 [DEBUG] process_running - <STAT> CYC:000000000004 CID:010 MID:8 Idle -> Ready
+2026/09/06 00:01:24.976068 [DEBUG] process_running - <STAT> CYC:000000000004 CID:011 MID:7 Running -> Idle
+2026/09/06 00:01:24.976648 [DEBUG] process_running - <STAT> CYC:000000000004 CID:011 MID:8 Idle -> Ready
+2026/09/06 00:01:25.003787 [DEBUG] process_running - <STAT> CYC:000000000005 START
+2026/09/06 00:01:25.004105 [DEBUG] process_running - <STAT> CYC:000000000005 CID:020 MID:6 Ready -> Running (Cycle)
+2026/09/06 00:01:25.015221 [DEBUG] process_running - <STAT> CYC:000000000005 CID:020 MID:7 Running -> Idle
+2026/09/06 00:01:25.015685 [DEBUG] process_running - <STAT> CYC:000000000005 CID:020 MID:8 Idle -> Ready
+2026/09/06 00:01:25.054217 [DEBUG] process_running - <STAT> CYC:000000000006 START
+2026/09/06 00:01:25.054760 [DEBUG] process_running - <STAT> CYC:000000000006 CID:010 MID:8 Ready -> Running (Cycle)
+2026/09/06 00:01:25.066000 [DEBUG] process_running - <STAT> CYC:000000000006 CID:010 MID:9 Running -> Idle
+2026/09/06 00:01:25.066341 [DEBUG] process_running - <STAT> CYC:000000000006 CID:011 MID:8 Ready -> Running (Dependency)
+2026/09/06 00:01:25.066649 [DEBUG] process_running - <STAT> CYC:000000000006 CID:010 MID:0 Idle -> Ready
+2026/09/06 00:01:25.077367 [DEBUG] process_running - <STAT> CYC:000000000006 CID:011 MID:9 Running -> Idle
+2026/09/06 00:01:25.078017 [DEBUG] process_running - <STAT> CYC:000000000006 CID:011 MID:0 Idle -> Ready
+2026/09/06 00:01:25.104633 [DEBUG] process_running - <STAT> CYC:000000000007 START
+2026/09/06 00:01:25.104961 [DEBUG] process_running - <STAT> CYC:000000000007 CID:020 MID:8 Ready -> Running (Cycle)
+2026/09/06 00:01:25.116221 [DEBUG] process_running - <STAT> CYC:000000000007 CID:020 MID:9 Running -> Idle
+2026/09/06 00:01:25.117163 [DEBUG] process_running - <STAT> CYC:000000000007 CID:020 MID:0 Idle -> Ready
+2026/09/06 00:01:25.155118 [DEBUG] process_running - <STAT> CYC:000000000008 START
+2026/09/06 00:01:25.155572 [DEBUG] process_running - <STAT> CYC:000000000008 CID:010 MID:0 Ready -> Running (Cycle)
+2026/09/06 00:01:25.166539 [DEBUG] process_running - <STAT> CYC:000000000008 CID:010 MID:1 Running -> Idle
+2026/09/06 00:01:25.166909 [DEBUG] process_running - <STAT> CYC:000000000008 CID:011 MID:0 Ready -> Running (Dependency)
+2026/09/06 00:01:25.167378 [DEBUG] process - <STAT> CYC:000000000008 CID:010 MID:2 EXIT
+2026/09/06 00:01:25.167646 [INFO ] context - <STAT> CYC:000000000008 CID:010 [Conn] Active -> None
+2026/09/06 00:01:25.167765 [DEBUG] process - CYC:000000000008 2 clients connected, go to Exiting
+2026/09/06 00:01:25.167854 [INFO ] context - <STAT> CYC:000000000008 CID:020 [Conn] Active -> Exiting
+2026/09/06 00:01:25.167934 [INFO ] context - <STAT> CYC:000000000008 [Manager] Running -> Exiting
+2026/09/06 00:01:25.168201 [DEBUG] process_exiting - <STAT> CYC:000000000008 CID:020 MID:1 EXIT
+2026/09/06 00:01:25.168341 [INFO ] context - <STAT> CYC:000000000008 CID:020 [Conn] Exiting -> None
+2026/09/06 00:01:25.178040 [DEBUG] process_exiting - <STAT> CYC:000000000008 CID:011 MID:1 DONE (Exiting)
+2026/09/06 00:01:25.178434 [DEBUG] process_exiting - <STAT> CYC:000000000008 CID:011 MID:2 READY (Exiting)
+2026/09/06 00:01:25.178603 [INFO ] context - <STAT> CYC:000000000008 CID:011 [Conn] Active -> Exiting
+2026/09/06 00:01:25.178822 [DEBUG] process_exiting - <STAT> CYC:000000000008 CID:011 MID:3 EXIT
+2026/09/06 00:01:25.178918 [INFO ] context - <STAT> CYC:000000000008 CID:011 [Conn] Exiting -> None
+2026/09/06 00:01:25.178997 [DEBUG] process_exiting - all client is exit, go to exited
+2026/09/06 00:01:25.179072 [INFO ] context - <STAT> CYC:000000000008 [Manager] Exiting -> Exited
+2026/09/06 00:01:25.179163 [INFO ] context - [STATS] Server Elapsed: 1131ms (S:672, R:448, E:11), Cycles: 8
+2026/09/06 00:01:25.179247 [INFO ] context - [STATS] CID:010, Trg: 5 (Ok: 5, Ov: 0, Skip: 0, Late: 0), Time[ms]: Avg 10 (10-11), OvTime[ms]: Avg 0 (0-0)
+2026/09/06 00:01:25.179344 [INFO ] context - [STATS] CID:011, Trg: 4 (Ok: 4, Ov: 0, Skip: 0, Late: 0), Time[ms]: Avg 11 (11-11), OvTime[ms]: Avg 0 (0-0)
+2026/09/06 00:01:25.179428 [INFO ] context - [STATS] CID:020, Trg: 4 (Ok: 4, Ov: 0, Skip: 0, Late: 0), Time[ms]: Avg 10 (10-11), OvTime[ms]: Avg 0 (0-0)
+2026/09/06 00:01:25.179529 [INFO ] cycle - stop requested
+2026/09/06 00:01:25.185930 [INFO ] interval - on_shutdown
+2026/09/06 00:01:25.186133 [DEBUG] cycle - cycle thread stopped
+2026/09/06 00:01:25.186295 [INFO ] cycle - stopped
+2026/09/06 00:01:25.186425 [INFO ] clients - stop requested

@@ -194,14 +194,14 @@ const resetDeleteConfirm = () => {
 
 .dialog-content {
   width: 440px;
-  padding: 2rem;
+  padding: 32px;
   background: var(--rt-color-surface);
   color: var(--rt-color-text);
 }
 
 .dialog-content h3 {
   margin-top: 0;
-  margin-bottom: 1.5rem;
+  margin-bottom: 24px;
   font-size: var(--rt-font-l);
   color: var(--rt-color-primary);
 }
@@ -214,7 +214,7 @@ const resetDeleteConfirm = () => {
   display: grid;
   grid-template-columns: 100px 1fr;
   align-items: center;
-  gap: 1rem;
+  gap: 16px;
 }
 
 /* ==========================================================================
@@ -225,7 +225,7 @@ const resetDeleteConfirm = () => {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 1rem;
-  margin-top: 2rem;
+  gap: 16px;
+  margin-top: 32px;
 }
 </style>

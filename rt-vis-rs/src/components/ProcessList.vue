@@ -17,7 +17,7 @@ import { ref } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
 // --- State and Composables ---
-const { config, config_errors, openEdit, addClient, moveClientConfig } = useAppState();
+const { activeConfig, configErrors, openEdit, addClient, moveClientConfig } = useAppState();
 
 // -----------------------------------------------------------------------------
 // Props and Emits
@@ -97,7 +97,7 @@ const updateTargetIndex = (clientY: number) => {
   }
 
   // Boundary Guard: prevent inserting below the add process button
-  const boundedIndex = Math.min(config.client_configs.length, Math.max(0, computedIndex));
+  const boundedIndex = Math.min(activeConfig.value.client_configs.length, Math.max(0, computedIndex));
 
   if (targetIndex.value !== boundedIndex) {
     targetIndex.value = boundedIndex;
@@ -179,7 +179,7 @@ const onMouseUp = () => {
 // --- Validation and Error Helpers ---
 
 const getErrors = (cid: number) => {
-  return config_errors.value[cid] || [];
+  return configErrors.value[cid] || [];
 };
 
 // -----------------------------------------------------------------------------
@@ -189,11 +189,11 @@ defineExpose({ scrollEl });
 </script>
 
 <template>
-  <aside class="process-list-pane" :key="config.sessionId">
+  <aside class="process-list-pane" :key="activeConfig.sessionId">
     <div class="pane-header">Processes</div>
     <div class="scroll-area process-list-scroll sb-hide-all" ref="scrollEl" @scroll="onScroll">
       <div class="process-list-content" style="position: relative;">
-        <template v-for="(clientWrap, index) in config.client_configs" :key="clientWrap.configId">
+        <template v-for="(clientWrap, index) in activeConfig.client_configs" :key="clientWrap.configId">
           <div class="drop-indicator" :class="{ 'is-active': targetIndex === index }"></div>
           <div class="process-row-wrapper" :class="{ 'is-dragging': draggingIndex === index }">
             <div class="drag-handle" @mousedown.prevent.stop="startDrag($event, index)">
@@ -225,7 +225,7 @@ defineExpose({ scrollEl });
             </div>
           </div>
         </template>
-        <div class="drop-indicator" :class="{ 'is-active': targetIndex === config.client_configs.length }"></div>
+        <div class="drop-indicator" :class="{ 'is-active': targetIndex === activeConfig.client_configs.length }"></div>
         <div class="process-row-wrapper add-btn-row">
           <button class="add-btn" @click="addClient">+ Add Process</button>
         </div>
@@ -250,7 +250,7 @@ defineExpose({ scrollEl });
   flex-shrink: 0;
   align-items: center;
   height: var(--header-row-height);
-  padding: 0 1rem;
+  padding: 0 16px;
   border-bottom: var(--rt-border-main);
   background: var(--rt-color-surface-header);
   font-size: var(--rt-font-xs);
@@ -275,8 +275,8 @@ defineExpose({ scrollEl });
   display: flex;
   align-items: center;
   height: var(--row-height);
-  padding: 0.3rem 0.75rem;
-  gap: 0.25rem;
+  padding: 5px 12px;
+  gap: 4px;
 
   /* Border/Background */
   border-bottom: var(--rt-border-main);
@@ -288,7 +288,7 @@ defineExpose({ scrollEl });
   justify-content: center;
   width: 100%;
   height: 100%;
-  padding: 0.25rem 0.75rem;
+  padding: 4px 12px;
   background-color: var(--rt-color-surface);
   border: 1px solid var(--rt-color-border);
   border-radius: var(--rt-radius-m);
@@ -310,8 +310,8 @@ defineExpose({ scrollEl });
 .card-header .cid {
   width: 100%;
   overflow: hidden;
-  font-size: var(--rt-font-l);
-  font-weight: bold;
+  font-size: var(--rt-font-m);
+  font-weight: 600;
   color: var(--rt-color-text);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -418,7 +418,7 @@ defineExpose({ scrollEl });
 .drop-indicator {
   /* Box Model */
   height: 4px;
-  margin: -2px 0.75rem;
+  margin: -2px 12px;
 
   /* Border/Background */
   background-color: transparent;

@@ -40,15 +40,15 @@ fn test_simulate_plan_single_process() {
 
     let ex0 = &result.executions[0];
     assert_eq!(ex0.cid, 1);
-    assert_eq!(ex0.cycle, 0);
-    assert_eq!(ex0.cycle_offset_ms, 0);
+    assert_eq!(ex0.anchor_cycle, 0);
+    assert_eq!(ex0.anchor_offset_ms, 0);
     assert_eq!(ex0.start_ms, 0);
     assert_eq!(ex0.duration_ms, 40);
 
     let ex1 = &result.executions[1];
     assert_eq!(ex1.cid, 1);
-    assert_eq!(ex1.cycle, 1);
-    assert_eq!(ex1.cycle_offset_ms, 0);
+    assert_eq!(ex1.anchor_cycle, 1);
+    assert_eq!(ex1.anchor_offset_ms, 0);
     assert_eq!(ex1.start_ms, 100);
     assert_eq!(ex1.duration_ms, 40);
 
@@ -101,20 +101,26 @@ fn test_simulate_plan_dependencies() {
     // Process 1 Cycle 0
     assert_eq!(execs_1[0].start_ms, 0);
     assert_eq!(execs_1[0].duration_ms, 120);
+    assert_eq!(execs_1[0].anchor_cycle, 0);
+    assert_eq!(execs_1[0].anchor_offset_ms, 0);
 
-    // Process 2 Cycle 1 (Floating start after Process 1)
+    // Process 2 Cycle 1 (Floating start after Process 1, inherits anchor_cycle 0)
     assert_eq!(execs_2[0].start_ms, 120);
     assert_eq!(execs_2[0].duration_ms, 50);
-    assert_eq!(execs_2[0].cycle_offset_ms, 20); // 20ms offset within cycle 1
+    assert_eq!(execs_2[0].anchor_cycle, 0);
+    assert_eq!(execs_2[0].anchor_offset_ms, 120);
 
     // Process 1 Cycle 2
     assert_eq!(execs_1[1].start_ms, 200);
     assert_eq!(execs_1[1].duration_ms, 120);
+    assert_eq!(execs_1[1].anchor_cycle, 2);
+    assert_eq!(execs_1[1].anchor_offset_ms, 0);
 
-    // Process 2 Cycle 3 (Floating start after Process 1)
+    // Process 2 Cycle 3 (Floating start after Process 1, inherits anchor_cycle 2)
     assert_eq!(execs_2[1].start_ms, 320);
     assert_eq!(execs_2[1].duration_ms, 50);
-    assert_eq!(execs_2[1].cycle_offset_ms, 20); // 20ms offset within cycle 3
+    assert_eq!(execs_2[1].anchor_cycle, 2);
+    assert_eq!(execs_2[1].anchor_offset_ms, 120);
 
     // 0ms: P1 starts (1).
     // 120ms: P1 ends, P2 starts (1).
@@ -347,13 +353,13 @@ fn test_simulate_plan_status_overrun_and_recovery() {
 
     // 1st run (Starts at Cycle 0)
     assert_eq!(execs_1[0].start_ms, 0);
-    assert_eq!(execs_1[0].cycle, 0);
+    assert_eq!(execs_1[0].anchor_cycle, 0);
     // At 100ms (Cycle 1 start), status is updated to Overrun
     assert!(matches!(execs_1[0].status, ExecutionStatus::Overrun));
 
     // 2nd run (Starts at Cycle 2) - Recovery successful
     assert_eq!(execs_1[1].start_ms, 200);
-    assert_eq!(execs_1[1].cycle, 2);
+    assert_eq!(execs_1[1].anchor_cycle, 2);
     // At 300ms (Cycle 3 start), it becomes Overrun again
     assert!(matches!(execs_1[1].status, ExecutionStatus::Overrun));
 }
@@ -404,12 +410,50 @@ fn test_simulate_plan_status_cascade_skip() {
     let mut execs_3: Vec<_> = result.executions.iter().filter(|e| e.cid == 3).collect();
     execs_3.sort_by_key(|e| e.start_ms);
     assert_eq!(execs_3.len(), 1);
-    assert_eq!(execs_3[0].cycle, 1);
+    assert_eq!(execs_3[0].anchor_cycle, 1);
     assert!(matches!(execs_3[0].status, ExecutionStatus::Skip));
 
     let mut execs_4: Vec<_> = result.executions.iter().filter(|e| e.cid == 4).collect();
     execs_4.sort_by_key(|e| e.start_ms);
     assert_eq!(execs_4.len(), 1);
-    assert_eq!(execs_4[0].cycle, 1);
+    assert_eq!(execs_4[0].anchor_cycle, 1);
     assert!(matches!(execs_4[0].status, ExecutionStatus::Skip));
+}
+
+#[test]
+fn test_simulate_plan_floating_chain_anchor() {
+    let _ = env_logger::builder().is_test(true).try_init();
+
+    // P1 (10ms) -> P2 (40ms) -> P3 (20ms)
+    // Server cycle_time_ms: 50ms. All processes: Cycle 2, Offset 0.
+    // P3 starts at 10 + 40 = 50ms (exact cycle boundary of Cycle 1).
+    // Under the anchor model, P3 inherits anchor_cycle 0 and has anchor_offset_ms = 50,
+    // avoiding modulo 50 % 50 = 0 warp.
+    let mut config = create_config(vec![
+        ClientConfig::new(101, 2, 0, vec![], 10).unwrap(),
+        ClientConfig::new(201, 2, 0, vec![101], 40).unwrap(),
+        ClientConfig::new(501, 2, 0, vec![201], 20).unwrap(),
+    ]);
+    config.server_config.cycle_time_ms = 50;
+
+    let result = simulate_plan(config).unwrap();
+
+    let mut execs_501: Vec<_> = result.executions.iter().filter(|e| e.cid == 501).collect();
+    execs_501.sort_by_key(|e| e.start_ms);
+
+    // Max cycle is 2, so it simulates manager cycles 0, 1, 2, 3.
+    // P3 executes at Cycle 0 (50ms) and Cycle 2 (150ms).
+    assert_eq!(execs_501.len(), 2);
+
+    // 1st run: Originates from Cycle 0
+    assert_eq!(execs_501[0].start_ms, 50);
+    assert_eq!(execs_501[0].duration_ms, 20);
+    assert_eq!(execs_501[0].anchor_cycle, 0); // Correctly anchored to Cycle 0.
+    assert_eq!(execs_501[0].anchor_offset_ms, 50); // 50ms offset from Cycle 0 base.
+
+    // 2nd run: Originates from Cycle 2
+    assert_eq!(execs_501[1].start_ms, 150);
+    assert_eq!(execs_501[1].duration_ms, 20);
+    assert_eq!(execs_501[1].anchor_cycle, 2); // Correctly anchored to Cycle 2.
+    assert_eq!(execs_501[1].anchor_offset_ms, 50); // 50ms offset from Cycle 2 base.
 }

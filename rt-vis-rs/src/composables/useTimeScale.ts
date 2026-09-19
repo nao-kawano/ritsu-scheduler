@@ -29,10 +29,10 @@ const DEFAULT_PX_PER_CYCLE = 400;
  * This is a low-level utility used by mode-specific layout composables.
  */
 export function useTimeScale() {
-  const { config } = useAppState();
+  const { activeConfig } = useAppState();
 
   // Basic time unit from server config
-  const cycleTimeMs = computed(() => config.server_config.cycle_time_ms || 100);
+  const cycleTimeMs = computed(() => activeConfig.value.server_config.cycle_time_ms || 100);
 
   // Pixels per millisecond (Current zoom level)
   const pxPerMs = computed(() => pxPerCycle.value / cycleTimeMs.value);

@@ -25,14 +25,14 @@ import GlobalError from "./components/GlobalError.vue";
 import EditPopup from "./components/EditPopup.vue";
 
 // Mode-specific components
-import TimelineViewGeneric from "./components/TimelineView.vue";
-import MetricsChartGeneric from "./components/MetricsChart.vue";
 import TimelineViewCreate from "./components/TimelineViewCreate.vue";
 import MetricsChartCreate from "./components/MetricsChartCreate.vue";
+import TimelineViewAnalyze from "./components/TimelineViewAnalyze.vue";
+import MetricsChartAnalyze from "./components/MetricsChartAnalyze.vue";
 
 const {
   mode,
-  simulation_error,
+  simulationError,
   selectedClientWrap,
 } = useAppState();
 
@@ -47,7 +47,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
 
 // Derived state for common components
 const currentErrorMessage = computed(() => {
-  if (mode.value === 'Create') return simulation_error.value;
+  if (mode.value === 'Create') return simulationError.value;
   return null;
 });
 
@@ -86,7 +86,7 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
       <ProcessList :key="mode" ref="processListRef" @scroll="onProcessListScroll" />
 
       <!-- Right Pane -->
-      <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewGeneric" ref="timelineViewRef"
+      <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewAnalyze" ref="timelineViewRef"
         @scroll="onTimelineScroll" />
 
       <!-- Floating Zoom Control -->
@@ -96,7 +96,7 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
     <!-- Bottom Pane -->
     <footer class="metrics-section">
       <MetricsLabels />
-      <component :is="mode === 'Create' ? MetricsChartCreate : MetricsChartGeneric" ref="metricsChartRef"
+      <component :is="mode === 'Create' ? MetricsChartCreate : MetricsChartAnalyze" ref="metricsChartRef"
         @scroll="onMetricsScroll" />
     </footer>
 
@@ -130,12 +130,12 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   --rt-spacing-s: 8px;
   --rt-spacing-m: 16px;
 
-  /* Typography Scale */
-  --rt-font-xs: 0.7rem;
-  --rt-font-s: 0.8rem;
-  --rt-font-m: 0.9rem;
-  --rt-font-l: 1.1rem;
-  --rt-font-brand: 1.4rem;
+  /* Typography Scale (Pixel Grid) */
+  --rt-font-xs: 11px;
+  --rt-font-s: 12px;
+  --rt-font-m: 14px;
+  --rt-font-l: 18px;
+  --rt-font-brand: 22px;
 }
 
 /* --- Semantic Color Mapping (Binds M3 to RT) --- */
@@ -145,6 +145,7 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   --rt-color-surface: var(--md-sys-color-surface-container-lowest);
   --rt-color-surface-header: var(--md-sys-color-surface-container-high);
   --rt-color-surface-input: var(--md-sys-color-surface-container-low);
+  --rt-color-surface-elevated: var(--md-sys-color-surface-container-highest);
 
   /* Text */
   --rt-color-text: var(--md-sys-color-on-surface);
@@ -168,12 +169,39 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   --rt-color-error-container: var(--md-sys-color-error-container);
   --rt-color-on-error-container: var(--md-sys-color-on-error-container);
 
+  --rt-color-warning: var(--md-extended-color-warning-color);
   --rt-color-warning-container: var(--md-extended-color-warning-color-container);
   --rt-color-on-warning-container: var(--md-extended-color-warning-on-color-container);
 
   /* Borders & Grid */
   --rt-color-border: var(--md-sys-color-outline-variant);
   --rt-color-outline: var(--md-sys-color-outline);
+
+  /* Execution Status (Actual Bar Fills & Status Badges) */
+  --rt-color-status-normal: var(--md-sys-color-tertiary);
+  --rt-color-on-status-normal: var(--md-sys-color-on-tertiary);
+  --rt-color-status-overrun: var(--md-sys-color-error);
+  --rt-color-on-status-overrun: var(--md-sys-color-on-error);
+  --rt-color-status-skip: var(--md-extended-color-warning-color-container);
+  --rt-color-on-status-skip: var(--md-extended-color-warning-on-color-container);
+  --rt-color-status-incomplete: var(--md-sys-color-outline);
+  --rt-color-on-status-incomplete: var(--md-sys-color-surface-container-lowest);
+
+  /* Instant Events (Timeline Diamond Markers & Event Badges) */
+  --rt-color-event-ready: var(--md-sys-color-primary);
+  --rt-color-on-event-ready: var(--md-sys-color-on-primary);
+  --rt-color-event-exit: var(--md-sys-color-outline);
+  --rt-color-on-event-exit: var(--md-sys-color-surface-container-lowest);
+  --rt-color-event-overrun: var(--md-sys-color-error);
+  --rt-color-on-event-overrun: var(--md-sys-color-on-error);
+  --rt-color-event-error: var(--md-sys-color-error);
+  --rt-color-on-event-error: var(--md-sys-color-on-error);
+  --rt-color-event-skip: var(--md-extended-color-warning-color-container);
+  --rt-color-on-event-skip: var(--md-extended-color-warning-on-color-container);
+  --rt-color-event-late: var(--md-extended-color-warning-color-container);
+  --rt-color-on-event-late: var(--md-extended-color-warning-on-color-container);
+  --rt-color-event-retransmit: var(--md-sys-color-tertiary);
+  --rt-color-on-event-retransmit: var(--md-sys-color-on-tertiary);
 
   /* Derived Tokens */
   --rt-border-main: 1px solid var(--rt-color-border);
@@ -222,7 +250,7 @@ textarea {
   align-items: center;
   justify-content: center;
   height: 38px;
-  padding: 0 1.2rem;
+  padding: 0 20px;
   border: 1px solid transparent;
   border-radius: var(--rt-radius-m);
   font-family: inherit;
@@ -297,7 +325,7 @@ textarea {
 .rt-toggle-item {
   display: flex;
   align-items: center;
-  padding: 0 1rem;
+  padding: 0 16px;
   border: none;
   border-radius: calc(var(--rt-radius-m) - 2px);
   background: transparent;

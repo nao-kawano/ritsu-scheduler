@@ -12,31 +12,23 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
 /**
- * Ritsu Simulation Types
- * Based on rt-vis-rs/src-tauri/src/simulator.rs structure.
+ * Format delta value with sign and units for tooltip display.
+ * Clamps near-zero floating point residuals to clean positive zero (+0.00 ms).
  */
-
-export type ExecutionStatus = 'normal' | 'overrun' | 'skip';
-
-export interface PlannedExecution {
-  instance_id: number;
-  cid: number;
-  anchor_cycle: number;
-  anchor_offset_ms: number;
-  start_ms: number;
-  duration_ms: number;
-  depends_instance_ids: number[];
-  status: ExecutionStatus;
+export function formatDelta(delta: number): string {
+  if (Math.abs(delta) < 0.005) {
+    return '+0.00 ms';
+  }
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${delta.toFixed(2)} ms`;
 }
 
-export interface PlannedMetricPoint {
-  time_ms: number;
-  running_count: number;
-}
-
-export interface SimulationResult {
-  executions: PlannedExecution[];
-  metrics: PlannedMetricPoint[];
-  config_errors: Record<number, string[]>;
+/**
+ * Format delta count with explicit positive sign for concurrency delta.
+ */
+export function formatDeltaCount(delta: number): string {
+  const sign = delta > 0 ? '+' : '';
+  return `${sign}${delta}`;
 }

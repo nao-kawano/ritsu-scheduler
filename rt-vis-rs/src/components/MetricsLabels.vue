@@ -16,11 +16,11 @@
 import { useAppState } from '../composables/useAppState';
 
 // --- State and Composables ---
-const { config } = useAppState();
+const { activeConfig } = useAppState();
 </script>
 
 <template>
-  <div class="metrics-labels-pane" :key="config.sessionId">
+  <div class="metrics-labels-pane" :key="activeConfig.sessionId">
     <div class="pane-header">Metrics Labels</div>
     <div class="metrics-labels">
       <div class="metric-label">Concurrent Processes</div>
@@ -45,7 +45,7 @@ const { config } = useAppState();
   flex-shrink: 0;
   align-items: center;
   height: var(--header-row-height);
-  padding: 0 1rem;
+  padding: 0 16px;
   background: var(--rt-color-surface-header);
   border-bottom: var(--rt-border-main);
   font-size: var(--rt-font-xs);
@@ -65,7 +65,7 @@ const { config } = useAppState();
   display: flex;
   align-items: center;
   height: var(--row-height);
-  padding: 0 1rem;
+  padding: 0 16px;
   border-bottom: var(--rt-border-main);
   font-size: var(--rt-font-xs);
   color: var(--rt-color-text-dim);
