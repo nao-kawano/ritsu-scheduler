@@ -241,31 +241,31 @@ const updateThemeStyles = () => {
 };
 
 /**
- * Render sticky time header canvas using shared canvas rendering composable.
+ * Render horizontal process row separator borders.
  */
-const renderHeader = (styles: ThemeStyles) => {
-  if (!headerCanvasEl.value || !headerScrollEl.value) return;
-
-  const { width, height, ctx } = prepareCanvas(headerCanvasEl.value, headerScrollEl.value);
-  if (!ctx) return;
-
-  // ALWAYS use contentScrollEl's scrollLeft as master to guarantee 100% pixel sync across panes
-  const scrollLeft = contentScrollEl.value ? contentScrollEl.value.scrollLeft : headerScrollEl.value.scrollLeft;
-
-  // Pin canvas overlay dynamically to current scroll viewport to avoid clipping or blank bleeding
-  headerCanvasEl.value.style.transform = `translate(${scrollLeft}px, 0px)`;
-
-  renderTimelineHeader(ctx, {
-    scrollLeft,
-    width,
-    height,
-    totalCycles: totalCycles.value,
-    cycleTimeMs: cycleTimeMs.value,
-    majorPx: gridInfo.value.majorPx,
-    styles,
-    actualCycles: logRangeDataAnalyzeMode.value?.actual_cycles,
-    pxPerMs: pxPerMs.value
-  });
+const renderRowBorders = (
+  ctx: CanvasRenderingContext2D,
+  scrollTop: number,
+  width: number,
+  height: number,
+  styles: ThemeStyles
+) => {
+  ctx.save();
+  {
+    const totalRows = activeConfig.value.client_configs.length + 1;
+    ctx.strokeStyle = styles.borderColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let r = 1; r <= totalRows; r++) {
+      const y = Math.floor(r * ROW_HEIGHT - scrollTop) - 0.5;
+      if (y >= 0 && y <= height) {
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+      }
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
 };
 
 /**
@@ -531,44 +531,31 @@ const renderInstantEvents = (
 };
 
 /**
- * Render horizontal process row separator borders.
+ * Render sticky time header canvas using shared canvas rendering composable.
  */
-const renderRowBorders = (
-  ctx: CanvasRenderingContext2D,
-  scrollTop: number,
-  width: number,
-  height: number,
-  styles: ThemeStyles
-) => {
-  ctx.save();
-  {
-    const totalRows = activeConfig.value.client_configs.length + 1;
-    ctx.strokeStyle = styles.borderColor;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let r = 1; r <= totalRows; r++) {
-      const y = Math.floor(r * ROW_HEIGHT - scrollTop) - 0.5;
-      if (y >= 0 && y <= height) {
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-      }
-    }
-    ctx.stroke();
-  }
-  ctx.restore();
-};
+const renderHeader = (styles: ThemeStyles) => {
+  if (!headerCanvasEl.value || !headerScrollEl.value) return;
 
-/**
- * Request asynchronous range fetch for visible physical time bounds if needed.
- * Adheres to optimistic rendering architecture: renders immediately using cached local data
- * for smooth frame rates while requesting missing range data in the background.
- */
-const requestVisibleLogRange = (scrollLeft: number, width: number) => {
-  if (logSummaryAnalyzeMode.value && cycleTimeMs.value > 0) {
-    const startMs = Math.max(0, Math.floor(scrollLeft / pxPerMs.value));
-    const endMs = Math.ceil((scrollLeft + width) / pxPerMs.value);
-    fetchLogRange(startMs, endMs);
-  }
+  const { width, height, ctx } = prepareCanvas(headerCanvasEl.value, headerScrollEl.value);
+  if (!ctx) return;
+
+  // ALWAYS use contentScrollEl's scrollLeft as master to guarantee 100% pixel sync across panes
+  const scrollLeft = contentScrollEl.value ? contentScrollEl.value.scrollLeft : headerScrollEl.value.scrollLeft;
+
+  // Pin canvas overlay dynamically to current scroll viewport to avoid clipping or blank bleeding
+  headerCanvasEl.value.style.transform = `translate(${scrollLeft}px, 0px)`;
+
+  renderTimelineHeader(ctx, {
+    scrollLeft,
+    width,
+    height,
+    totalCycles: totalCycles.value,
+    cycleTimeMs: cycleTimeMs.value,
+    majorPx: gridInfo.value.majorPx,
+    styles,
+    actualCycles: logRangeDataAnalyzeMode.value?.actual_cycles,
+    pxPerMs: pxPerMs.value
+  });
 };
 
 /**
@@ -628,8 +615,20 @@ const renderContent = (styles: ThemeStyles) => {
   renderPlanBoxes(ctx, scrollLeft, scrollTop, width, height, styles, cidToRowIndex.value);
   renderActualBars(ctx, scrollLeft, scrollTop, width, height, styles, cidToRowIndex.value);
   renderInstantEvents(ctx, scrollLeft, scrollTop, width, height, styles, cidToRowIndex.value);
+};
 
-  requestVisibleLogRange(scrollLeft, width);
+/**
+ * Request asynchronous range fetch for visible physical time bounds if needed.
+ * Adheres to optimistic rendering architecture: renders immediately using cached local data
+ * for smooth frame rates while requesting missing range data in the background.
+ */
+const requestVisibleLogRange = () => {
+  if (!contentScrollEl.value || !logSummaryAnalyzeMode.value || cycleTimeMs.value <= 0) return;
+
+  const { scrollLeft, clientWidth } = contentScrollEl.value;
+  const startMs = Math.max(0, Math.floor(scrollLeft / pxPerMs.value));
+  const endMs = Math.ceil((scrollLeft + clientWidth) / pxPerMs.value);
+  fetchLogRange(startMs, endMs);
 };
 
 const renderAll = () => {
@@ -641,6 +640,7 @@ const renderAll = () => {
 
   renderHeader(styles);
   renderContent(styles);
+  requestVisibleLogRange();
 };
 
 // -----------------------------------------------------------------------------

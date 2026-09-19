@@ -177,31 +177,26 @@ const updateThemeStyles = () => {
 };
 
 /**
- * Render sticky time header canvas using shared canvas rendering composable.
+ * Render horizontal row separator borders between metric charts.
  */
-const renderHeader = (styles: ThemeStyles) => {
-  if (!headerCanvasEl.value || !headerScrollEl.value) return;
-
-  const { width, height, ctx } = prepareCanvas(headerCanvasEl.value, headerScrollEl.value);
-  if (!ctx) return;
-
-  // ALWAYS use contentScrollEl's scrollLeft as master to guarantee 100% pixel sync across panes
-  const scrollLeft = contentScrollEl.value ? contentScrollEl.value.scrollLeft : headerScrollEl.value.scrollLeft;
-
-  // Pin canvas overlay dynamically to current scroll viewport to avoid clipping or blank bleeding
-  headerCanvasEl.value.style.transform = `translate(${scrollLeft}px, 0px)`;
-
-  renderTimelineHeader(ctx, {
-    scrollLeft,
-    width,
-    height,
-    totalCycles: totalCycles.value,
-    cycleTimeMs: cycleTimeMs.value,
-    majorPx: gridInfo.value.majorPx,
-    styles,
-    actualCycles: logRangeDataAnalyzeMode.value?.actual_cycles,
-    pxPerMs: pxPerMs.value
-  });
+const renderRowBorders = (
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  styles: ThemeStyles
+) => {
+  ctx.save();
+  {
+    ctx.strokeStyle = styles.borderColor;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    for (let r = 1; r <= METRIC_ROWS; r++) {
+      const y = Math.floor(r * ROW_HEIGHT) - 0.5;
+      ctx.moveTo(0, y);
+      ctx.lineTo(width, y);
+    }
+    ctx.stroke();
+  }
+  ctx.restore();
 };
 
 /**
@@ -418,39 +413,31 @@ const renderMetricsRow2 = (
 };
 
 /**
- * Render horizontal row separator borders between metric charts.
+ * Render sticky time header canvas using shared canvas rendering composable.
  */
-const renderRowBorders = (
-  ctx: CanvasRenderingContext2D,
-  width: number,
-  styles: ThemeStyles
-) => {
-  ctx.save();
-  {
-    ctx.strokeStyle = styles.borderColor;
-    ctx.lineWidth = 1;
-    ctx.beginPath();
-    for (let r = 1; r <= METRIC_ROWS; r++) {
-      const y = Math.floor(r * ROW_HEIGHT) - 0.5;
-      ctx.moveTo(0, y);
-      ctx.lineTo(width, y);
-    }
-    ctx.stroke();
-  }
-  ctx.restore();
-};
+const renderHeader = (styles: ThemeStyles) => {
+  if (!headerCanvasEl.value || !headerScrollEl.value) return;
 
-/**
- * Request asynchronous range fetch for visible physical time bounds if needed.
- * Adheres to optimistic rendering architecture: renders immediately using cached local data
- * for smooth frame rates while requesting missing range data in the background.
- */
-const requestVisibleLogRange = (scrollLeft: number, width: number) => {
-  if (logSummaryAnalyzeMode.value && cycleTimeMs.value > 0) {
-    const startMs = Math.max(0, Math.floor(scrollLeft / pxPerMs.value));
-    const endMs = Math.ceil((scrollLeft + width) / pxPerMs.value);
-    fetchLogRange(startMs, endMs);
-  }
+  const { width, height, ctx } = prepareCanvas(headerCanvasEl.value, headerScrollEl.value);
+  if (!ctx) return;
+
+  // ALWAYS use contentScrollEl's scrollLeft as master to guarantee 100% pixel sync across panes
+  const scrollLeft = contentScrollEl.value ? contentScrollEl.value.scrollLeft : headerScrollEl.value.scrollLeft;
+
+  // Pin canvas overlay dynamically to current scroll viewport to avoid clipping or blank bleeding
+  headerCanvasEl.value.style.transform = `translate(${scrollLeft}px, 0px)`;
+
+  renderTimelineHeader(ctx, {
+    scrollLeft,
+    width,
+    height,
+    totalCycles: totalCycles.value,
+    cycleTimeMs: cycleTimeMs.value,
+    majorPx: gridInfo.value.majorPx,
+    styles,
+    actualCycles: logRangeDataAnalyzeMode.value?.actual_cycles,
+    pxPerMs: pxPerMs.value
+  });
 };
 
 /**
@@ -504,8 +491,20 @@ const renderContent = (styles: ThemeStyles) => {
 
   renderMetricsRow1(ctx, scrollLeft, width, styles);
   renderMetricsRow2(ctx, scrollLeft, width, styles);
+};
 
-  requestVisibleLogRange(scrollLeft, width);
+/**
+ * Request asynchronous range fetch for visible physical time bounds if needed.
+ * Adheres to optimistic rendering architecture: renders immediately using cached local data
+ * for smooth frame rates while requesting missing range data in the background.
+ */
+const requestVisibleLogRange = () => {
+  if (!contentScrollEl.value || !logSummaryAnalyzeMode.value || cycleTimeMs.value <= 0) return;
+
+  const { scrollLeft, clientWidth } = contentScrollEl.value;
+  const startMs = Math.max(0, Math.floor(scrollLeft / pxPerMs.value));
+  const endMs = Math.ceil((scrollLeft + clientWidth) / pxPerMs.value);
+  fetchLogRange(startMs, endMs);
 };
 
 const renderAll = () => {
@@ -517,6 +516,7 @@ const renderAll = () => {
 
   renderHeader(styles);
   renderContent(styles);
+  requestVisibleLogRange();
 };
 
 // -----------------------------------------------------------------------------
