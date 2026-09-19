@@ -346,8 +346,8 @@ const renderActualBars = (
     const clientName = cidToClientName.value.get(cid) || `Client ${cid}`;
 
     actuals.forEach(actual => {
-      // Guard against non-running or skipped executions with no elapsed duration
-      if (actual.status === 'skip' || actual.duration_ms <= 0) return;
+      // Guard against skipped executions (sub-millisecond or cut-off executions with duration_ms == 0 are rendered with minimum width)
+      if (actual.status === 'skip' || actual.duration_ms < 0) return;
 
       const x = Math.floor(actual.start_ms * pxPerMs.value - scrollLeft);
       const barWidth = Math.max(4, Math.floor(actual.duration_ms * pxPerMs.value));
@@ -387,6 +387,11 @@ const renderActualBars = (
           let barColor = styles.accentColor;
           if (actual.status === 'overrun') barColor = styles.errorColor;
 
+          // Apply translucency for incomplete executions cut off at log end
+          if (actual.log_line_no_end === null) {
+            ctx.globalAlpha = 0.55;
+          }
+
           ctx.fillStyle = barColor;
           ctx.beginPath();
           if (typeof ctx.roundRect === 'function') {
@@ -397,7 +402,7 @@ const renderActualBars = (
           ctx.fill();
 
           // Subtle highlight border
-          ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+          ctx.strokeStyle = actual.log_line_no_end === null ? 'rgba(255, 255, 255, 0.3)' : 'rgba(255, 255, 255, 0.6)';
           ctx.lineWidth = 2;
           ctx.stroke();
         }
@@ -817,8 +822,10 @@ defineExpose({
                 <span class="tooltip-process-name">{{ hoveredBar.clientName }}</span>
                 <span class="tooltip-cid-badge">CID: {{ hoveredBar.cid }}</span>
               </div>
-              <span class="tooltip-bar-badge" :class="'status-' + hoveredBar.actual.status">
-                {{ hoveredBar.actual.status.toUpperCase() }}
+              <span class="tooltip-bar-badge"
+                :class="hoveredBar.actual.log_line_no_end === null ? 'status-incomplete' : 'status-' + hoveredBar.actual.status">
+                <template v-if="hoveredBar.actual.log_line_no_end === null">INCOMPLETE</template>
+                <template v-else>{{ hoveredBar.actual.status.toUpperCase() }}</template>
               </span>
             </div>
             <div class="tooltip-bar-body">
@@ -830,10 +837,20 @@ defineExpose({
               <div class="tooltip-bar-row">
                 <span class="tooltip-bar-label">Duration:</span>
                 <span class="tooltip-bar-value tooltip-mono">
-                  {{ hoveredBar.actual.duration_ms.toFixed(2) }} ms
-                  <template v-if="hoveredBar.planDurationMs !== null">
-                    <span class="tooltip-bar-sub">(Plan: {{ hoveredBar.planDurationMs.toFixed(2) }} ms / Δ{{
-                      formatDelta(hoveredBar.actual.duration_ms - hoveredBar.planDurationMs) }})</span>
+                  <template v-if="hoveredBar.actual.log_line_no_end === null">
+                    {{ hoveredBar.actual.duration_ms.toFixed(2) }} ms
+                    <span class="tooltip-bar-sub">(Cut off at log end)</span>
+                  </template>
+                  <template v-else-if="hoveredBar.actual.duration_ms === 0">
+                    0.00 ms
+                    <span class="tooltip-bar-sub">(&lt; 1 ms / Min width)</span>
+                  </template>
+                  <template v-else>
+                    {{ hoveredBar.actual.duration_ms.toFixed(2) }} ms
+                    <template v-if="hoveredBar.planDurationMs !== null">
+                      <span class="tooltip-bar-sub">(Plan: {{ hoveredBar.planDurationMs.toFixed(2) }} ms / Δ{{
+                        formatDelta(hoveredBar.actual.duration_ms - hoveredBar.planDurationMs) }})</span>
+                    </template>
                   </template>
                 </span>
               </div>
@@ -865,6 +882,7 @@ defineExpose({
                   L{{ hoveredBar.actual.log_line_no_start }}
                   <template v-if="hoveredBar.actual.log_line_no_end"> - L{{
                     hoveredBar.actual.log_line_no_end}}</template>
+                  <template v-else> (Cut off)</template>
                 </span>
               </div>
             </div>
@@ -1062,6 +1080,11 @@ defineExpose({
 .tooltip-bar-badge.status-skip {
   background-color: var(--rt-color-event-skip);
   color: #000000;
+}
+
+.tooltip-bar-badge.status-incomplete {
+  background-color: var(--rt-color-text-dim);
+  color: var(--rt-color-on-primary, #ffffff);
 }
 
 .tooltip-bar-body {

@@ -187,8 +187,9 @@ impl LogParserContext {
             );
             self.current_running_count += 1;
             record_metric_point(&mut self.metrics, current_ms, self.current_running_count);
-        } else if stat_body.contains("Running -> Idle") {
-            // Normal execution completes upon receiving DONE; finalize bar and decrement active concurrency.
+        } else if stat_body.contains("Running -> Idle") || stat_body.contains("DONE (Exiting)") {
+            // Normal execution completes upon receiving DONE (including server Exiting state);
+            // finalize bar and decrement active concurrency.
             if let Some(exec) = self.in_progress.remove(&cid) {
                 let duration_ms = (current_ms.saturating_sub(exec.start_ms)) as u32;
                 self.executions_by_cid

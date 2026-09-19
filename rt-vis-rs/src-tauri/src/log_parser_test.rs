@@ -100,6 +100,7 @@ fn test_parse_real_log_normal() {
         assert_eq!(exec.status, ExecutionStatus::Normal);
         assert!(exec.duration_ms >= 10);
         assert!(exec.log_line_no_start > 0);
+        assert!(exec.log_line_no_end.is_some());
     }
 
     // CID 20 (cycle: 2, offset: 1) runs in odd cycles (1, 3, 5, 7)
@@ -135,6 +136,7 @@ fn test_parse_real_log_normal() {
     // Verify concurrency metrics
     assert!(!store.metrics.is_empty());
     assert!(store.summary.max_concurrency >= 1);
+    assert_eq!(store.metrics.last().unwrap().running_count, 0);
 }
 
 /// Validates handling of leading task overrun and cascaded skip using real server log.
