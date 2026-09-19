@@ -659,7 +659,8 @@ onMounted(() => {
   nextTick(() => renderAll());
 
   window.addEventListener('resize', onLayoutOrThemeChange);
-  document.documentElement && themeMutationObserver.observe(document.documentElement, {
+  const targetEl = document.querySelector('.app-container') || document.documentElement;
+  themeMutationObserver.observe(targetEl, {
     attributes: true,
     attributeFilter: ['class', 'style', 'data-theme']
   });
