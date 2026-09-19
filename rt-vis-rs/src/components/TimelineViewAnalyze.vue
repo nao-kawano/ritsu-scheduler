@@ -317,7 +317,7 @@ const renderPlanBoxes = (
         ctx.save();
         {
           let barColor = styles.primaryColor;
-          if (plan.status === 'overrun') barColor = styles.errorColor;
+          if (plan.status === 'overrun') barColor = styles.statusOverrunColor;
 
           // Translucent primary fill matching Create Mode theme accent
           ctx.globalAlpha = 0.4;
@@ -328,12 +328,12 @@ const renderPlanBoxes = (
           } else {
             ctx.rect(x, y, barWidth, PLAN_RECT_HEIGHT);
           }
-          if (plan.status != 'skip') {
+          if (plan.status !== 'skip') {
             ctx.fill();
           }
 
           // Subtle dashed border outline
-          ctx.strokeStyle = styles.primaryColor;
+          ctx.strokeStyle = barColor;
           ctx.lineWidth = 1;
           ctx.setLineDash([4, 4]);
           ctx.stroke();
