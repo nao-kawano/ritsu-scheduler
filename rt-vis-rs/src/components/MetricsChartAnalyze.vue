@@ -156,6 +156,13 @@ const crosshairStyle = computed(() => {
   };
 });
 
+/**
+ * Number of cycles in one full template simulation period.
+ */
+const templateCycles = computed(() => {
+  return getSimulationCycles(activeConfig.value.client_configs);
+});
+
 // -----------------------------------------------------------------------------
 // Methods & Logic
 
@@ -221,13 +228,12 @@ const renderMetricsRow1Planned = (
   }
 
   const curCycleTime = cycleTimeMs.value;
-  const templateCycles = getSimulationCycles(activeConfig.value.client_configs);
 
   const marginMs = curCycleTime * 4;
   const startMs = Math.max(0, scrollLeft / pxPerMs.value - marginMs);
   const endMs = (scrollLeft + width) / pxPerMs.value + marginMs;
 
-  const steps = computePlannedConcurrencySteps(plannedExecs, actualCycles, templateCycles, startMs, endMs);
+  const steps = computePlannedConcurrencySteps(plannedExecs, actualCycles, templateCycles.value, startMs, endMs);
   visiblePlannedSteps = steps;
   if (steps.length === 0) return;
 

@@ -141,6 +141,21 @@ const actualCyclesMap = computed(() => {
 });
 
 /**
+ * Number of cycles in one full template simulation period.
+ */
+const templateCycles = computed(() => {
+  return getSimulationCycles(activeConfig.value.client_configs);
+});
+
+/**
+ * Planned executions grouped by anchor cycle phase for fast lookup.
+ */
+const plansByAnchorCycle = computed(() => {
+  const plans = plannedExecutionsAnalyzeMode.value;
+  return plans && plans.length > 0 ? groupPlansByAnchorCycle(plans) : null;
+});
+
+/**
  * Total content height calculation.
  * Includes client configs count plus 1 extra placeholder row (70px)
  * to maintain 100% layout and row-border parity with Create Mode.
@@ -276,9 +291,7 @@ const renderPlanBoxes = (
 
   const plans = plannedExecutionsAnalyzeMode.value;
   if (!plans || plans.length === 0 || totalCycles.value <= 0 || cycleTimeMs.value <= 0) return;
-
-  // Derive templateCycles (maxCycle * 2) using shared simulation utility
-  const templateCycles = getSimulationCycles(activeConfig.value.client_configs);
+  if (!plansByAnchorCycle.value || templateCycles.value <= 0) return;
 
   // Calculate culled time range with 2-cycle padding margin in physical milliseconds
   const marginMs = cycleTimeMs.value * 2;
@@ -292,14 +305,11 @@ const renderPlanBoxes = (
   const visibleCycles = filterVisibleActualCycles(actualCycles, startMs, endMs);
   if (visibleCycles.length === 0) return;
 
-  // Group plans by anchor cycle phase for fast lookup
-  const plansByAnchorCycle = groupPlansByAnchorCycle(plans);
-
   // Phase alignment pattern: render exact matching template phase for each visible cycle
   visibleCycles.forEach(ac => {
     const c = ac.cycle;
-    const templateCycle = c % templateCycles;
-    const matchingPlans = plansByAnchorCycle.get(templateCycle);
+    const templateCycle = c % templateCycles.value;
+    const matchingPlans = plansByAnchorCycle.value!.get(templateCycle);
     if (!matchingPlans) return;
 
     const cycleStartMs = ac.start_ms;
@@ -361,10 +371,6 @@ const renderActualBars = (
   const rangeData = logRangeDataAnalyzeMode.value;
   if (!rangeData || !rangeData.actual_executions_by_cid) return;
 
-  const plans = plannedExecutionsAnalyzeMode.value;
-  const templateCycles = getSimulationCycles(activeConfig.value.client_configs);
-  const plansByAnchorCycle = plans && plans.length > 0 ? groupPlansByAnchorCycle(plans) : null;
-
   rangeData.actual_executions_by_cid.forEach(([cid, actuals]) => {
     const r = cidToRowIndex.get(cid);
     if (r === undefined) return;
@@ -383,8 +389,8 @@ const renderActualBars = (
         // Resolve corresponding planned duration and planned start time for tooltip comparison
         let planDurationMs: number | null = null;
         let planStartMs: number | null = null;
-        if (plansByAnchorCycle && templateCycles > 0) {
-          const matchingPlans = plansByAnchorCycle.get(actual.cycle % templateCycles);
+        if (plansByAnchorCycle.value && templateCycles.value > 0) {
+          const matchingPlans = plansByAnchorCycle.value.get(actual.cycle % templateCycles.value);
           const plan = matchingPlans?.find(p => p.cid === cid);
           if (plan) {
             planDurationMs = plan.duration_ms;
