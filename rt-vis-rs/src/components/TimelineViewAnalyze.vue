@@ -154,6 +154,8 @@ const totalContentHeight = computed(() => {
  * Compute floating tooltip placement with boundary-aware smart clamping.
  * Uses anchor positioning with CSS transform translation (-100%) when flipped,
  * ensuring seamless edge-aligned gap (14px) regardless of dynamic tooltip dimensions.
+ * Evaluates available container space and applies safety clamping to eliminate
+ * top/bottom and left/right clipping even on narrow or resized windows.
  */
 const tooltipStyle = computed(() => {
   if (!tooltipPos.value || !contentScrollEl.value) return { display: 'none' };
@@ -162,18 +164,42 @@ const tooltipStyle = computed(() => {
   const containerWidth = contentScrollEl.value.clientWidth;
   const containerHeight = contentScrollEl.value.clientHeight;
 
-  // Estimated bounding box thresholds for boundary overflow detection
+  // Estimated dimensions for boundary overflow detection
+  // Dynamically estimate height based on whether hovering multiple instant events or an actual execution bar
   const ESTIMATED_MAX_WIDTH = 340;
-  const ESTIMATED_MAX_HEIGHT = 210;
+  const events = hoveredEvents.value;
+  const estimatedHeight = events && events.length > 0
+    ? Math.min(250, 60 + Math.min(events.length, 4) * 44 + (events.length > 4 ? 20 : 0))
+    : 150;
+
+  const MARGIN_X = 8;
+  const MARGIN_Y = 6;
   const offset = 14;
 
-  // Determine flip state for right and bottom container edges
-  const flipX = mouseX + offset + ESTIMATED_MAX_WIDTH > containerWidth;
-  const flipY = mouseY + offset + ESTIMATED_MAX_HEIGHT > containerHeight;
+  // Horizontal placement: check available space to the right vs left
+  const hasSpaceRight = mouseX + offset + ESTIMATED_MAX_WIDTH + MARGIN_X <= containerWidth;
+  const hasSpaceLeft = mouseX - offset - ESTIMATED_MAX_WIDTH >= MARGIN_X;
+  const isRightHalf = mouseX >= containerWidth / 2;
+  const flipX = !hasSpaceRight && (hasSpaceLeft || isRightHalf);
 
-  // Anchor point: offset cursor by 14px in either positive or negative direction
-  const left = mouseX + scrollLeft + (flipX ? -offset : offset);
-  const top = mouseY + scrollTop + (flipY ? -offset : offset);
+  // Vertical placement: check available space below vs above
+  const hasSpaceBelow = mouseY + offset + estimatedHeight + MARGIN_Y <= containerHeight;
+  const hasSpaceAbove = mouseY - offset - estimatedHeight >= MARGIN_Y;
+  const isLowerHalf = mouseY >= containerHeight / 2;
+  const flipY = !hasSpaceBelow && (hasSpaceAbove || isLowerHalf);
+
+  // Horizontal anchor point with safety boundary clamping
+  const anchorX = flipX
+    ? Math.max(ESTIMATED_MAX_WIDTH + MARGIN_X, mouseX - offset)
+    : Math.min(Math.max(MARGIN_X, containerWidth - ESTIMATED_MAX_WIDTH - MARGIN_X), mouseX + offset);
+
+  // Vertical anchor point with safety boundary clamping
+  const anchorY = flipY
+    ? Math.max(estimatedHeight + MARGIN_Y, mouseY - offset)
+    : Math.min(Math.max(MARGIN_Y, containerHeight - estimatedHeight - MARGIN_Y), mouseY + offset);
+
+  const left = anchorX + scrollLeft;
+  const top = anchorY + scrollTop;
 
   // Shift by 100% of element's actual rendered dimensions when flipped
   const translateX = flipX ? '-100%' : '0%';
@@ -881,7 +907,7 @@ defineExpose({
                 <span class="tooltip-bar-value tooltip-mono">
                   L{{ hoveredBar.actual.log_line_no_start }}
                   <template v-if="hoveredBar.actual.log_line_no_end"> - L{{
-                    hoveredBar.actual.log_line_no_end}}</template>
+                    hoveredBar.actual.log_line_no_end }}</template>
                   <template v-else> (Cut off)</template>
                 </span>
               </div>
