@@ -12,7 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+<!-- ========================================================================== -->
+<!-- Script Section                                                             -->
+<!-- ========================================================================== -->
 <script setup lang="ts">
+// -----------------------------------------------------------------------------
+// Imports
+
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useTimeScale } from '../composables/useTimeScale';
@@ -75,15 +82,21 @@ const CHART_STROKE_WIDTH = 2; // Stroke line width for metrics chart lines (px)
 // -----------------------------------------------------------------------------
 // Local State & Computed
 
+// --- DOM & Canvas Element Refs ---
+
 const headerScrollEl = ref<HTMLElement | null>(null);
 const contentScrollEl = ref<HTMLElement | null>(null);
 const headerCanvasEl = ref<HTMLCanvasElement | null>(null);
 const contentCanvasEl = ref<HTMLCanvasElement | null>(null);
 
+// --- Rendering Caches ---
+
 const cachedThemeStyles = ref<ThemeStyles | null>(null);
 
 // Cached steps for planned concurrency across visible range
 let visiblePlannedSteps: ConcurrencyStep[] = [];
+
+// --- Interaction & Tooltip State ---
 
 // Interactive hover and tooltip states
 const hoveredMetric = ref<MetricHoverData | null>(null);
@@ -95,6 +108,8 @@ const tooltipPos = ref<{
 } | null>(null);
 
 const hasHoverTarget = computed(() => hoveredMetric.value !== null);
+
+// --- Tooltip & Crosshair Placement ---
 
 /**
  * Compute floating tooltip placement with boundary-aware smart clamping.
@@ -156,6 +171,8 @@ const crosshairStyle = computed(() => {
   };
 });
 
+// --- Data Mapping & Computed Lookups ---
+
 /**
  * Number of cycles in one full template simulation period.
  */
@@ -166,6 +183,8 @@ const templateCycles = computed(() => {
 // -----------------------------------------------------------------------------
 // Methods & Logic
 
+// --- Theme & Style Cache ---
+
 /**
  * Extract and cache theme styles to avoid costly getComputedStyle calls on every scroll event.
  */
@@ -175,6 +194,8 @@ const updateThemeStyles = () => {
     cachedThemeStyles.value = getThemeStyles(container);
   }
 };
+
+// --- Canvas Sub-Renderers ---
 
 /**
  * Render horizontal row separator borders between metric charts.
@@ -412,6 +433,8 @@ const renderMetricsRow2 = (
   renderMetricsRow2Jitter(ctx, scrollLeft, row2ZeroY, jitterSpan, availableHeight, styles);
 };
 
+// --- Canvas Viewport Renderers ---
+
 /**
  * Render sticky time header canvas using shared canvas rendering composable.
  */
@@ -493,6 +516,8 @@ const renderContent = (styles: ThemeStyles) => {
   renderMetricsRow2(ctx, scrollLeft, width, styles);
 };
 
+// --- Viewport Data Fetching ---
+
 /**
  * Request asynchronous range fetch for visible physical time bounds if needed.
  * Adheres to optimistic rendering architecture: renders immediately using cached local data
@@ -506,6 +531,8 @@ const requestVisibleLogRange = () => {
   const endMs = Math.ceil((scrollLeft + clientWidth) / pxPerMs.value);
   fetchLogRange(startMs, endMs);
 };
+
+// --- Pipeline Orchestrator ---
 
 const renderAll = () => {
   if (!cachedThemeStyles.value) {
@@ -759,6 +786,7 @@ defineExpose({
 }
 
 /* --- Header Section --- */
+
 .timeline-header {
   position: relative;
   flex-shrink: 0;
@@ -774,6 +802,7 @@ defineExpose({
 }
 
 /* --- Content Section --- */
+
 .scroll-area {
   position: relative;
   flex: 1;
@@ -794,10 +823,11 @@ defineExpose({
 }
 
 /* -----------------------------------------------------------------------------
- * Canvas & Visual Components
+ * Components & Elements
  * ----------------------------------------------------------------------------- */
 
 /* --- Canvas Layer --- */
+
 .canvas-layer {
   position: absolute;
   top: 0;
@@ -807,16 +837,12 @@ defineExpose({
   pointer-events: auto;
 }
 
-/* --- Hover State --- */
-.metrics-scroll.has-hover .canvas-layer {
-  cursor: default;
-}
-
 /* -----------------------------------------------------------------------------
- * Crosshair & Tooltip Overlay Components
+ * Overlays & Tooltips
  * ----------------------------------------------------------------------------- */
 
 /* --- Crosshair Line --- */
+
 .metrics-crosshair {
   position: absolute;
   top: 0;
@@ -829,6 +855,7 @@ defineExpose({
 }
 
 /* --- Base Tooltip --- */
+
 .metrics-tooltip {
   position: absolute;
   top: 0;
@@ -880,6 +907,7 @@ defineExpose({
 }
 
 /* --- Metric Tooltip Rows (tooltip-metric-*) --- */
+
 .tooltip-metric-body {
   display: flex;
   flex-direction: column;
@@ -906,5 +934,15 @@ defineExpose({
 .tooltip-metric-sub {
   margin-left: 4px;
   color: var(--rt-color-text-dim);
+}
+
+/* -----------------------------------------------------------------------------
+ * States & Modifiers
+ * ----------------------------------------------------------------------------- */
+
+/* --- Hover State --- */
+
+.metrics-scroll.has-hover .canvas-layer {
+  cursor: default;
 }
 </style>

@@ -12,7 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+<!-- ========================================================================== -->
+<!-- Script Section                                                             -->
+<!-- ========================================================================== -->
 <script setup lang="ts">
+// -----------------------------------------------------------------------------
+// Imports
+
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useTimeScale } from '../composables/useTimeScale';
@@ -85,16 +92,22 @@ const HIT_RADIUS_PX = 8;       // Hit detection radius for instant event markers
 // -----------------------------------------------------------------------------
 // Local State & Computed
 
+// --- DOM & Canvas Element Refs ---
+
 const headerScrollEl = ref<HTMLElement | null>(null);
 const contentScrollEl = ref<HTMLElement | null>(null);
 const headerCanvasEl = ref<HTMLCanvasElement | null>(null);
 const contentCanvasEl = ref<HTMLCanvasElement | null>(null);
+
+// --- Rendering & Hit Test Caches ---
 
 const cachedThemeStyles = ref<ThemeStyles | null>(null);
 
 // Primary caches for visible elements populated during canvas render
 let visibleHitBars: HitBarItem[] = [];
 let visibleHitEvents: HitEventItem[] = [];
+
+// --- Interaction & Tooltip State ---
 
 // Interactive hover and tooltip states
 const hoveredBar = ref<HitBarItem | null>(null);
@@ -109,6 +122,8 @@ const tooltipPos = ref<{
 const hasHoverTarget = computed(() => {
   return !!hoveredBar.value || (hoveredEvents.value !== null && hoveredEvents.value.length > 0);
 });
+
+// --- Data Mapping & Computed Lookups ---
 
 /**
  * Map Client ID to process row index for alignment.
@@ -164,6 +179,8 @@ const totalContentHeight = computed(() => {
   const count = activeConfig.value.client_configs.length + 1;
   return count * ROW_HEIGHT;
 });
+
+// --- Tooltip Placement ---
 
 /**
  * Compute floating tooltip placement with boundary-aware smart clamping.
@@ -230,6 +247,8 @@ const tooltipStyle = computed(() => {
 // -----------------------------------------------------------------------------
 // Methods & Logic
 
+// --- Theme & Style Cache ---
+
 /**
  * Extract and cache theme styles to avoid costly getComputedStyle calls on every scroll event.
  */
@@ -239,6 +258,8 @@ const updateThemeStyles = () => {
     cachedThemeStyles.value = getThemeStyles(container);
   }
 };
+
+// --- Canvas Sub-Renderers ---
 
 /**
  * Render horizontal process row separator borders.
@@ -530,6 +551,8 @@ const renderInstantEvents = (
   });
 };
 
+// --- Canvas Viewport Renderers ---
+
 /**
  * Render sticky time header canvas using shared canvas rendering composable.
  */
@@ -617,6 +640,8 @@ const renderContent = (styles: ThemeStyles) => {
   renderInstantEvents(ctx, scrollLeft, scrollTop, width, height, styles, cidToRowIndex.value);
 };
 
+// --- Viewport Data Fetching ---
+
 /**
  * Request asynchronous range fetch for visible physical time bounds if needed.
  * Adheres to optimistic rendering architecture: renders immediately using cached local data
@@ -630,6 +655,8 @@ const requestVisibleLogRange = () => {
   const endMs = Math.ceil((scrollLeft + clientWidth) / pxPerMs.value);
   fetchLogRange(startMs, endMs);
 };
+
+// --- Pipeline Orchestrator ---
 
 const renderAll = () => {
   if (!cachedThemeStyles.value) {
@@ -971,6 +998,7 @@ defineExpose({
 }
 
 /* --- Header Section --- */
+
 .timeline-header {
   position: relative;
   flex-shrink: 0;
@@ -986,6 +1014,7 @@ defineExpose({
 }
 
 /* --- Content Section --- */
+
 .scroll-area {
   position: relative;
   flex: 1;
@@ -1006,10 +1035,11 @@ defineExpose({
 }
 
 /* -----------------------------------------------------------------------------
- * Canvas & Visual Components
+ * Components & Elements
  * ----------------------------------------------------------------------------- */
 
 /* --- Canvas Layer --- */
+
 .canvas-layer {
   position: absolute;
   top: 0;
@@ -1019,16 +1049,12 @@ defineExpose({
   pointer-events: auto;
 }
 
-/* --- Hover State --- */
-.timeline-scroll.has-hover .canvas-layer {
-  cursor: pointer;
-}
-
 /* -----------------------------------------------------------------------------
- * Tooltip Overlay Components
+ * Overlays & Tooltips
  * ----------------------------------------------------------------------------- */
 
 /* --- Base Tooltip --- */
+
 .timeline-tooltip {
   position: absolute;
   z-index: 30;
@@ -1085,6 +1111,7 @@ defineExpose({
 }
 
 /* --- Actual Bar Tooltip (tooltip-bar-*) --- */
+
 .tooltip-bar-badge {
   display: inline-flex;
   align-items: center;
@@ -1144,6 +1171,7 @@ defineExpose({
 }
 
 /* --- Instant Event Tooltip (tooltip-event-*) --- */
+
 .tooltip-event-nearby-header {
   padding: 2px 0;
   color: var(--rt-color-text-dim);
@@ -1234,5 +1262,15 @@ defineExpose({
   color: var(--rt-color-text-dim);
   font-size: var(--rt-font-xs, 11px);
   text-align: center;
+}
+
+/* -----------------------------------------------------------------------------
+ * States & Modifiers
+ * ----------------------------------------------------------------------------- */
+
+/* --- Hover State --- */
+
+.timeline-scroll.has-hover .canvas-layer {
+  cursor: pointer;
 }
 </style>
