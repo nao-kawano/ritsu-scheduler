@@ -12,20 +12,40 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+<!-- ========================================================================== -->
+<!-- Script Section                                                             -->
+<!-- ========================================================================== -->
 <script setup lang="ts">
+// -----------------------------------------------------------------------------
+// Imports
+
 import { ref, onMounted } from "vue";
 import { useAppState } from "../composables/useAppState";
 import type { ClientConfig } from "../types/config";
 
-// --- State and Composables ---
+// -----------------------------------------------------------------------------
+// Global State & Composables
+
 const { selectedClientWrap, updateClient, deleteClient, closeEdit } = useAppState();
 
 // -----------------------------------------------------------------------------
-// Props and Emits
-// (None)
+// Props & Emits
+
+// (none)
 
 // -----------------------------------------------------------------------------
-// State, Computed, and Logic
+// Types & Interfaces
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Constants & Layout
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Local State & Computed
 
 // --- Dialog Management ---
 
@@ -54,13 +74,13 @@ if (selectedClientWrap.value) {
   dependsStr.value = draft.value?.depends.join(", ") || "";
 }
 
-onMounted(() => {
-  /**
-   * Use the native showModal() to enable browser-level focus trapping
-   * and the ::backdrop overlay for a professional modal experience.
-   */
-  dialogRef.value?.showModal();
-});
+// -----------------------------------------------------------------------------
+// Methods & Logic
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Event Handlers
 
 // --- Action Handlers ---
 
@@ -123,10 +143,30 @@ const resetDeleteConfirm = () => {
 };
 
 // -----------------------------------------------------------------------------
-// Expose
-// (None)
+// Watchers & Reactive Triggers
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Lifecycle Hooks & Observers
+
+onMounted(() => {
+  /**
+   * Use the native showModal() to enable browser-level focus trapping
+   * and the ::backdrop overlay for a professional modal experience.
+   */
+  dialogRef.value?.showModal();
+});
+
+// -----------------------------------------------------------------------------
+// Expose & Exports
+
+// (none)
 </script>
 
+<!-- ========================================================================== -->
+<!-- Template Section                                                           -->
+<!-- ========================================================================== -->
 <template>
   <!-- Standard dialog with @click.self for background clicking and @close for native ESC key support -->
   <dialog ref="dialogRef" class="popup-dialog" @click.self="onCancel" @close="onCancel">
@@ -169,10 +209,13 @@ const resetDeleteConfirm = () => {
   </dialog>
 </template>
 
+<!-- ========================================================================== -->
+<!-- Style Section                                                              -->
+<!-- ========================================================================== -->
 <style scoped>
-/* ==========================================================================
-   Dialog and Layout
-   ========================================================================== */
+/* -----------------------------------------------------------------------------
+ * Layout & Containers
+ * ----------------------------------------------------------------------------- */
 
 /**
  * Standard <dialog> reset.
@@ -183,13 +226,6 @@ const resetDeleteConfirm = () => {
   border: none;
   border-radius: var(--rt-radius-l);
   box-shadow: var(--rt-bshadow-pop);
-}
-
-/**
- * The ::backdrop provides the Dim/Overlay effect.
- */
-.popup-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.5);
 }
 
 .dialog-content {
@@ -206,9 +242,7 @@ const resetDeleteConfirm = () => {
   color: var(--rt-color-primary);
 }
 
-/* ==========================================================================
-   Form and Inputs
-   ========================================================================== */
+/* --- Form and Inputs --- */
 
 .dialog-body {
   display: grid;
@@ -217,9 +251,7 @@ const resetDeleteConfirm = () => {
   gap: 16px;
 }
 
-/* ==========================================================================
-   Action Footer
-   ========================================================================== */
+/* --- Action Footer --- */
 
 .dialog-actions {
   display: flex;
@@ -228,4 +260,27 @@ const resetDeleteConfirm = () => {
   gap: 16px;
   margin-top: 32px;
 }
+
+/* -----------------------------------------------------------------------------
+ * Components & Elements
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
+
+/* -----------------------------------------------------------------------------
+ * Overlays & Tooltips
+ * ----------------------------------------------------------------------------- */
+
+/**
+ * The ::backdrop provides the Dim/Overlay effect.
+ */
+.popup-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+/* -----------------------------------------------------------------------------
+ * States & Modifiers
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
 </style>

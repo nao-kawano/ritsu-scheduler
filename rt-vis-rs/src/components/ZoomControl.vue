@@ -12,26 +12,71 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+<!-- ========================================================================== -->
+<!-- Script Section                                                             -->
+<!-- ========================================================================== -->
 <script setup lang="ts">
+// -----------------------------------------------------------------------------
+// Imports
+
 import { ref } from 'vue';
 import { useTimeScale } from '../composables/useTimeScale';
 
-// --- State and Composables ---
+// -----------------------------------------------------------------------------
+// Global State & Composables
+
 const { pxPerCycle, zoomPercent, minZoom, maxZoom, zoom, resetZoom } = useTimeScale();
 
 // -----------------------------------------------------------------------------
-// Props and Emits
+// Props & Emits
+
+// (none)
 
 // -----------------------------------------------------------------------------
-// State, Computed, and Logic
+// Types & Interfaces
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Constants & Layout
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Local State & Computed
 
 const isExpanded = ref(false);
 
 // -----------------------------------------------------------------------------
-// Expose
+// Methods & Logic
 
+// (none)
+
+// -----------------------------------------------------------------------------
+// Event Handlers
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Watchers & Reactive Triggers
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Lifecycle Hooks & Observers
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Expose & Exports
+
+// (none)
 </script>
 
+<!-- ========================================================================== -->
+<!-- Template Section                                                           -->
+<!-- ========================================================================== -->
 <template>
   <div class="zoom-control-container" :class="{ expanded: isExpanded }" @mouseenter="isExpanded = true"
     @mouseleave="isExpanded = false">
@@ -59,7 +104,14 @@ const isExpanded = ref(false);
   </div>
 </template>
 
+<!-- ========================================================================== -->
+<!-- Style Section                                                              -->
+<!-- ========================================================================== -->
 <style scoped>
+/* -----------------------------------------------------------------------------
+ * Layout & Containers
+ * ----------------------------------------------------------------------------- */
+
 .zoom-control-container {
   display: flex;
   align-items: center;
@@ -74,13 +126,6 @@ const isExpanded = ref(false);
   transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }
 
-.zoom-btn-icon {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  padding: 0;
-}
-
 .zoom-info {
   display: flex;
   align-items: center;
@@ -91,23 +136,6 @@ const isExpanded = ref(false);
   overflow: hidden;
 }
 
-.zoom-text {
-  padding: 4px 8px;
-  border-radius: var(--rt-radius-s);
-  font-size: var(--rt-font-s);
-  font-weight: 800;
-  color: var(--rt-color-text);
-  font-variant-numeric: tabular-nums;
-  cursor: pointer;
-  transition: background-color 0.2s, color 0.2s;
-}
-
-.zoom-text:hover {
-  background-color: var(--rt-color-bg);
-  color: var(--rt-color-primary);
-}
-
-/* Slider transition logic */
 .slider-wrapper {
   display: flex;
   align-items: center;
@@ -119,13 +147,26 @@ const isExpanded = ref(false);
   transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
 }
 
-.zoom-control-container.expanded .slider-wrapper {
-  width: 120px;
-  margin-left: var(--rt-spacing-s);
-  margin-right: var(--rt-spacing-s);
-  opacity: 1;
-  /* Enable mouse events when expanded */
-  pointer-events: auto;
+/* -----------------------------------------------------------------------------
+ * Components & Elements
+ * ----------------------------------------------------------------------------- */
+
+.zoom-btn-icon {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+}
+
+.zoom-text {
+  padding: 4px 8px;
+  border-radius: var(--rt-radius-s);
+  font-size: var(--rt-font-s);
+  font-weight: 800;
+  color: var(--rt-color-text);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s;
 }
 
 .zoom-slider {
@@ -149,5 +190,29 @@ const isExpanded = ref(false);
   border-radius: 50%;
   margin-top: -4px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}
+
+/* -----------------------------------------------------------------------------
+ * Overlays & Tooltips
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
+
+/* -----------------------------------------------------------------------------
+ * States & Modifiers
+ * ----------------------------------------------------------------------------- */
+
+.zoom-text:hover {
+  background-color: var(--rt-color-bg);
+  color: var(--rt-color-primary);
+}
+
+.zoom-control-container.expanded .slider-wrapper {
+  width: 120px;
+  margin-left: var(--rt-spacing-s);
+  margin-right: var(--rt-spacing-s);
+  opacity: 1;
+  /* Enable mouse events when expanded */
+  pointer-events: auto;
 }
 </style>

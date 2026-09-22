@@ -12,17 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+<!-- ========================================================================== -->
+<!-- Script Section                                                             -->
+<!-- ========================================================================== -->
 <script setup lang="ts">
+// -----------------------------------------------------------------------------
+// Imports
+
 import { ref, reactive, watch } from 'vue';
 import { useAppState } from '../composables/useAppState';
+
+// -----------------------------------------------------------------------------
+// Global State & Composables
 
 const { appVersion, mode, activeConfig, newConfig, loadConfig, saveConfig, loadLog, isLogLoading } = useAppState();
 
 // -----------------------------------------------------------------------------
-// Props and Emits
+// Props & Emits
+
+// (none)
 
 // -----------------------------------------------------------------------------
-// State, Computed, and Logic
+// Types & Interfaces
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Constants & Layout
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Local State & Computed
 
 /**
  * Local drafting buffer for server configuration.
@@ -31,6 +53,46 @@ const { appVersion, mode, activeConfig, newConfig, loadConfig, saveConfig, loadL
  * states (like empty strings during typing) from triggering simulation errors.
  */
 const localServerConfig = reactive({ ...activeConfig.value.server_config });
+
+const isConfirmingNew = ref(false);
+
+// -----------------------------------------------------------------------------
+// Methods & Logic
+
+/**
+ * Formats a duration in milliseconds to a human-readable string.
+ * Automatically scales to 'sec' or 'min' for larger durations.
+ */
+const formatDuration = (totalMs: number): string => {
+  if (totalMs < 1000) {
+    return `${totalMs} ms`;
+  } else if (totalMs < 60000) {
+    const sec = (totalMs / 1000).toFixed(1);
+    return `${sec} sec`;
+  } else {
+    const min = (totalMs / 60000).toFixed(1);
+    return `${min} min`;
+  }
+};
+
+// -----------------------------------------------------------------------------
+// Event Handlers
+
+const onNew = () => {
+  if (!isConfirmingNew.value) {
+    isConfirmingNew.value = true;
+    return;
+  }
+  newConfig();
+  isConfirmingNew.value = false;
+};
+
+const resetNewConfirm = () => {
+  isConfirmingNew.value = false;
+};
+
+// -----------------------------------------------------------------------------
+// Watchers & Reactive Triggers
 
 /**
  * Watch local changes and sync to global state ONLY if the values are valid.
@@ -61,42 +123,20 @@ watch(() => activeConfig.value.server_config, (newVal) => {
   Object.assign(localServerConfig, newVal);
 }, { deep: true });
 
-/**
- * Formats a duration in milliseconds to a human-readable string.
- * Automatically scales to 'sec' or 'min' for larger durations.
- */
-const formatDuration = (totalMs: number): string => {
-  if (totalMs < 1000) {
-    return `${totalMs} ms`;
-  } else if (totalMs < 60000) {
-    const sec = (totalMs / 1000).toFixed(1);
-    return `${sec} sec`;
-  } else {
-    const min = (totalMs / 60000).toFixed(1);
-    return `${min} min`;
-  }
-};
+// -----------------------------------------------------------------------------
+// Lifecycle Hooks & Observers
 
-const isConfirmingNew = ref(false);
-
-const onNew = () => {
-  if (!isConfirmingNew.value) {
-    isConfirmingNew.value = true;
-    return;
-  }
-  newConfig();
-  isConfirmingNew.value = false;
-};
-
-const resetNewConfirm = () => {
-  isConfirmingNew.value = false;
-};
+// (none)
 
 // -----------------------------------------------------------------------------
-// Expose
+// Expose & Exports
 
+// (none)
 </script>
 
+<!-- ========================================================================== -->
+<!-- Template Section                                                           -->
+<!-- ========================================================================== -->
 <template>
   <header class="global-control-pane">
     <div class="top-row">
@@ -155,7 +195,14 @@ const resetNewConfirm = () => {
   </header>
 </template>
 
+<!-- ========================================================================== -->
+<!-- Style Section                                                              -->
+<!-- ========================================================================== -->
 <style scoped>
+/* -----------------------------------------------------------------------------
+ * Layout & Containers
+ * ----------------------------------------------------------------------------- */
+
 .global-control-pane {
   z-index: 100;
   display: flex;
@@ -164,6 +211,8 @@ const resetNewConfirm = () => {
   background-color: var(--rt-color-surface);
   border-bottom: var(--rt-border-main);
 }
+
+/* --- Row Layouts --- */
 
 .top-row,
 .bottom-row {
@@ -178,22 +227,12 @@ const resetNewConfirm = () => {
   border-bottom: var(--rt-border-main);
 }
 
-.brand {
-  display: inline-flex;
-  align-items: baseline;
-  font-size: var(--rt-font-brand);
-  font-weight: 800;
-  color: var(--rt-color-primary);
-}
+/* --- Section Groups --- */
 
 .server-info-inputs {
   display: flex;
   gap: 24px;
   align-items: center;
-}
-
-.server-input {
-  width: 80px;
 }
 
 .actions {
@@ -202,10 +241,38 @@ const resetNewConfirm = () => {
   align-items: center;
 }
 
+/* -----------------------------------------------------------------------------
+ * Components & Elements
+ * ----------------------------------------------------------------------------- */
+
+.brand {
+  display: inline-flex;
+  align-items: baseline;
+  font-size: var(--rt-font-brand);
+  font-weight: 800;
+  color: var(--rt-color-primary);
+}
+
+.server-input {
+  width: 80px;
+}
+
 .version-label {
   font-size: var(--rt-font-m);
   color: var(--rt-color-text-dim);
   margin-left: 8px;
   font-weight: normal;
 }
+
+/* -----------------------------------------------------------------------------
+ * Overlays & Tooltips
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
+
+/* -----------------------------------------------------------------------------
+ * States & Modifiers
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
 </style>

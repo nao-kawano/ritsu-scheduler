@@ -12,7 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+<!-- ========================================================================== -->
+<!-- Script Section                                                             -->
+<!-- ========================================================================== -->
 <script setup lang="ts">
+// -----------------------------------------------------------------------------
+// Imports
+
 import { ref, computed } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useTimeScale } from '../composables/useTimeScale';
@@ -20,56 +27,53 @@ import { useCreateModeLayout } from '../composables/useCreateModeLayout';
 import type { ClientConfigUI } from '../types/config';
 import type { PlannedExecution } from '../types/simulation';
 
-// --- State and Composables ---
+// -----------------------------------------------------------------------------
+// Global State & Composables
+
 const { configCreateMode, plannedExecutionsCreateMode, configErrors } = useAppState();
 const { cycleTimeMs, getPos, getMs } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
 // -----------------------------------------------------------------------------
-// Props and Emits
+// Props & Emits
 
 const emit = defineEmits<{
   (e: 'scroll', event: Event): void
 }>();
 
 // -----------------------------------------------------------------------------
-// State, Computed, and Logic
+// Types & Interfaces
 
-// --- Layout Constants ---
+type DragMode = 'offset' | 'duration';
+
+// -----------------------------------------------------------------------------
+// Constants & Layout
 
 const ROW_HEIGHT = 70;   // Fixed height of each process row (px)
 const RECT_HEIGHT = 36;  // Height of the execution bar (px)
+
+// -----------------------------------------------------------------------------
+// Local State & Computed
 
 // --- Viewport and Scrolling ---
 
 const headerScrollEl = ref<HTMLElement | null>(null);
 const contentScrollEl = ref<HTMLElement | null>(null);
 
-const onScroll = (e: Event) => {
-  emit('scroll', e);
-};
+// --- Drag & Drop Editing State ---
 
-// --- Validation and Error Helpers ---
+const dragState = ref<{
+  mode: DragMode;
+  startX: number;
+  initialValue: number;
+  clientWrap: any;
+} | null>(null);
 
-const getErrors = (cid: number) => {
-  return configErrors.value[cid] || [];
-};
+// --- Highlighting State ---
 
-/**
- * Limit and format configuration errors for display in the timeline.
- * Ensures that errors do not overflow the row height by capping at 4 lines.
- */
-const getDisplayErrors = (cid: number) => {
-  const allErrors = getErrors(cid);
-  if (allErrors.length <= 4) {
-    return allErrors.map(text => ({ text: `• ${text}`, isSummary: false }));
-  }
-  const display = allErrors.slice(0, 3).map(text => ({ text: `• ${text}`, isSummary: false }));
-  display.push({ text: `+ ${allErrors.length - 3} more errors...`, isSummary: true });
-  return display;
-};
+const hoveredInstanceId = ref<number | null>(null);
 
-// --- Data Filtering ---
+// --- Data Filtering & Selection ---
 
 /**
  * Filter planned executions to only those whose processes still exist in the configuration.
@@ -111,10 +115,6 @@ const warningCids = computed(() => {
   return cids;
 });
 
-// --- Highlighting Logic ---
-
-const hoveredInstanceId = ref<number | null>(null);
-
 /**
  * Identify all execution instances related to the currently hovered instance.
  * Includes the instance itself, its immediate ancestors (depends), and immediate descendants.
@@ -141,16 +141,131 @@ const highlightedIds = computed(() => {
   return ids;
 });
 
-// --- Drag & Drop Editing ---
+// --- Guide Region ---
 
-type DragMode = 'offset' | 'duration';
+/**
+ * Calculate the boundaries of the allowed area (Guide Region) during a drag operation.
+ * Provides visual feedback to the user on how far they can move/resize a bar.
+ */
+const guideRegion = computed(() => {
+  if (!dragState.value) return null;
 
-const dragState = ref<{
-  mode: DragMode;
-  startX: number;
-  initialValue: number;
-  clientWrap: any;
-} | null>(null);
+  const { mode, clientWrap } = dragState.value;
+  const cycleMs = cycleTimeMs.value;
+  const processCycle = clientWrap.data.cycle;
+
+  let startMs = 0;
+  let durationMs = 0;
+
+  if (mode === 'duration') {
+    // For Duration: Shows the valid duration range within the current scheduled cycle.
+    startMs = clientWrap.data.cycle_offset * cycleMs;
+    durationMs = processCycle * cycleMs;
+  } else if (mode === 'offset') {
+    // For Offset: Shows all valid offset slots.
+    startMs = 0;
+    durationMs = processCycle * cycleMs;
+  }
+
+  return {
+    cid: clientWrap.data.client_id,
+    startMs,
+    durationMs,
+  };
+});
+
+// --- Layout & Path Generation ---
+
+/**
+ * Calculate the total height required for the SVG overlay.
+ */
+const svgHeight = computed(() => {
+  return configCreateMode.client_configs.length * ROW_HEIGHT;
+});
+
+/**
+ * Calculate SVG paths for dependency arrows.
+ * Uses cubic Bezier curves for a smooth visual connection between execution bars.
+ */
+const dependencyArrows = computed(() => {
+  const arrows = [];
+  // Use activeExecutions to ensure arrows are only drawn for visible bars
+  const execMap = new Map(activeExecutions.value.map(e => [e.instance_id, e]));
+
+  for (const exec of activeExecutions.value) {
+    const toX = getPos(exec.start_ms);
+    const toY = getBarY(exec.cid) + RECT_HEIGHT / 2;
+
+    for (const depId of exec.depends_instance_ids) {
+      const depExec = execMap.get(depId);
+      if (depExec) {
+        const fromX = getPos(depExec.start_ms + depExec.duration_ms);
+        const fromY = getBarY(depExec.cid) + RECT_HEIGHT / 2;
+
+        // Calculate horizontal control point offset based on distance to avoid "flat" curves on short gaps.
+        const dx = Math.abs(toX - fromX);
+        const cpOffset = Math.max(30, dx * 0.4);
+
+        // M: MoveTo, C: Cubic Bezier Curve
+        const path = `M ${fromX},${fromY} C ${fromX + cpOffset},${fromY} ${toX - cpOffset},${toY} ${toX},${toY}`;
+
+        arrows.push({
+          id: `${depId}-${exec.instance_id}`,
+          fromId: depId,
+          toId: exec.instance_id,
+          path
+        });
+      }
+    }
+  }
+  return arrows;
+});
+
+// -----------------------------------------------------------------------------
+// Methods & Logic
+
+// --- Validation and Error Helpers ---
+
+const getErrors = (cid: number) => {
+  return configErrors.value[cid] || [];
+};
+
+/**
+ * Limit and format configuration errors for display in the timeline.
+ * Ensures that errors do not overflow the row height by capping at 4 lines.
+ */
+const getDisplayErrors = (cid: number) => {
+  const allErrors = getErrors(cid);
+  if (allErrors.length <= 4) {
+    return allErrors.map(text => ({ text: `• ${text}`, isSummary: false }));
+  }
+  const display = allErrors.slice(0, 3).map(text => ({ text: `• ${text}`, isSummary: false }));
+  display.push({ text: `+ ${allErrors.length - 3} more errors...`, isSummary: true });
+  return display;
+};
+
+// --- Coordinate Transformations ---
+
+/**
+ * Calculate the vertical Y coordinate for a specific Client ID.
+ * Aligns the bar to the vertical center of its corresponding row.
+ */
+const getBarY = (cid: number) => {
+  const index = configCreateMode.client_configs.findIndex((c: ClientConfigUI) => c.data.client_id === cid);
+  if (index === -1) return -1000; // Position off-screen if process is not found
+  return (index * ROW_HEIGHT) + (ROW_HEIGHT / 2) - (RECT_HEIGHT / 2);
+};
+
+// -----------------------------------------------------------------------------
+// Event Handlers
+
+// --- Viewport Scrolling ---
+
+const onScroll = (e: Event) => {
+  emit('scroll', e);
+};
+
+// --- Drag & Drop Handlers ---
 
 /**
  * Initialize drag operation for either Offset or Duration change.
@@ -230,100 +345,18 @@ const endDrag = () => {
   window.removeEventListener('mouseup', endDrag);
 };
 
-// --- Guide Region ---
+// -----------------------------------------------------------------------------
+// Watchers & Reactive Triggers
 
-/**
- * Calculate the boundaries of the allowed area (Guide Region) during a drag operation.
- * Provides visual feedback to the user on how far they can move/resize a bar.
- */
-const guideRegion = computed(() => {
-  if (!dragState.value) return null;
-
-  const { mode, clientWrap } = dragState.value;
-  const cycleMs = cycleTimeMs.value;
-  const processCycle = clientWrap.data.cycle;
-
-  let startMs = 0;
-  let durationMs = 0;
-
-  if (mode === 'duration') {
-    // For Duration: Shows the valid duration range within the current scheduled cycle.
-    startMs = clientWrap.data.cycle_offset * cycleMs;
-    durationMs = processCycle * cycleMs;
-  } else if (mode === 'offset') {
-    // For Offset: Shows all valid offset slots.
-    startMs = 0;
-    durationMs = processCycle * cycleMs;
-  }
-
-  return {
-    cid: clientWrap.data.client_id,
-    startMs,
-    durationMs,
-  };
-});
-
-// --- Coordinate Transformations ---
-
-/**
- * Calculate the vertical Y coordinate for a specific Client ID.
- * Aligns the bar to the vertical center of its corresponding row.
- */
-const getBarY = (cid: number) => {
-  const index = configCreateMode.client_configs.findIndex((c: ClientConfigUI) => c.data.client_id === cid);
-  if (index === -1) return -1000; // Position off-screen if process is not found
-  return (index * ROW_HEIGHT) + (ROW_HEIGHT / 2) - (RECT_HEIGHT / 2);
-};
-
-/**
- * Calculate the total height required for the SVG overlay.
- */
-const svgHeight = computed(() => {
-  return configCreateMode.client_configs.length * ROW_HEIGHT;
-});
-
-// --- Path Generation ---
-
-/**
- * Calculate SVG paths for dependency arrows.
- * Uses cubic Bezier curves for a smooth visual connection between execution bars.
- */
-const dependencyArrows = computed(() => {
-  const arrows = [];
-  // Use activeExecutions to ensure arrows are only drawn for visible bars
-  const execMap = new Map(activeExecutions.value.map(e => [e.instance_id, e]));
-
-  for (const exec of activeExecutions.value) {
-    const toX = getPos(exec.start_ms);
-    const toY = getBarY(exec.cid) + RECT_HEIGHT / 2;
-
-    for (const depId of exec.depends_instance_ids) {
-      const depExec = execMap.get(depId);
-      if (depExec) {
-        const fromX = getPos(depExec.start_ms + depExec.duration_ms);
-        const fromY = getBarY(depExec.cid) + RECT_HEIGHT / 2;
-
-        // Calculate horizontal control point offset based on distance to avoid "flat" curves on short gaps.
-        const dx = Math.abs(toX - fromX);
-        const cpOffset = Math.max(30, dx * 0.4);
-
-        // M: MoveTo, C: Cubic Bezier Curve
-        const path = `M ${fromX},${fromY} C ${fromX + cpOffset},${fromY} ${toX - cpOffset},${toY} ${toX},${toY}`;
-
-        arrows.push({
-          id: `${depId}-${exec.instance_id}`,
-          fromId: depId,
-          toId: exec.instance_id,
-          path
-        });
-      }
-    }
-  }
-  return arrows;
-});
+// (none)
 
 // -----------------------------------------------------------------------------
-// Expose for App / ScrollSync
+// Lifecycle Hooks & Observers
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Expose & Exports
 
 defineExpose({
   headerScrollEl,
@@ -331,6 +364,9 @@ defineExpose({
 });
 </script>
 
+<!-- ========================================================================== -->
+<!-- Template Section                                                           -->
+<!-- ========================================================================== -->
 <template>
   <main class="timeline-pane" :key="configCreateMode.sessionId">
     <!-- Time Header (Cycle and ms markers, synced across panes) -->
@@ -425,10 +461,13 @@ defineExpose({
   </main>
 </template>
 
+<!-- ========================================================================== -->
+<!-- Style Section                                                              -->
+<!-- ========================================================================== -->
 <style scoped>
-/* ==========================================================================
-   Layout and Containers
-   ========================================================================== */
+/* -----------------------------------------------------------------------------
+ * Layout & Containers
+ * ----------------------------------------------------------------------------- */
 
 .timeline-pane {
   display: flex;
@@ -441,6 +480,7 @@ defineExpose({
 }
 
 /* --- Header Section --- */
+
 .timeline-header {
   flex-shrink: 0;
   height: var(--header-row-height);
@@ -477,6 +517,7 @@ defineExpose({
 }
 
 /* --- Content Section --- */
+
 .scroll-area {
   flex: 1;
   min-width: 0;
@@ -513,9 +554,11 @@ defineExpose({
   background-color: color-mix(in srgb, var(--rt-color-error-container) 40%, transparent);
 }
 
-/* ==========================================================================
-   SVG Overlay Components
-   ========================================================================== */
+/* -----------------------------------------------------------------------------
+ * Components & Elements
+ * ----------------------------------------------------------------------------- */
+
+/* --- SVG Overlay Components --- */
 
 .timeline-svg {
   position: absolute;
@@ -525,7 +568,12 @@ defineExpose({
   pointer-events: none;
 }
 
+/* -----------------------------------------------------------------------------
+ * Overlays & Tooltips
+ * ----------------------------------------------------------------------------- */
+
 /* --- Error Overlays --- */
+
 .error-text-msg {
   fill: var(--rt-color-on-error-container);
   font-size: var(--rt-font-xs);
@@ -536,6 +584,7 @@ defineExpose({
 }
 
 /* --- Drag Guide Region --- */
+
 .rt-guide-region {
   fill: color-mix(in srgb, var(--rt-color-accent) 20%, transparent);
   stroke: var(--rt-color-accent);
@@ -543,4 +592,10 @@ defineExpose({
   stroke-dasharray: 4 4;
   pointer-events: none;
 }
+
+/* -----------------------------------------------------------------------------
+ * States & Modifiers
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
 </style>

@@ -12,63 +12,59 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+<!-- ========================================================================== -->
+<!-- Script Section                                                             -->
+<!-- ========================================================================== -->
 <script setup lang="ts">
+// -----------------------------------------------------------------------------
+// Imports
+
 import { ref } from 'vue';
 import { useAppState } from '../composables/useAppState';
 
-// --- State and Composables ---
+// -----------------------------------------------------------------------------
+// Global State & Composables
+
 const { activeConfig, configErrors, openEdit, addClient, moveClientConfig } = useAppState();
 
 // -----------------------------------------------------------------------------
-// Props and Emits
+// Props & Emits
 
 const emit = defineEmits<{
   (e: 'scroll', event: Event): void
 }>();
 
+// -----------------------------------------------------------------------------
+// Types & Interfaces
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Constants & Layout
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Local State & Computed
+
 // --- Viewport and Scrolling ---
 
 const scrollEl = ref<HTMLElement | null>(null);
 
-const onScroll = (e: Event) => {
-  emit('scroll', e);
-};
+let scrollAnimationFrameId: number | null = null;
+const scrollSpeed = ref(0);
+let lastMouseY = 0;
 
 // --- Drag and Drop State ---
 
 const draggingIndex = ref<number | null>(null);
 const targetIndex = ref<number | null>(null);
 
-let scrollAnimationFrameId: number | null = null;
-const scrollSpeed = ref(0);
-let lastMouseY = 0;
+// -----------------------------------------------------------------------------
+// Methods & Logic
 
-// --- Drag and Drop Handlers ---
-
-/**
- * Handle the start of dragging a process card.
- */
-const startDrag = (event: MouseEvent, index: number) => {
-  draggingIndex.value = index;
-  targetIndex.value = index;
-  lastMouseY = event.clientY;
-
-  document.body.classList.add('is-dragging-move');
-
-  window.addEventListener('mousemove', onMouseMove);
-  window.addEventListener('mouseup', onMouseUp);
-
-  startScrollLoop();
-};
-
-/**
- * Handle mouse movement during dragging.
- */
-const onMouseMove = (event: MouseEvent) => {
-  lastMouseY = event.clientY;
-  updateTargetIndex(event.clientY);
-  updateScrollSpeed(event.clientY);
-};
+// --- Drag and Drop Calculation Helpers ---
 
 /**
  * Update the target drop index based on current mouse coordinates.
@@ -155,6 +151,48 @@ const stopScrollLoop = () => {
   scrollSpeed.value = 0;
 };
 
+// --- Validation and Error Helpers ---
+
+const getErrors = (cid: number) => {
+  return configErrors.value[cid] || [];
+};
+
+// -----------------------------------------------------------------------------
+// Event Handlers
+
+// --- Viewport Scrolling ---
+
+const onScroll = (e: Event) => {
+  emit('scroll', e);
+};
+
+// --- Drag and Drop Handlers ---
+
+/**
+ * Handle the start of dragging a process card.
+ */
+const startDrag = (event: MouseEvent, index: number) => {
+  draggingIndex.value = index;
+  targetIndex.value = index;
+  lastMouseY = event.clientY;
+
+  document.body.classList.add('is-dragging-move');
+
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+
+  startScrollLoop();
+};
+
+/**
+ * Handle mouse movement during dragging.
+ */
+const onMouseMove = (event: MouseEvent) => {
+  lastMouseY = event.clientY;
+  updateTargetIndex(event.clientY);
+  updateScrollSpeed(event.clientY);
+};
+
 /**
  * Handle mouseup event to complete or cancel dragging.
  */
@@ -176,18 +214,25 @@ const onMouseUp = () => {
   stopScrollLoop();
 };
 
-// --- Validation and Error Helpers ---
+// -----------------------------------------------------------------------------
+// Watchers & Reactive Triggers
 
-const getErrors = (cid: number) => {
-  return configErrors.value[cid] || [];
-};
+// (none)
 
 // -----------------------------------------------------------------------------
-// Expose
+// Lifecycle Hooks & Observers
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Expose & Exports
 
 defineExpose({ scrollEl });
 </script>
 
+<!-- ========================================================================== -->
+<!-- Template Section                                                           -->
+<!-- ========================================================================== -->
 <template>
   <aside class="process-list-pane" :key="activeConfig.sessionId">
     <div class="pane-header">Processes</div>
@@ -234,7 +279,14 @@ defineExpose({ scrollEl });
   </aside>
 </template>
 
+<!-- ========================================================================== -->
+<!-- Style Section                                                              -->
+<!-- ========================================================================== -->
 <style scoped>
+/* -----------------------------------------------------------------------------
+ * Layout & Containers
+ * ----------------------------------------------------------------------------- */
+
 .process-list-pane {
   display: flex;
   flex-direction: column;
@@ -244,6 +296,8 @@ defineExpose({ scrollEl });
   border-right: var(--rt-border-main);
   background-color: var(--rt-color-surface);
 }
+
+/* --- Header Section --- */
 
 .pane-header {
   display: flex;
@@ -258,6 +312,8 @@ defineExpose({ scrollEl });
   color: var(--rt-color-text-dim);
   text-transform: uppercase;
 }
+
+/* --- Content Section --- */
 
 .scroll-area {
   flex: 1;
@@ -282,6 +338,8 @@ defineExpose({ scrollEl });
   border-bottom: var(--rt-border-main);
 }
 
+/* --- Process Card Layout --- */
+
 .process-card {
   display: flex;
   flex-direction: column;
@@ -294,11 +352,6 @@ defineExpose({ scrollEl });
   border-radius: var(--rt-radius-m);
   cursor: pointer;
   transition: border-color 0.2s, box-shadow 0.2s, background-color 0.2s;
-}
-
-.process-card:hover {
-  border-color: var(--rt-color-primary);
-  box-shadow: var(--rt-bshadow-pop);
 }
 
 .card-header {
@@ -347,42 +400,11 @@ defineExpose({ scrollEl });
   color: var(--rt-color-text-dim);
 }
 
-.process-card.has-error {
-  background-color: var(--rt-color-error-container);
-  border-color: var(--rt-color-error);
-  color: var(--rt-color-on-error-container);
-}
+/* -----------------------------------------------------------------------------
+ * Components & Elements
+ * ----------------------------------------------------------------------------- */
 
-.process-card.has-error:hover {
-  box-shadow: var(--rt-bshadow-pop-error);
-}
-
-.process-card.has-error .cid,
-.process-card.has-error .display-name,
-.process-card.has-error .details,
-.process-card.has-error .depends,
-.process-card.has-error .depends.no-deps {
-  color: var(--rt-color-on-error-container);
-}
-
-.add-btn {
-  width: 100%;
-  height: 40px;
-  border: 2px dashed var(--rt-color-border);
-  border-radius: var(--rt-radius-m);
-  background: transparent;
-  font-size: var(--rt-font-s);
-  font-weight: bold;
-  color: var(--rt-color-text-dim);
-  cursor: pointer;
-  transition: border-color 0.2s, color 0.2s, background-color 0.2s;
-}
-
-.add-btn:hover {
-  border-color: var(--rt-color-primary);
-  background-color: var(--rt-color-surface-header);
-  color: var(--rt-color-primary);
-}
+/* --- Drag Handle & Action Buttons --- */
 
 .drag-handle {
   /* Positioning */
@@ -403,16 +425,17 @@ defineExpose({ scrollEl });
   transition: color 0.2s;
 }
 
-.drag-handle:hover {
-  color: var(--rt-color-primary);
-}
-
-.drag-handle:active {
-  cursor: grabbing;
-}
-
-.process-row-wrapper.is-dragging {
-  opacity: 0.5;
+.add-btn {
+  width: 100%;
+  height: 40px;
+  border: 2px dashed var(--rt-color-border);
+  border-radius: var(--rt-radius-m);
+  background: transparent;
+  font-size: var(--rt-font-s);
+  font-weight: bold;
+  color: var(--rt-color-text-dim);
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background-color 0.2s;
 }
 
 .drop-indicator {
@@ -425,6 +448,61 @@ defineExpose({ scrollEl });
 
   /* Misc */
   transition: background-color 0.15s, box-shadow 0.15s;
+}
+
+/* -----------------------------------------------------------------------------
+ * Overlays & Tooltips
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
+
+/* -----------------------------------------------------------------------------
+ * States & Modifiers
+ * ----------------------------------------------------------------------------- */
+
+/* --- Process Card States --- */
+
+.process-card:hover {
+  border-color: var(--rt-color-primary);
+  box-shadow: var(--rt-bshadow-pop);
+}
+
+.process-card.has-error {
+  background-color: var(--rt-color-error-container);
+  border-color: var(--rt-color-error);
+  color: var(--rt-color-on-error-container);
+}
+
+.process-card.has-error:hover {
+  box-shadow: var(--rt-bshadow-pop-error);
+}
+
+.process-card.has-error .cid,
+.process-card.has-error .display-name,
+.process-card.has-error .details,
+.process-card.has-error .depends,
+.process-card.has-error .depends.no-deps {
+  color: var(--rt-color-on-error-container);
+}
+
+/* --- Interactive Element States --- */
+
+.drag-handle:hover {
+  color: var(--rt-color-primary);
+}
+
+.drag-handle:active {
+  cursor: grabbing;
+}
+
+.add-btn:hover {
+  border-color: var(--rt-color-primary);
+  background-color: var(--rt-color-surface-header);
+  color: var(--rt-color-primary);
+}
+
+.process-row-wrapper.is-dragging {
+  opacity: 0.5;
 }
 
 .drop-indicator.is-active {

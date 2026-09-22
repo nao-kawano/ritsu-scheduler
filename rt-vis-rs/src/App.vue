@@ -12,7 +12,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+<!-- ========================================================================== -->
+<!-- Script Section                                                             -->
+<!-- ========================================================================== -->
 <script setup lang="ts">
+// -----------------------------------------------------------------------------
+// Imports
+
 import { ref, computed } from "vue";
 import { useScrollSync } from "./composables/useScrollSync";
 import { useAppState } from "./composables/useAppState";
@@ -30,26 +37,48 @@ import MetricsChartCreate from "./components/MetricsChartCreate.vue";
 import TimelineViewAnalyze from "./components/TimelineViewAnalyze.vue";
 import MetricsChartAnalyze from "./components/MetricsChartAnalyze.vue";
 
+// -----------------------------------------------------------------------------
+// Global State & Composables
+
 const {
   mode,
   simulationError,
   selectedClientWrap,
 } = useAppState();
 
+// -----------------------------------------------------------------------------
+// Props & Emits
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Types & Interfaces
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Constants & Layout
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Local State & Computed
+
+// --- Theme Management ---
+
 // Theme management based on system preference
 const isDark = ref(window.matchMedia('(prefers-color-scheme: dark)').matches);
 const themeClass = computed(() => isDark.value ? 'dark' : 'light');
 
-// Listen for system theme changes
-window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
-  isDark.value = e.matches;
-});
+// --- Error Display State ---
 
 // Derived state for common components
 const currentErrorMessage = computed(() => {
   if (mode.value === 'Create') return simulationError.value;
   return null;
 });
+
+// --- Component Refs & Scroll Sync State ---
 
 // Component Refs to extract actual elements
 const processListRef = ref<InstanceType<typeof ProcessList> | null>(null);
@@ -71,8 +100,39 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   metricsHeaderScroll,
   metricsChartScroll
 );
+
+// -----------------------------------------------------------------------------
+// Methods & Logic
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Event Handlers
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Watchers & Reactive Triggers
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Lifecycle Hooks & Observers
+
+// Listen for system theme changes
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+  isDark.value = e.matches;
+});
+
+// -----------------------------------------------------------------------------
+// Expose & Exports
+
+// (none)
 </script>
 
+<!-- ========================================================================== -->
+<!-- Template Section                                                           -->
+<!-- ========================================================================== -->
 <template>
   <div class="app-container" :class="[mode.toLowerCase(), themeClass]">
     <!-- Top Pane -->
@@ -105,6 +165,9 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   </div>
 </template>
 
+<!-- ========================================================================== -->
+<!-- Global Style Section                                                       -->
+<!-- ========================================================================== -->
 <style>
 @import "./assets/styles/light.css";
 @import "./assets/styles/dark.css";
@@ -214,6 +277,10 @@ const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync
   --rt-grid-minor: color-mix(in srgb, var(--rt-color-text) 10%, transparent);
 }
 
+/* -----------------------------------------------------------------------------
+ * Layout & Containers
+ * ----------------------------------------------------------------------------- */
+
 * {
   box-sizing: border-box;
   overscroll-behavior: none;
@@ -240,9 +307,25 @@ textarea {
   -webkit-user-select: text;
 }
 
-/* =========================================
-   Common Components (Global Classes)
-   ========================================= */
+/* App-wide Dragging Styles */
+body.is-dragging-move {
+  cursor: grabbing !important;
+}
+
+body.is-dragging-resize {
+  cursor: ew-resize !important;
+}
+
+/* Prevent cursor jitter and hover effects on other elements during drag */
+body.is-dragging-move *,
+body.is-dragging-resize * {
+  pointer-events: none !important;
+  user-select: none !important;
+}
+
+/* -----------------------------------------------------------------------------
+ * Components & Elements
+ * ----------------------------------------------------------------------------- */
 
 /* --- Buttons --- */
 .rt-btn {
@@ -408,22 +491,6 @@ textarea {
   color: var(--rt-color-text-dim);
 }
 
-/* App-wide Dragging Styles */
-body.is-dragging-move {
-  cursor: grabbing !important;
-}
-
-body.is-dragging-resize {
-  cursor: ew-resize !important;
-}
-
-/* Prevent cursor jitter and hover effects on other elements during drag */
-body.is-dragging-move *,
-body.is-dragging-resize * {
-  pointer-events: none !important;
-  user-select: none !important;
-}
-
 /* --- Execution Elements (Timeline) --- */
 .rt-exec-bar {
   pointer-events: auto;
@@ -563,12 +630,28 @@ body.is-dragging-resize * {
 .sb-pad-v {
   padding-right: var(--sb-size) !important;
 }
+
+/* -----------------------------------------------------------------------------
+ * Overlays & Tooltips
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
+
+/* -----------------------------------------------------------------------------
+ * States & Modifiers
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
 </style>
 
+<!-- ========================================================================== -->
+<!-- Scoped Style Section                                                       -->
+<!-- ========================================================================== -->
 <style scoped>
-/* =========================================
-   App Component Scoped Styles (Layout only)
-   ========================================= */
+/* -----------------------------------------------------------------------------
+ * Layout & Containers
+ * ----------------------------------------------------------------------------- */
+
 .app-container {
   display: grid;
   grid-template-rows: var(--top-height) 1fr var(--bottom-height);
@@ -586,6 +669,24 @@ body.is-dragging-resize * {
   overflow: hidden;
 }
 
+.metrics-section {
+  display: grid;
+  grid-template-columns: var(--left-width) 1fr;
+  height: var(--bottom-height);
+  border-top: var(--rt-border-main);
+  background-color: var(--rt-color-surface);
+}
+
+/* -----------------------------------------------------------------------------
+ * Components & Elements
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
+
+/* -----------------------------------------------------------------------------
+ * Overlays & Tooltips
+ * ----------------------------------------------------------------------------- */
+
 .floating-error {
   position: absolute;
   z-index: 100;
@@ -600,11 +701,9 @@ body.is-dragging-resize * {
   right: 24px;
 }
 
-.metrics-section {
-  display: grid;
-  grid-template-columns: var(--left-width) 1fr;
-  height: var(--bottom-height);
-  border-top: var(--rt-border-main);
-  background-color: var(--rt-color-surface);
-}
+/* -----------------------------------------------------------------------------
+ * States & Modifiers
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
 </style>

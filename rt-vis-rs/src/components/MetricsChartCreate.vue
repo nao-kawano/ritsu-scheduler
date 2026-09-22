@@ -12,41 +12,52 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+<!-- ========================================================================== -->
+<!-- Script Section                                                             -->
+<!-- ========================================================================== -->
 <script setup lang="ts">
+// -----------------------------------------------------------------------------
+// Imports
+
 import { ref, computed } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useCreateModeLayout } from '../composables/useCreateModeLayout';
 
-// --- State and Composables ---
+// -----------------------------------------------------------------------------
+// Global State & Composables
+
 const { configCreateMode, plannedMetricsCreateMode } = useAppState();
 const { cycleTimeMs, getPos } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
 // -----------------------------------------------------------------------------
-// Props and Emits
+// Props & Emits
 
 const emit = defineEmits<{
   (e: 'scroll', event: Event): void
 }>();
 
 // -----------------------------------------------------------------------------
-// State, Computed, and Logic
+// Types & Interfaces
 
-// --- Layout Constants ---
+// (none)
+
+// -----------------------------------------------------------------------------
+// Constants & Layout
 
 const METRICS_HEIGHT = 70; // Height of each metric chart row (px) - Matching ROW_HEIGHT in Timeline
 const CHART_TOP_MARGIN = 10; // Top margin to prevent charts from touching top row border (px)
 const CHART_STROKE_WIDTH = 2; // Stroke line width for step chart contour (px)
 
+// -----------------------------------------------------------------------------
+// Local State & Computed
+
 // --- Viewport and Scrolling ---
 
 const headerScrollEl = ref<HTMLElement | null>(null);
 const contentScrollEl = ref<HTMLElement | null>(null);
-
-const onScroll = (e: Event) => {
-  emit('scroll', e);
-};
 
 // --- Path Generation ---
 
@@ -130,7 +141,29 @@ const linePath = computed(() => {
 });
 
 // -----------------------------------------------------------------------------
-// Expose for App / ScrollSync
+// Methods & Logic
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Event Handlers
+
+const onScroll = (e: Event) => {
+  emit('scroll', e);
+};
+
+// -----------------------------------------------------------------------------
+// Watchers & Reactive Triggers
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Lifecycle Hooks & Observers
+
+// (none)
+
+// -----------------------------------------------------------------------------
+// Expose & Exports
 
 defineExpose({
   headerScrollEl,
@@ -138,6 +171,9 @@ defineExpose({
 });
 </script>
 
+<!-- ========================================================================== -->
+<!-- Template Section                                                           -->
+<!-- ========================================================================== -->
 <template>
   <main class="metrics-pane" :key="configCreateMode.sessionId">
     <!-- Time Header (Cycle and ms markers, synced across panes) -->
@@ -175,10 +211,13 @@ defineExpose({
   </main>
 </template>
 
+<!-- ========================================================================== -->
+<!-- Style Section                                                              -->
+<!-- ========================================================================== -->
 <style scoped>
-/* ==========================================================================
-   Layout and Containers
-   ========================================================================== */
+/* -----------------------------------------------------------------------------
+ * Layout & Containers
+ * ----------------------------------------------------------------------------- */
 
 .metrics-pane {
   display: flex;
@@ -191,6 +230,7 @@ defineExpose({
 }
 
 /* --- Header Section --- */
+
 .timeline-header {
   flex-shrink: 0;
   height: var(--header-row-height);
@@ -227,6 +267,7 @@ defineExpose({
 }
 
 /* --- Content Section --- */
+
 .scroll-area {
   flex: 1;
   min-width: 0;
@@ -263,9 +304,11 @@ defineExpose({
   padding: 0 16px;
 }
 
-/* ==========================================================================
-   SVG Chart Components
-   ========================================================================== */
+/* -----------------------------------------------------------------------------
+ * Components & Elements
+ * ----------------------------------------------------------------------------- */
+
+/* --- SVG Chart Components --- */
 
 .metrics-svg {
   position: absolute;
@@ -293,13 +336,23 @@ defineExpose({
   transition: d 0.3s ease;
 }
 
-/* ==========================================================================
-   Informational UI
-   ========================================================================== */
+/* --- Informational UI --- */
 
 .placeholder-text {
   font-size: 12px;
   color: var(--rt-color-text-dim);
   opacity: 0.4;
 }
+
+/* -----------------------------------------------------------------------------
+ * Overlays & Tooltips
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
+
+/* -----------------------------------------------------------------------------
+ * States & Modifiers
+ * ----------------------------------------------------------------------------- */
+
+/* (none) */
 </style>
