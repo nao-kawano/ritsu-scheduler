@@ -117,11 +117,11 @@ const isExpanded = ref(false);
   align-items: center;
   height: 42px;
   padding: 4px;
+  overflow: hidden;
   background-color: var(--rt-color-surface);
   border: var(--rt-border-main);
   border-radius: var(--rt-radius-m);
   box-shadow: var(--rt-bshadow-pop);
-  overflow: hidden;
   /* Fixed height to prevent vertical jitter during expansion */
   transition: background-color 0.2s, border-color 0.2s, box-shadow 0.2s;
 }

@@ -993,8 +993,8 @@ defineExpose({
   min-width: 0;
   min-height: 0;
   height: 100%;
-  background-color: var(--rt-color-surface);
   overflow: hidden;
+  background-color: var(--rt-color-surface);
 }
 
 /* --- Header Section --- */
@@ -1003,9 +1003,9 @@ defineExpose({
   position: relative;
   flex-shrink: 0;
   height: var(--header-row-height);
+  overflow: hidden;
   background: var(--rt-color-surface-header);
   border-bottom: var(--rt-border-main);
-  overflow: hidden;
 }
 
 .header-content {
@@ -1044,8 +1044,8 @@ defineExpose({
   position: absolute;
   top: 0;
   left: 0;
-  display: block;
   z-index: 1;
+  display: block;
   pointer-events: auto;
 }
 

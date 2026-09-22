@@ -258,10 +258,10 @@ watch(() => activeConfig.value.server_config, (newVal) => {
 }
 
 .version-label {
-  font-size: var(--rt-font-m);
-  color: var(--rt-color-text-dim);
   margin-left: 8px;
+  font-size: var(--rt-font-m);
   font-weight: normal;
+  color: var(--rt-color-text-dim);
 }
 
 /* -----------------------------------------------------------------------------

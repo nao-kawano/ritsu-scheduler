@@ -138,8 +138,8 @@ defineProps<{
 }
 
 .error-detail {
-  font-size: var(--rt-font-s);
   opacity: 0.9;
+  font-size: var(--rt-font-s);
   word-break: break-all;
 }
 

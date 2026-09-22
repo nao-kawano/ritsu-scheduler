@@ -225,8 +225,8 @@ defineExpose({
   min-width: 0;
   min-height: 0;
   height: 100%;
-  background-color: var(--rt-color-surface);
   overflow: hidden;
+  background-color: var(--rt-color-surface);
 }
 
 /* --- Header Section --- */
@@ -234,9 +234,9 @@ defineExpose({
 .timeline-header {
   flex-shrink: 0;
   height: var(--header-row-height);
+  overflow: hidden;
   background: var(--rt-color-surface-header);
   border-bottom: var(--rt-border-main);
-  overflow: hidden;
 }
 
 .time-axis {
@@ -261,9 +261,9 @@ defineExpose({
 }
 
 .time-label {
+  opacity: 0.8;
   font-size: var(--rt-font-xs);
   color: var(--rt-color-text-dim);
-  opacity: 0.8;
 }
 
 /* --- Content Section --- */
@@ -339,9 +339,9 @@ defineExpose({
 /* --- Informational UI --- */
 
 .placeholder-text {
+  opacity: 0.4;
   font-size: 12px;
   color: var(--rt-color-text-dim);
-  opacity: 0.4;
 }
 
 /* -----------------------------------------------------------------------------
