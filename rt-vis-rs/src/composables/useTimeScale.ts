@@ -13,7 +13,7 @@
 // limitations under the License.
 // =============================================================================
 import { ref, computed } from 'vue';
-import { useAppState } from './useAppState';
+import { useConfig } from './useConfig';
 
 // Singleton state to synchronize zoom across all components
 const pxPerCycle = ref(400);
@@ -29,7 +29,7 @@ const DEFAULT_PX_PER_CYCLE = 400;
  * This is a low-level utility used by mode-specific layout composables.
  */
 export function useTimeScale() {
-  const { activeConfig } = useAppState();
+  const { activeConfig } = useConfig();
 
   // Basic time unit from server config
   const cycleTimeMs = computed(() => activeConfig.value.server_config.cycle_time_ms || 100);

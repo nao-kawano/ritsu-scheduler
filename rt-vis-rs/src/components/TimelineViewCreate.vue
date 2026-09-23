@@ -21,7 +21,8 @@
 // Imports
 
 import { ref, computed } from 'vue';
-import { useAppState } from '../composables/useAppState';
+import { useConfig } from '../composables/useConfig';
+import { useSimulation } from '../composables/useSimulation';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useCreateModeLayout } from '../composables/useCreateModeLayout';
 import type { ClientConfigUI } from '../types/config';
@@ -30,7 +31,8 @@ import type { PlannedExecution } from '../types/simulation';
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
-const { configCreateMode, plannedExecutionsCreateMode, configErrors } = useAppState();
+const { configCreateMode } = useConfig();
+const { plannedExecutionsCreateMode, configErrors } = useSimulation();
 const { cycleTimeMs, getPos, getMs } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 

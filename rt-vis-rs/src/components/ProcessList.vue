@@ -21,12 +21,14 @@
 // Imports
 
 import { ref } from 'vue';
-import { useAppState } from '../composables/useAppState';
+import { useConfig } from '../composables/useConfig';
+import { useSimulation } from '../composables/useSimulation';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
-const { activeConfig, configErrors, openEdit, addClient, moveClientConfig } = useAppState();
+const { activeConfig, openEdit, addClient, moveClientConfig } = useConfig();
+const { configErrors } = useSimulation();
 
 // -----------------------------------------------------------------------------
 // Props & Emits

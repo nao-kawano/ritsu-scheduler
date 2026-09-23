@@ -21,14 +21,16 @@
 // Imports
 
 import { ref, computed } from 'vue';
-import { useAppState } from '../composables/useAppState';
+import { useConfig } from '../composables/useConfig';
+import { useSimulation } from '../composables/useSimulation';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useCreateModeLayout } from '../composables/useCreateModeLayout';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
-const { configCreateMode, plannedMetricsCreateMode } = useAppState();
+const { configCreateMode } = useConfig();
+const { plannedMetricsCreateMode } = useSimulation();
 const { cycleTimeMs, getPos } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 

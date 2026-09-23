@@ -21,7 +21,9 @@
 // Imports
 
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
-import { useAppState } from '../composables/useAppState';
+import { useConfig } from '../composables/useConfig';
+import { useSimulation } from '../composables/useSimulation';
+import { useExecutionLog } from '../composables/useExecutionLog';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender } from '../composables/useCanvasRender';
@@ -38,14 +40,9 @@ import type { ThemeStyles } from '../types/canvas';
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
-const {
-  activeConfig,
-  plannedExecutionsAnalyzeMode,
-  plannedMetricsAnalyzeMode,
-  logSummaryAnalyzeMode,
-  logRangeDataAnalyzeMode,
-  fetchLogRange
-} = useAppState();
+const { activeConfig } = useConfig();
+const { plannedExecutionsAnalyzeMode, plannedMetricsAnalyzeMode } = useSimulation();
+const { logSummaryAnalyzeMode, logRangeDataAnalyzeMode, fetchLogRange } = useExecutionLog();
 const { pxPerCycle, cycleTimeMs, pxPerMs } = useTimeScale();
 const { totalCycles, totalWidth, gridInfo } = useAnalyzeModeLayout();
 const { getThemeStyles, prepareCanvas, renderTimelineHeader, renderBackgroundGrid, renderActualCycleLines } = useCanvasRender();

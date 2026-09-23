@@ -22,7 +22,9 @@
 
 import { ref, computed } from "vue";
 import { useScrollSync } from "./composables/useScrollSync";
-import { useAppState } from "./composables/useAppState";
+import { useApp } from "./composables/useApp";
+import { useConfig } from "./composables/useConfig";
+import { useSimulation } from "./composables/useSimulation";
 
 import TopControl from "./components/TopControl.vue";
 import ProcessList from "./components/ProcessList.vue";
@@ -40,11 +42,9 @@ import MetricsChartAnalyze from "./components/MetricsChartAnalyze.vue";
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
-const {
-  mode,
-  simulationError,
-  selectedClientWrap,
-} = useAppState();
+const { mode } = useApp();
+const { selectedClientWrap } = useConfig();
+const { simulationError } = useSimulation();
 
 // -----------------------------------------------------------------------------
 // Props & Emits

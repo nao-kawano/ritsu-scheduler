@@ -21,12 +21,16 @@
 // Imports
 
 import { ref, reactive, watch } from 'vue';
-import { useAppState } from '../composables/useAppState';
+import { useApp } from '../composables/useApp';
+import { useConfig } from '../composables/useConfig';
+import { useExecutionLog } from '../composables/useExecutionLog';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
-const { appVersion, mode, activeConfig, newConfig, loadConfig, saveConfig, loadLog, isLogLoading } = useAppState();
+const { appVersion, mode } = useApp();
+const { activeConfig, newConfig, loadConfig, saveConfig } = useConfig();
+const { loadLog, isLogLoading } = useExecutionLog();
 
 // -----------------------------------------------------------------------------
 // Props & Emits

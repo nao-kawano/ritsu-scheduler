@@ -13,7 +13,7 @@
 // limitations under the License.
 // =============================================================================
 import { computed } from 'vue';
-import { useAppState } from './useAppState';
+import { useConfig } from './useConfig';
 import { useTimeScale } from './useTimeScale';
 import { getSimulationCycles } from '../utils/cycle';
 
@@ -22,7 +22,7 @@ import { getSimulationCycles } from '../utils/cycle';
  * Provides layout calculations specific to the schedule editor (Create Mode).
  */
 export function useCreateModeLayout() {
-  const { configCreateMode } = useAppState();
+  const { configCreateMode } = useConfig();
   const { pxPerCycle } = useTimeScale();
 
   /**

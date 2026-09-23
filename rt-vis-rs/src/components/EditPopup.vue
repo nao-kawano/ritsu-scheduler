@@ -21,13 +21,13 @@
 // Imports
 
 import { ref, onMounted } from "vue";
-import { useAppState } from "../composables/useAppState";
+import { useConfig } from "../composables/useConfig";
 import type { ClientConfig } from "../types/config";
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
-const { selectedClientWrap, updateClient, deleteClient, closeEdit } = useAppState();
+const { selectedClientWrap, updateClient, deleteClient, closeEdit } = useConfig();
 
 // -----------------------------------------------------------------------------
 // Props & Emits

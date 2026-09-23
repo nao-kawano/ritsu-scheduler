@@ -20,12 +20,12 @@
 // -----------------------------------------------------------------------------
 // Imports
 
-import { useAppState } from '../composables/useAppState';
+import { useConfig } from '../composables/useConfig';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
-const { activeConfig } = useAppState();
+const { activeConfig } = useConfig();
 
 // -----------------------------------------------------------------------------
 // Props & Emits

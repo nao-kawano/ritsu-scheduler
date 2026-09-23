@@ -14,7 +14,7 @@
 // =============================================================================
 import { computed } from 'vue';
 import { useTimeScale } from './useTimeScale';
-import { useAppState } from './useAppState';
+import { useExecutionLog } from './useExecutionLog';
 
 /**
  * Analyze Mode Layout Engine
@@ -22,7 +22,7 @@ import { useAppState } from './useAppState';
  */
 export function useAnalyzeModeLayout() {
   const { pxPerCycle, cycleTimeMs } = useTimeScale();
-  const { logSummaryAnalyzeMode } = useAppState();
+  const { logSummaryAnalyzeMode } = useExecutionLog();
 
   /**
    * Calculate how many cycles to render in Analyze Mode.
