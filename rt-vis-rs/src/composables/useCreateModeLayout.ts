@@ -12,18 +12,51 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+// =============================================================================
+// Imports
+// =============================================================================
+
 import { computed } from 'vue';
 import { useConfig } from './useConfig';
 import { useTimeScale } from './useTimeScale';
 import { getSimulationCycles } from '../utils/cycle';
+
+// =============================================================================
+// Types & Constants
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Module State (Singleton)
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Internal Helpers
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Composable Implementation
+// =============================================================================
 
 /**
  * Create Mode Layout Engine
  * Provides layout calculations specific to the schedule editor (Create Mode).
  */
 export function useCreateModeLayout() {
+  // ---------------------------------------------------------------------------
+  // Dependencies & Inject
+
   const { configCreateMode } = useConfig();
   const { pxPerCycle } = useTimeScale();
+
+  // ---------------------------------------------------------------------------
+  // Local State & Computed
 
   /**
    * Calculate how many cycles to render in Create Mode.
@@ -47,6 +80,24 @@ export function useCreateModeLayout() {
       minorPx: pxPerCycle.value / 10,
     };
   });
+
+  // ---------------------------------------------------------------------------
+  // Methods & Actions
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Watchers & Reactive Triggers
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle Hooks & Observers
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Public API (Return)
 
   return {
     totalCycles,

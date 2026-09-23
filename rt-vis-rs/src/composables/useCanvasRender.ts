@@ -12,6 +12,11 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+// =============================================================================
+// Imports
+// =============================================================================
+
 import type {
   ThemeStyles,
   RenderHeaderOptions,
@@ -19,11 +24,31 @@ import type {
   RenderActualCycleLinesOptions
 } from '../types/canvas';
 
+// =============================================================================
+// Types & Constants
+// =============================================================================
+
 // Layout constants for header rendering (matching DOM-based Create Mode pixel alignment)
 const HEADER_PADDING_LEFT = (8 + 1);
 const HEADER_LABEL_CYCLE_Y = 6;
 const HEADER_LABEL_TIME_Y = 21;
 const HEADER_TEXT_DIM_ALPHA = 0.8;
+
+// =============================================================================
+// Module State (Singleton)
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Internal Helpers
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Composable Implementation
+// =============================================================================
 
 /**
  * Shared Canvas Rendering Utilities Composable.
@@ -31,6 +56,19 @@ const HEADER_TEXT_DIM_ALPHA = 0.8;
  * and unified sticky timeline header rendering.
  */
 export function useCanvasRender() {
+  // ---------------------------------------------------------------------------
+  // Dependencies & Inject
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Local State & Computed
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Methods & Actions
+
   /**
    * Safely extract computed CSS design tokens and fonts from a DOM element.
    * Fallback values adhere to design system theme defaults.
@@ -286,6 +324,19 @@ export function useCanvasRender() {
     }
     ctx.restore();
   };
+
+  // ---------------------------------------------------------------------------
+  // Watchers & Reactive Triggers
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle Hooks & Observers
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Public API (Return)
 
   return {
     getThemeStyles,

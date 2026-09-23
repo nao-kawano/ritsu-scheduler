@@ -12,7 +12,34 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
-import { Ref } from 'vue';
+
+// =============================================================================
+// Imports
+// =============================================================================
+
+import type { Ref } from 'vue';
+
+// =============================================================================
+// Types & Constants
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Module State (Singleton)
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Internal Helpers
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Composable Implementation
+// =============================================================================
 
 /**
  * Provides strict scroll synchronization between the main panes of the visualizer.
@@ -27,8 +54,19 @@ export function useScrollSync(
   metricsHeaderScroll: Ref<HTMLElement | null>,
   metricsChartScroll: Ref<HTMLElement | null>
 ) {
+  // ---------------------------------------------------------------------------
+  // Dependencies & Inject
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Local State & Computed
+
   let driving: HTMLElement | null = null;
   let drivingTimeout: number | null = null;
+
+  // ---------------------------------------------------------------------------
+  // Methods & Actions
 
   const onScroll = (e: Event) => {
     const target = e.target as HTMLElement;
@@ -69,6 +107,19 @@ export function useScrollSync(
       }
     });
   };
+
+  // ---------------------------------------------------------------------------
+  // Watchers & Reactive Triggers
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle Hooks & Observers
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Public API (Return)
 
   return {
     onProcessListScroll: onScroll,

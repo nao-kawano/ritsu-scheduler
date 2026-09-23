@@ -12,16 +12,39 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+// =============================================================================
+// Imports
+// =============================================================================
+
 import { ref, computed } from 'vue';
 import { useConfig } from './useConfig';
 
-// Singleton state to synchronize zoom across all components
-const pxPerCycle = ref(400);
+// =============================================================================
+// Types & Constants
+// =============================================================================
 
 // Predefined zoom steps for pxPerCycle
 // Based on 400px/cycle as 100% (20%, 30%, 50%, 75%, 100%, 150%, 200%, 400%)
 const ZOOM_STEPS = [80, 120, 200, 300, 400, 600, 800, 1600];
 const DEFAULT_PX_PER_CYCLE = 400;
+
+// =============================================================================
+// Module State (Singleton)
+// =============================================================================
+
+// Singleton state to synchronize zoom across all components
+const pxPerCycle = ref(400);
+
+// =============================================================================
+// Internal Helpers
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Composable Implementation
+// =============================================================================
 
 /**
  * Time Scale Engine (Core)
@@ -29,7 +52,13 @@ const DEFAULT_PX_PER_CYCLE = 400;
  * This is a low-level utility used by mode-specific layout composables.
  */
 export function useTimeScale() {
+  // ---------------------------------------------------------------------------
+  // Dependencies & Inject
+
   const { activeConfig } = useConfig();
+
+  // ---------------------------------------------------------------------------
+  // Local State & Computed
 
   // Basic time unit from server config
   const cycleTimeMs = computed(() => activeConfig.value.server_config.cycle_time_ms || 100);
@@ -39,6 +68,9 @@ export function useTimeScale() {
 
   // Current zoom percentage based on default 500px/cycle
   const zoomPercent = computed(() => Math.round((pxPerCycle.value / DEFAULT_PX_PER_CYCLE) * 100));
+
+  // ---------------------------------------------------------------------------
+  // Methods & Actions
 
   /**
    * Convert time (ms) to horizontal pixel position (x).
@@ -91,6 +123,19 @@ export function useTimeScale() {
   const resetZoom = () => {
     pxPerCycle.value = DEFAULT_PX_PER_CYCLE;
   };
+
+  // ---------------------------------------------------------------------------
+  // Watchers & Reactive Triggers
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle Hooks & Observers
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Public API (Return)
 
   return {
     pxPerCycle,

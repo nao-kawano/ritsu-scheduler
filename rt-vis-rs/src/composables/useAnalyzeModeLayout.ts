@@ -12,17 +12,50 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
+
+// =============================================================================
+// Imports
+// =============================================================================
+
 import { computed } from 'vue';
 import { useTimeScale } from './useTimeScale';
 import { useExecutionLog } from './useExecutionLog';
+
+// =============================================================================
+// Types & Constants
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Module State (Singleton)
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Internal Helpers
+// =============================================================================
+
+// (none)
+
+// =============================================================================
+// Composable Implementation
+// =============================================================================
 
 /**
  * Analyze Mode Layout Engine
  * Provides layout calculations specific to log analysis and execution visualization (Analyze Mode).
  */
 export function useAnalyzeModeLayout() {
+  // ---------------------------------------------------------------------------
+  // Dependencies & Inject
+
   const { pxPerCycle, cycleTimeMs } = useTimeScale();
   const { logSummaryAnalyzeMode } = useExecutionLog();
+
+  // ---------------------------------------------------------------------------
+  // Local State & Computed
 
   /**
    * Calculate how many cycles to render in Analyze Mode.
@@ -66,6 +99,24 @@ export function useAnalyzeModeLayout() {
       minorPx: pxPerCycle.value / 10,
     };
   });
+
+  // ---------------------------------------------------------------------------
+  // Methods & Actions
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Watchers & Reactive Triggers
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Lifecycle Hooks & Observers
+
+  // (none)
+
+  // ---------------------------------------------------------------------------
+  // Public API (Return)
 
   return {
     totalCycles,
