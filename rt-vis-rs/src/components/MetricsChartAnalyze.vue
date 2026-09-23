@@ -24,7 +24,7 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
-import { useCanvasRender, type ThemeStyles } from '../composables/useCanvasRender';
+import { useCanvasRender } from '../composables/useCanvasRender';
 import { getSimulationCycles, findActualCycleForTime } from '../utils/cycle';
 import {
   computePlannedConcurrencySteps,
@@ -33,6 +33,7 @@ import {
   type ConcurrencyStep
 } from '../utils/metrics';
 import { formatDelta, formatDeltaCount } from '../utils/format';
+import type { ThemeStyles } from '../types/canvas';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables

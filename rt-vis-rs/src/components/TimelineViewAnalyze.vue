@@ -24,10 +24,11 @@ import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useAppState } from '../composables/useAppState';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
-import { useCanvasRender, type ThemeStyles } from '../composables/useCanvasRender';
+import { useCanvasRender } from '../composables/useCanvasRender';
 import { getSimulationCycles, groupPlansByAnchorCycle, filterVisibleActualCycles, findActualCycleForTime } from '../utils/cycle';
 import { formatDelta } from '../utils/format';
 import type { ActualExecution, ActualInstantEvent, ActualCycle } from '../types/analyze';
+import type { ThemeStyles } from '../types/canvas';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables

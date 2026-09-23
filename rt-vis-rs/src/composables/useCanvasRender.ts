@@ -12,71 +12,18 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 // =============================================================================
-import type { ActualCycle } from '../types/analyze';
-
-export interface ThemeStyles {
-  textColor: string;
-  textDimColor: string;
-  borderColor: string;
-  surfaceHeaderColor: string;
-  surfaceColor: string;
-  gridMajorColor: string;
-  gridMinorColor: string;
-  primaryColor: string;
-  accentColor: string;
-  errorColor: string;
-  warningColor: string;
-  fontSizePx: string;
-  fontFamily: string;
-  statusNormalColor: string;
-  statusOverrunColor: string;
-  statusSkipColor: string;
-  statusIncompleteColor: string;
-  eventReadyColor: string;
-  eventExitColor: string;
-  eventOverrunColor: string;
-  eventErrorColor: string;
-  eventSkipColor: string;
-  eventLateColor: string;
-  eventRetransmitColor: string;
-}
-
-export interface RenderHeaderOptions {
-  scrollLeft: number;
-  width: number;
-  height: number;
-  totalCycles: number;
-  cycleTimeMs: number;
-  majorPx: number;
-  styles: ThemeStyles;
-  actualCycles?: ActualCycle[];
-  pxPerMs?: number;
-}
-
-export interface RenderGridOptions {
-  scrollLeft: number;
-  width: number;
-  height: number;
-  totalCycles: number;
-  majorPx: number;
-  minorPx: number;
-  styles: ThemeStyles;
-}
+import type {
+  ThemeStyles,
+  RenderHeaderOptions,
+  RenderGridOptions,
+  RenderActualCycleLinesOptions
+} from '../types/canvas';
 
 // Layout constants for header rendering (matching DOM-based Create Mode pixel alignment)
 const HEADER_PADDING_LEFT = (8 + 1);
 const HEADER_LABEL_CYCLE_Y = 6;
 const HEADER_LABEL_TIME_Y = 21;
 const HEADER_TEXT_DIM_ALPHA = 0.8;
-
-export interface RenderActualCycleLinesOptions {
-  scrollLeft: number;
-  width: number;
-  height: number;
-  actualCycles: ActualCycle[];
-  pxPerMs: number;
-  styles: ThemeStyles;
-}
 
 /**
  * Shared Canvas Rendering Utilities Composable.
