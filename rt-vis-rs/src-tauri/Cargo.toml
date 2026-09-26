@@ -29,6 +29,3 @@ toml.workspace = true
 tauri = { version = "2", features = [] }
 tauri-plugin-opener = "2"
 tauri-plugin-dialog = "2"
-
-[dev-dependencies]
-env_logger.workspace = true
