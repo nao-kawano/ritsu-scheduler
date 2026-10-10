@@ -40,7 +40,7 @@ fn test_manager_context_new() {
     let server_config = ServerConfig {
         port: 8080,
         cycle_time_ms: 50,
-        stats_interval_cycle: 0,
+        ..Default::default()
     };
     let client_configs = vec![
         ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
@@ -71,7 +71,7 @@ fn test_manager_context_set_state() {
     let server_config = ServerConfig {
         port: 8080,
         cycle_time_ms: 50,
-        stats_interval_cycle: 0,
+        ..Default::default()
     };
     let client_configs = vec![ClientConfig::new(0, 1, 0, vec![], 0).unwrap()];
     let scheduler_config = SchedulerConfig {
@@ -127,7 +127,7 @@ fn test_server_stats_calc_elapsed_times_normal() {
         server_config: ServerConfig {
             port: 8080,
             cycle_time_ms: 50,
-            stats_interval_cycle: 0,
+            ..Default::default()
         },
         client_configs: configs,
     };
@@ -158,7 +158,7 @@ fn test_server_stats_calc_elapsed_times_bypass_running() {
         server_config: ServerConfig {
             port: 8080,
             cycle_time_ms: 50,
-            stats_interval_cycle: 0,
+            ..Default::default()
         },
         client_configs: configs,
     };
@@ -189,7 +189,7 @@ fn test_server_stats_calc_elapsed_times_direct_exit() {
         server_config: ServerConfig {
             port: 8080,
             cycle_time_ms: 50,
-            stats_interval_cycle: 0,
+            ..Default::default()
         },
         client_configs: configs,
     };

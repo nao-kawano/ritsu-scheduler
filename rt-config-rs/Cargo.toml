@@ -7,3 +7,7 @@ license.workspace = true
 [dependencies]
 rt-message.workspace = true
 serde.workspace = true
+
+[dev-dependencies]
+toml.workspace = true
+

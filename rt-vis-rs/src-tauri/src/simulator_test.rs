@@ -21,6 +21,7 @@ fn create_config(clients: Vec<ClientConfig>) -> SchedulerConfig {
             port: 8080,
             cycle_time_ms: 100,
             stats_interval_cycle: 1,
+            ..Default::default()
         },
         client_configs: clients,
     }

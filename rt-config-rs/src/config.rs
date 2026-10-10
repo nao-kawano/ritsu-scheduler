@@ -27,12 +27,22 @@ mod config_test;
 /* -------------------------------------------------------------------------- */
 
 /// Configuration for the server.
-#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
 pub struct ServerConfig {
     pub port: u16,
     pub cycle_time_ms: u32,
     #[serde(default)]
     pub stats_interval_cycle: u32,
+
+    /// Console log level filter (e.g. "info", "debug"). Empty string falls back to default ("info").
+    #[serde(default)]
+    pub log_level: String,
+    /// Directory path for log files. Empty string disables file logging.
+    #[serde(default)]
+    pub log_file_dir: String,
+    /// File log level filter (e.g. "debug", "info"). Empty string falls back to default ("debug").
+    #[serde(default)]
+    pub log_file_level: String,
 }
 
 /// Configuration for a client process.

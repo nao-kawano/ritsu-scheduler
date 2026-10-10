@@ -51,7 +51,7 @@ fn create_config(client_configs: Vec<ClientConfig>) -> SchedulerConfig {
         server_config: ServerConfig {
             port: 8080,
             cycle_time_ms: 100,
-            stats_interval_cycle: 0,
+            ..Default::default()
         },
         client_configs,
     }
@@ -255,4 +255,45 @@ fn test_circular_mid_path_loop() {
             .iter()
             .any(|e| e.contains(expected_msg))
     );
+}
+
+#[test]
+fn test_server_config_logging_defaults() {
+    let toml_str = r#"
+        port = 8080
+        cycle_time_ms = 50
+    "#;
+    let config: ServerConfig = toml::from_str(toml_str).unwrap();
+    assert_eq!(config.port, 8080);
+    assert_eq!(config.cycle_time_ms, 50);
+    assert_eq!(config.stats_interval_cycle, 0);
+    assert_eq!(config.log_level, "");
+    assert_eq!(config.log_file_dir, "");
+    assert_eq!(config.log_file_level, "");
+}
+
+#[test]
+fn test_server_config_logging_custom_values() {
+    let toml_str = r#"
+        port = 7878
+        cycle_time_ms = 100
+        stats_interval_cycle = 200
+        log_level = "debug"
+        log_file_dir = "./custom_logs"
+        log_file_level = "trace"
+    "#;
+    let config: ServerConfig = toml::from_str(toml_str).unwrap();
+    assert_eq!(config.port, 7878);
+    assert_eq!(config.cycle_time_ms, 100);
+    assert_eq!(config.stats_interval_cycle, 200);
+    assert_eq!(config.log_level, "debug");
+    assert_eq!(config.log_file_dir, "./custom_logs");
+    assert_eq!(config.log_file_level, "trace");
+
+    // Verify round-trip serialization and deserialization.
+    let serialized = toml::to_string(&config).unwrap();
+    let deserialized: ServerConfig = toml::from_str(&serialized).unwrap();
+    assert_eq!(deserialized.log_level, "debug");
+    assert_eq!(deserialized.log_file_dir, "./custom_logs");
+    assert_eq!(deserialized.log_file_level, "trace");
 }

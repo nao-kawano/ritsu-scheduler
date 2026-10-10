@@ -26,7 +26,7 @@ fn create_context() -> ManagerContext {
     let server_config = ServerConfig {
         port: 8080,
         cycle_time_ms: 50,
-        stats_interval_cycle: 0,
+        ..Default::default()
     };
     let scheduler_config = SchedulerConfig {
         server_config,
