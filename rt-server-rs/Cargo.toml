@@ -8,6 +8,7 @@ license.workspace = true
 chrono.workspace = true
 clap.workspace = true
 env_logger.workspace = true
+flexi_logger.workspace = true
 log.workspace = true
 rt-config.workspace = true
 rt-core.workspace = true
