@@ -22,6 +22,36 @@ use std::path;
 
 /* -------------------------------------------------------------------------- */
 
+/// Parses a log level string into a LevelFilter (case-insensitive).
+pub fn parse_level(s: &str) -> Result<log::LevelFilter, String> {
+    match s.trim().to_lowercase().as_str() {
+        "off" => Ok(log::LevelFilter::Off),
+        "error" => Ok(log::LevelFilter::Error),
+        "warn" => Ok(log::LevelFilter::Warn),
+        "info" => Ok(log::LevelFilter::Info),
+        "debug" => Ok(log::LevelFilter::Debug),
+        "trace" => Ok(log::LevelFilter::Trace),
+        _ => Err(format!(
+            "Invalid log level '{}'. Allowed: off, error, warn, info, debug, trace",
+            s
+        )),
+    }
+}
+
+/// Converts a LevelFilter to its lowercase string representation.
+fn level_filter_to_str(filter: log::LevelFilter) -> &'static str {
+    match filter {
+        log::LevelFilter::Off => "off",
+        log::LevelFilter::Error => "error",
+        log::LevelFilter::Warn => "warn",
+        log::LevelFilter::Info => "info",
+        log::LevelFilter::Debug => "debug",
+        log::LevelFilter::Trace => "trace",
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+
 /// Configuration for the logging subsystem.
 #[derive(Debug, Clone)]
 pub struct LogConfig {
@@ -84,34 +114,6 @@ impl LogConfig {
 }
 
 /* -------------------------------------------------------------------------- */
-
-/// Parses a log level string into a LevelFilter (case-insensitive).
-pub fn parse_level(s: &str) -> Result<log::LevelFilter, String> {
-    match s.trim().to_lowercase().as_str() {
-        "off" => Ok(log::LevelFilter::Off),
-        "error" => Ok(log::LevelFilter::Error),
-        "warn" => Ok(log::LevelFilter::Warn),
-        "info" => Ok(log::LevelFilter::Info),
-        "debug" => Ok(log::LevelFilter::Debug),
-        "trace" => Ok(log::LevelFilter::Trace),
-        _ => Err(format!(
-            "Invalid log level '{}'. Allowed: off, error, warn, info, debug, trace",
-            s
-        )),
-    }
-}
-
-/// Converts a LevelFilter to its lowercase string representation.
-fn level_filter_to_str(filter: log::LevelFilter) -> &'static str {
-    match filter {
-        log::LevelFilter::Off => "off",
-        log::LevelFilter::Error => "error",
-        log::LevelFilter::Warn => "warn",
-        log::LevelFilter::Info => "info",
-        log::LevelFilter::Debug => "debug",
-        log::LevelFilter::Trace => "trace",
-    }
-}
 
 /// Formats log records with standard microsecond timestamp layout:
 /// YYYY/MM/DD HH:MM:SS.ffffff [LEVEL] Module - Message
