@@ -38,7 +38,6 @@ pub struct LogConfig {
     pub file_level: log::LevelFilter,
 
     /// Maximum number of backup log files for startup rotation (0 to disable).
-    #[allow(dead_code)]
     pub max_backups: usize,
 }
 
@@ -133,6 +132,69 @@ fn format_log(
     )
 }
 
+/// Rotates existing log files by shifting backup generations:
+/// - Deletes the oldest backup ({basename}.{max_backups}.log) if it exists.
+/// - Renames {basename}.{i}.log to {basename}.{i+1}.log in descending order.
+/// - Renames the active log ({basename}.log) to {basename}.1.log.
+///
+/// If max_backups is 0, no rotation is performed. Failures during rotation
+/// are reported to stderr as warnings without terminating execution.
+fn rotate_backups(config: &LogConfig) {
+    if config.max_backups == 0 {
+        return;
+    }
+
+    let dir = match config.file_dir {
+        Some(ref d) => d,
+        None => return,
+    };
+
+    let max = config.max_backups;
+    let basename = &config.file_basename;
+
+    // Remove the oldest backup file if it exists.
+    let oldest = dir.join(format!("{}.{}.log", basename, max));
+    if oldest.exists() {
+        if let Err(e) = fs::remove_file(&oldest) {
+            eprintln!(
+                "Warning: Failed to remove oldest log file {}: {}",
+                oldest.display(),
+                e
+            );
+        }
+    }
+
+    // Shift intermediate backup files in descending order.
+    for i in (1..max).rev() {
+        let src = dir.join(format!("{}.{}.log", basename, i));
+        let dst = dir.join(format!("{}.{}.log", basename, i + 1));
+        if src.exists() {
+            if let Err(e) = fs::rename(&src, &dst) {
+                eprintln!(
+                    "Warning: Failed to rename log file {} to {}: {}",
+                    src.display(),
+                    dst.display(),
+                    e
+                );
+            }
+        }
+    }
+
+    // Rotate current log file to the first backup generation.
+    let current = dir.join(format!("{}.log", basename));
+    if current.exists() {
+        let dst = dir.join(format!("{}.1.log", basename));
+        if let Err(e) = fs::rename(&current, &dst) {
+            eprintln!(
+                "Warning: Failed to rename current log file {} to {}: {}",
+                current.display(),
+                dst.display(),
+                e
+            );
+        }
+    }
+}
+
 /* -------------------------------------------------------------------------- */
 
 /// Initializes flexi_logger based on the provided configuration.
@@ -146,6 +208,7 @@ pub fn init(
 ) -> Result<flexi_logger::LoggerHandle, flexi_logger::FlexiLoggerError> {
     if let Some(ref dir) = config.file_dir {
         fs::create_dir_all(dir)?;
+        rotate_backups(config);
 
         let file_spec = flexi_logger::FileSpec::default()
             .directory(dir)
@@ -172,5 +235,145 @@ pub fn init(
             .format(format_log)
             .log_to_stderr()
             .start()
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// RAII guard to create and reliably clean up an isolated temporary test directory.
+    struct TestDir {
+        path: path::PathBuf,
+    }
+
+    impl TestDir {
+        fn new(prefix: &str) -> Self {
+            let unique = format!(
+                "{}_{}_{}",
+                prefix,
+                std::process::id(),
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap_or_default()
+                    .as_nanos()
+            );
+            let path = std::env::temp_dir().join(unique);
+            fs::create_dir_all(&path).expect("Failed to create temporary test directory");
+            Self { path }
+        }
+    }
+
+    impl Drop for TestDir {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.path);
+        }
+    }
+
+    #[test]
+    fn test_rotate_backups_disabled_when_zero() {
+        let temp_dir = TestDir::new("ritsu_log_test_zero");
+        let active_log = temp_dir.path.join("test-app.log");
+        fs::write(&active_log, "active log content").unwrap();
+
+        let config = LogConfig {
+            file_dir: Some(temp_dir.path.clone()),
+            file_basename: String::from("test-app"),
+            max_backups: 0,
+            ..Default::default()
+        };
+
+        rotate_backups(&config);
+
+        // Active log should remain unchanged without creating backup files.
+        assert!(active_log.exists());
+        assert_eq!(
+            fs::read_to_string(&active_log).unwrap(),
+            "active log content"
+        );
+        assert!(!temp_dir.path.join("test-app.1.log").exists());
+    }
+
+    #[test]
+    fn test_rotate_backups_standard_shift_and_purge() {
+        let temp_dir = TestDir::new("ritsu_log_test_shift");
+
+        // Prepare existing files: active log and backup generations 1 through 5.
+        fs::write(temp_dir.path.join("app.log"), "current").unwrap();
+        for i in 1..=5 {
+            fs::write(
+                temp_dir.path.join(format!("app.{}.log", i)),
+                format!("gen{}", i),
+            )
+            .unwrap();
+        }
+
+        let config = LogConfig {
+            file_dir: Some(temp_dir.path.clone()),
+            file_basename: String::from("app"),
+            max_backups: 5,
+            ..Default::default()
+        };
+
+        rotate_backups(&config);
+
+        // Active log should have been rotated to generation 1.
+        assert!(!temp_dir.path.join("app.log").exists());
+        assert_eq!(
+            fs::read_to_string(temp_dir.path.join("app.1.log")).unwrap(),
+            "current"
+        );
+
+        // Intermediate backup generations should have shifted by one.
+        assert_eq!(
+            fs::read_to_string(temp_dir.path.join("app.2.log")).unwrap(),
+            "gen1"
+        );
+        assert_eq!(
+            fs::read_to_string(temp_dir.path.join("app.3.log")).unwrap(),
+            "gen2"
+        );
+        assert_eq!(
+            fs::read_to_string(temp_dir.path.join("app.4.log")).unwrap(),
+            "gen3"
+        );
+        assert_eq!(
+            fs::read_to_string(temp_dir.path.join("app.5.log")).unwrap(),
+            "gen4"
+        );
+
+        // Oldest generation (gen5) should have been deleted, and generation 6 must not exist.
+        assert!(!temp_dir.path.join("app.6.log").exists());
+    }
+
+    #[test]
+    fn test_rotate_backups_with_missing_generations() {
+        let temp_dir = TestDir::new("ritsu_log_test_sparse");
+
+        // Only app.log and app.2.log exist (app.1.log is missing).
+        fs::write(temp_dir.path.join("app.log"), "current").unwrap();
+        fs::write(temp_dir.path.join("app.2.log"), "gen2").unwrap();
+
+        let config = LogConfig {
+            file_dir: Some(temp_dir.path.clone()),
+            file_basename: String::from("app"),
+            max_backups: 5,
+            ..Default::default()
+        };
+
+        rotate_backups(&config);
+
+        assert!(!temp_dir.path.join("app.log").exists());
+        assert_eq!(
+            fs::read_to_string(temp_dir.path.join("app.1.log")).unwrap(),
+            "current"
+        );
+        assert!(!temp_dir.path.join("app.2.log").exists());
+        assert_eq!(
+            fs::read_to_string(temp_dir.path.join("app.3.log")).unwrap(),
+            "gen2"
+        );
     }
 }
