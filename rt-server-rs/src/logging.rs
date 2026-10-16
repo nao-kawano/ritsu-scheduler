@@ -55,12 +55,32 @@ impl Default for LogConfig {
 }
 
 impl LogConfig {
-    /// Clamps the console log level to the file log level if file logging is enabled
-    /// and the console log level is more verbose.
-    pub fn clamp_console_level(&mut self) {
+    /// Returns the effective console log level, clamped to file_level if file logging is active.
+    pub fn effective_console_level(&self) -> log::LevelFilter {
         if self.file_dir.is_some() && self.console_level > self.file_level {
-            self.console_level = self.file_level;
+            self.file_level
+        } else {
+            self.console_level
         }
+    }
+
+    /// Formats the console log level for display, indicating if it was clamped to file_level.
+    pub fn console_level_display(&self) -> String {
+        let effective = self.effective_console_level();
+        if effective != self.console_level {
+            format!(
+                "{} (clamped from {})",
+                level_filter_to_str(effective),
+                level_filter_to_str(self.console_level)
+            )
+        } else {
+            level_filter_to_str(effective).to_string()
+        }
+    }
+
+    /// Formats the file log level for display in lowercase.
+    pub fn file_level_display(&self) -> &'static str {
+        level_filter_to_str(self.file_level)
     }
 }
 
@@ -127,18 +147,12 @@ pub fn init(
     if let Some(ref dir) = config.file_dir {
         fs::create_dir_all(dir)?;
 
-        // Ensure console log level does not exceed file log level
-        let mut console_level = config.console_level;
-        if console_level > config.file_level {
-            console_level = config.file_level;
-        }
-
         let file_spec = flexi_logger::FileSpec::default()
             .directory(dir)
             .basename(&config.file_basename)
             .suppress_timestamp();
 
-        let duplicate = match console_level {
+        let duplicate = match config.effective_console_level() {
             log::LevelFilter::Off => flexi_logger::Duplicate::None,
             log::LevelFilter::Error => flexi_logger::Duplicate::Error,
             log::LevelFilter::Warn => flexi_logger::Duplicate::Warn,

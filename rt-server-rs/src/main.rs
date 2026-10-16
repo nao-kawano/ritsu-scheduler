@@ -124,16 +124,13 @@ fn resolve_log_config(args: &Args, config: &SchedulerConfig) -> LogConfig {
         log::LevelFilter::Off
     };
 
-    let mut log_cfg = LogConfig {
+    LogConfig {
         console_level,
         file_dir,
         file_basename: String::from("rt-server"),
         file_level,
         max_backups: 5,
-    };
-
-    log_cfg.clamp_console_level();
-    log_cfg
+    }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -269,16 +266,13 @@ fn main() {
 
     info!("# Starting Ritsu server v{}", env!("CARGO_PKG_VERSION"));
     info!("- Config file: {}", args.config);
+    info!("- Log level: {}", log_cfg.console_level_display());
     if let Some(ref dir) = log_cfg.file_dir {
-        info!(
-            "- Log file: {}",
-            dir.join(format!("{}.log", log_cfg.file_basename)).display()
-        );
-        info!("- File log level: {}", log_cfg.file_level);
-        info!("- Console log level: {}", log_cfg.console_level);
+        let log_path = dir.join(format!("{}.log", log_cfg.file_basename));
+        info!("- Log file: {}", log_path.display());
+        info!("- Log file level: {}", log_cfg.file_level_display());
     } else {
-        info!("- File logging: disabled");
-        info!("- Console log level: {}", log_cfg.console_level);
+        info!("- Log file: disabled");
     }
     info!("----------------------------------------");
 
