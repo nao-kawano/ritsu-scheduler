@@ -3069,7 +3069,6 @@ version = "0.1.0"
 name = "rt-server"
 version = "0.2.0"
 dependencies = [
- "chrono",
  "clap",
  "ctrlc",
  "env_logger",
@@ -3078,7 +3077,6 @@ dependencies = [
  "rt-config",
  "rt-core",
  "rt-message",
- "serde",
  "toml 1.1.2+spec-1.1.0",
 ]
 
