@@ -42,10 +42,18 @@ fn create_context() -> ManagerContext {
     return ctx;
 }
 
+fn init_test_logger() {
+    let _ = flexi_logger::Logger::try_with_str("trace")
+        .unwrap()
+        .log_to_stderr()
+        .write_mode(flexi_logger::WriteMode::SupportCapture)
+        .start();
+}
+
 #[test]
 fn test_enter_state() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
     let proc = ManagerProcStarting;
 
@@ -66,8 +74,8 @@ fn test_enter_state() {
 
 #[test]
 fn test_on_cycle_start() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
     let proc = ManagerProcStarting;
 
@@ -90,8 +98,8 @@ fn test_on_cycle_start() {
 
 #[test]
 fn test_on_client_join() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
     let proc = ManagerProcStarting;
 
@@ -158,8 +166,8 @@ fn test_on_client_join() {
 
 #[test]
 fn test_on_client_ready() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
     let proc = ManagerProcStarting;
 
@@ -198,8 +206,8 @@ fn test_on_client_ready() {
 
 #[test]
 fn test_on_client_done() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
     let proc = ManagerProcStarting;
 
@@ -238,8 +246,8 @@ fn test_on_client_done() {
 
 #[test]
 fn test_on_client_exit() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
     let proc = ManagerProcStarting;
 
@@ -276,8 +284,8 @@ fn test_on_client_exit() {
 
 #[test]
 fn test_on_shutdown_no_client() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
     let proc = ManagerProcStarting;
 
@@ -302,8 +310,8 @@ fn test_on_shutdown_no_client() {
 
 #[test]
 fn test_on_shutdown() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
     let proc = ManagerProcStarting;
 
@@ -333,8 +341,8 @@ fn test_on_shutdown() {
 
 #[test]
 fn test_on_client_join_incompatible_version() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
     let proc = ManagerProcStarting;
 
@@ -367,8 +375,8 @@ fn test_on_client_join_incompatible_version() {
 
 #[test]
 fn test_on_client_join_missing_version() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context();
     let proc = ManagerProcStarting;
 

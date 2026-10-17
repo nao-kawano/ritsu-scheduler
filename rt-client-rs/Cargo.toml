@@ -6,7 +6,6 @@ license.workspace = true
 
 [dependencies]
 chrono.workspace = true
-env_logger.workspace = true
 log.workspace = true
 rt-message.workspace = true
 
@@ -15,4 +14,6 @@ windows = { version="0.62", features=["Win32_Media"] }
 
 [dev-dependencies]
 clap = { workspace = true, features = ["derive"] }
+env_logger.workspace = true
+flexi_logger.workspace = true
 

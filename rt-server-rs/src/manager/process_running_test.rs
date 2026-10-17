@@ -51,10 +51,18 @@ fn create_context_scenarios() -> ManagerContext {
     ctx
 }
 
+fn init_test_logger() {
+    let _ = flexi_logger::Logger::try_with_str("trace")
+        .unwrap()
+        .log_to_stderr()
+        .write_mode(flexi_logger::WriteMode::SupportCapture)
+        .start();
+}
+
 #[test]
 fn test_enter_state() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
@@ -73,8 +81,8 @@ fn test_enter_state() {
 
 #[test]
 fn test_normal_cycle_flow() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
@@ -133,8 +141,8 @@ fn test_normal_cycle_flow() {
 
 #[test]
 fn test_client_ready_late() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
@@ -181,8 +189,8 @@ fn test_client_ready_late() {
 
 #[test]
 fn test_overrun_and_skip_chain() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
@@ -240,8 +248,8 @@ fn test_overrun_and_skip_chain() {
 
 #[test]
 fn test_retransmission_handling() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
@@ -274,8 +282,8 @@ fn test_retransmission_handling() {
 
 #[test]
 fn test_on_client_join() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
@@ -290,8 +298,8 @@ fn test_on_client_join() {
 
 #[test]
 fn test_on_client_exit() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
@@ -335,8 +343,8 @@ fn test_on_client_exit() {
 
 #[test]
 fn test_on_shutdown() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 
@@ -368,8 +376,8 @@ fn test_on_shutdown() {
 
 #[test]
 fn test_cycle_max_abort() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut ctx = create_context_scenarios();
     let proc = ManagerProcRunning;
 

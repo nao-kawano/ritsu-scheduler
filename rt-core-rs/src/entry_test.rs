@@ -14,9 +14,17 @@
 // =============================================================================
 use crate::entry::{ProcessEntry, ProcessState};
 
+fn init_test_logger() {
+    let _ = flexi_logger::Logger::try_with_str("trace")
+        .unwrap()
+        .log_to_stderr()
+        .write_mode(flexi_logger::WriteMode::SupportCapture)
+        .start();
+}
+
 #[test]
 fn test_new() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // cycle trigger.
     let entry = ProcessEntry::new(1, &vec![], false);
@@ -44,7 +52,7 @@ fn test_new() {
 
 #[test]
 fn test_set_state() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     let mut entry = ProcessEntry::new(1, &vec![], false);
     assert_eq!(entry.state, ProcessState::Idle);
@@ -86,7 +94,7 @@ fn test_set_state() {
 
 #[test]
 fn test_is_dependent() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // cycle trigger.
     let entry = ProcessEntry::new(1, &vec![], false);
@@ -99,7 +107,7 @@ fn test_is_dependent() {
 
 #[test]
 fn test_is_dependency_met() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // cycle trigger.
     let entry = ProcessEntry::new(1, &vec![], false);
@@ -118,7 +126,7 @@ fn test_is_dependency_met() {
 
 #[test]
 fn test_mark_dependency_complete() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // cycle trigger.
     let mut entry = ProcessEntry::new(1, &vec![], false);
@@ -141,7 +149,7 @@ fn test_mark_dependency_complete() {
 
 #[test]
 fn test_reset_dependency_statuses() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // cycle trigger.
     let mut entry = ProcessEntry::new(1, &vec![], false);
@@ -161,7 +169,7 @@ fn test_reset_dependency_statuses() {
 
 #[test]
 fn test_reset_dependency_statuses_in() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // cycle trigger.
     let mut entry = ProcessEntry::new(1, &vec![], false);

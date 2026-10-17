@@ -3037,6 +3037,7 @@ dependencies = [
  "chrono",
  "clap",
  "env_logger",
+ "flexi_logger",
  "log",
  "rt-message",
  "windows 0.62.2",
@@ -3056,6 +3057,7 @@ name = "rt-core"
 version = "0.1.0"
 dependencies = [
  "env_logger",
+ "flexi_logger",
  "log",
 ]
 
@@ -3086,6 +3088,7 @@ version = "0.2.0"
 dependencies = [
  "chrono",
  "env_logger",
+ "flexi_logger",
  "log",
  "rt-config",
  "rt-core",
