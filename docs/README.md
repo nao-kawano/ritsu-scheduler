@@ -86,8 +86,8 @@ graph TD
 
 ## Basic Design and Specs
 
-- [Process Configuration](./configuration.md)
-  - Configuration for process dependencies and timing.
+- [Process & Server Configuration](./configuration.md)
+  - Configuration for process dependencies, timing, server settings, and command-line overrides.
 - [Message Sequence](./message-sequence.md)
   - Basic message flow between clients and server.
 - [Message Sequence of SKIP scenario](./message-sequence-skip.md)

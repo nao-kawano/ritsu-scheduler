@@ -39,22 +39,14 @@ if (-not (Test-Path $ServerBin)) {
     exit 1
 }
 
-# 3. Start Ritsu Server (With temporary RUST_LOG=debug environment)
-$OldRustLog = $env:RUST_LOG
-$env:RUST_LOG = "debug"
-
+# 3. Start Ritsu Server (With CLI options: debug level, no log file)
 $ServerProcess = Start-Process -FilePath $ServerBin `
+                               -ArgumentList "--log-level debug --no-log-file" `
                                -WorkingDirectory $LogDir `
                                -NoNewWindow `
                                -RedirectStandardOutput "$LogDir\server_stdout.log" `
                                -RedirectStandardError $ServerLogPath `
                                -PassThru
-
-if ($OldRustLog -ne $null) {
-    $env:RUST_LOG = $OldRustLog
-} else {
-    Remove-Item env:RUST_LOG
-}
 
 # Wait for Server initialization
 Start-Sleep -Milliseconds 500

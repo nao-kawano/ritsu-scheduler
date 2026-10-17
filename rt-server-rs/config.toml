@@ -11,11 +11,20 @@
 # cycle_time_ms:        (u32) Duration of one base scheduling cycle in milliseconds.
 # stats_interval_cycle: (u32, optional) Interval in cycles to log performance stats.
 #                       Set to 0 or omit to disable.
+# log_level:            (string, optional) Console log level ("trace", "debug", "info", "warn", "error").
+#                       Defaults to "info".
+# log_file_dir:         (string, optional) Directory for log files (relative to config file).
+#                       Set to "" or omit to disable file logging.
+# log_file_level:       (string, optional) File log level ("trace", "debug", "info", "warn", "error").
+#                       Defaults to "debug".
 # ------------------------------------------------------------------------------
 [server_config]
 port = 7878                # Standard port for Ritsu communication
 cycle_time_ms = 50         # High-frequency control loop (20Hz)
 stats_interval_cycle = 200 # Performance summary every 10 seconds (200 * 50ms)
+log_level = "info"         # Standard operational events to console
+log_file_dir = "./logs"    # Enable rotating async file logging
+log_file_level = "debug"   # Capture detailed transition metrics to file
 
 
 # [[client_configs]] - Individual process settings

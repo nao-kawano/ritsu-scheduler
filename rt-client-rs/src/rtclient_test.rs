@@ -150,14 +150,19 @@ fn start_mock_server(
     return handle;
 }
 
+fn init_test_logger() {
+    let _ = flexi_logger::Logger::try_with_str("trace")
+        .unwrap()
+        .log_to_stderr()
+        .write_mode(flexi_logger::WriteMode::SupportCapture)
+        .start();
+}
+
 #[test]
 fn test_join() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -187,12 +192,9 @@ fn test_join() {
 
 #[test]
 fn test_join_retry_ok() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -223,12 +225,9 @@ fn test_join_retry_ok() {
 
 #[test]
 fn test_join_retry_ng() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -264,12 +263,9 @@ fn test_join_retry_ng() {
 
 #[test]
 fn test_join_precond() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -294,12 +290,9 @@ fn test_join_precond() {
 
 #[test]
 fn test_ready_startup() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -337,12 +330,9 @@ fn test_ready_startup() {
 
 #[test]
 fn test_ready_startup_retry_ok() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -381,12 +371,9 @@ fn test_ready_startup_retry_ok() {
 
 #[test]
 fn test_ready_startup_retry_ng() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -427,11 +414,9 @@ fn test_ready_startup_retry_ng() {
 #[test]
 #[should_panic]
 fn test_ready_startup_precond() {
+    init_test_logger();
+
     // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
     let mut client: RtClient = RtClient::new("127.0.0.1", 7878, 0, 0.1, 1.0);
     client.config.retry_sec_ready_startup = 0.1;
     client.config.retry_count_ready_startup = 2;
@@ -447,12 +432,9 @@ fn test_ready_startup_precond() {
 
 #[test]
 fn test_ready() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -495,12 +477,9 @@ fn test_ready() {
 
 #[test]
 fn test_ready_retry_ok() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -544,12 +523,9 @@ fn test_ready_retry_ok() {
 
 #[test]
 fn test_ready_retry_ng() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -598,12 +574,9 @@ fn test_ready_retry_ng() {
 
 #[test]
 fn test_ready_skip() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -631,12 +604,9 @@ fn test_ready_skip() {
 
 #[test]
 fn test_ready_late() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -664,12 +634,9 @@ fn test_ready_late() {
 
 #[test]
 fn test_ready_error() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -697,12 +664,9 @@ fn test_ready_error() {
 
 #[test]
 fn test_done() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -733,12 +697,9 @@ fn test_done() {
 
 #[test]
 fn test_ready_mid_mismatch() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -776,12 +737,9 @@ fn test_ready_mid_mismatch() {
 
 #[test]
 fn test_done_retry_ng() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -826,11 +784,9 @@ fn test_done_retry_ng() {
 #[test]
 #[should_panic]
 fn test_done_precond() {
+    init_test_logger();
+
     // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
     let mut client: RtClient = RtClient::new("127.0.0.1", 7878, 0, 0.1, 1.0);
 
     // setup condition.
@@ -844,12 +800,9 @@ fn test_done_precond() {
 
 #[test]
 fn test_exit() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -882,12 +835,9 @@ fn test_exit() {
 
 #[test]
 fn test_exit_retry_ok() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -922,12 +872,9 @@ fn test_exit_retry_ok() {
 
 #[test]
 fn test_exit_retry_ng() {
-    // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
+    init_test_logger();
 
+    // create objects.
     let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
     let port = sock.local_addr().unwrap().port();
     let mut client: RtClient = RtClient::new("127.0.0.1", port, 0, 0.1, 1.0);
@@ -967,11 +914,9 @@ fn test_exit_retry_ng() {
 
 #[test]
 fn test_exit_precond() {
+    init_test_logger();
+
     // create objects.
-    let _ = env_logger::builder()
-        .is_test(true)
-        .format_timestamp_millis()
-        .try_init();
     let mut client: RtClient = RtClient::new("127.0.0.1", 7878, 0, 0.1, 1.0);
 
     // setup condition.

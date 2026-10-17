@@ -26,16 +26,18 @@ use rt_message::MessageType;
 mod clients;
 mod cycle;
 mod event;
+mod logging;
 mod manager;
 
 use clients::{ClientConnector, udp::UdpTransport};
 use cycle::{CycleGenerator, interval::IntervalTrigger};
 use event::Event;
+use logging::LogConfig;
 use manager::{EventManager, ManagerState};
 
 use clap::Parser;
 use std::fs;
-use std::io::Write;
+use std::path::{Path, PathBuf};
 use std::sync::mpsc;
 #[cfg(feature = "perf-log")]
 use std::time;
@@ -49,27 +51,110 @@ struct Args {
     /// Path to the configuration file
     #[arg(short, long, default_value_t = String::from("./config.toml"))]
     config: String,
+
+    /// Console log level (off, error, warn, info, debug, trace)
+    #[arg(long, default_value_t = String::new())]
+    log_level: String,
+
+    /// Directory for log files (enables file logging)
+    #[arg(long, default_value_t = String::new())]
+    log_file_dir: String,
+
+    /// File log level (off, error, warn, info, debug, trace)
+    #[arg(long, default_value_t = String::new())]
+    log_file_level: String,
+
+    /// Disable file logging
+    #[arg(long, default_value_t = false)]
+    no_log_file: bool,
 }
 
 /* -------------------------------------------------------------------------- */
 
-fn load_config(path: &str) -> SchedulerConfig {
-    let r = fs::read_to_string(path);
-    let Ok(content) = r else {
-        panic!("Failed to read config file {}, {}", path, r.unwrap_err());
+/// Resolves application-specific CLI arguments and configuration file into a generic LogConfig.
+fn resolve_log_config(args: &Args, config: &SchedulerConfig) -> LogConfig {
+    let server_cfg = &config.server_config;
+
+    // Resolve console log level (CLI > config file > default "info")
+    let console_level_str = if !args.log_level.is_empty() {
+        &args.log_level
+    } else if !server_cfg.log_level.is_empty() {
+        &server_cfg.log_level
+    } else {
+        "info"
+    };
+    let console_level = logging::parse_level(console_level_str).unwrap_or_else(|e| {
+        eprintln!("Invalid console log level: {}", e);
+        std::process::exit(1);
+    });
+
+    // Resolve file logging directory and target path
+    let file_dir = if args.no_log_file {
+        None
+    } else if !args.log_file_dir.is_empty() {
+        // CLI --log-file-dir is resolved relative to current working directory
+        Some(PathBuf::from(&args.log_file_dir))
+    } else if !server_cfg.log_file_dir.is_empty() {
+        let p = Path::new(&server_cfg.log_file_dir);
+        if p.is_absolute() {
+            Some(p.to_path_buf())
+        } else {
+            // Config file log_file_dir is resolved relative to configuration file location
+            let config_dir = Path::new(&args.config).parent().unwrap_or(Path::new(""));
+            Some(config_dir.join(p))
+        }
+    } else {
+        None
     };
 
-    let r: Result<SchedulerConfig, toml::de::Error> = toml::from_str(&content);
-    let Ok(config) = r else {
-        panic!("Failed to parse config file {}, {}", path, r.unwrap_err());
+    // Resolve file log level
+    let file_level = if file_dir.is_some() {
+        let file_level_str = if !args.log_file_level.is_empty() {
+            &args.log_file_level
+        } else if !server_cfg.log_file_level.is_empty() {
+            &server_cfg.log_file_level
+        } else {
+            "debug"
+        };
+        logging::parse_level(file_level_str).unwrap_or_else(|e| {
+            eprintln!("Invalid file log level: {}", e);
+            std::process::exit(1);
+        })
+    } else {
+        log::LevelFilter::Off
     };
 
-    // Output raw configuration with <CONFIG> prefix for each line after successful parse.
-    for line in content.lines() {
-        info!("<CONFIG> {}", line);
+    LogConfig {
+        console_level,
+        file_dir,
+        file_basename: String::from("rt-server"),
+        file_level,
+        max_backups: 5,
     }
+}
 
-    return config;
+/* -------------------------------------------------------------------------- */
+
+/// Reads and parses the configuration file into SchedulerConfig.
+/// Returns both the parsed configuration and the raw file content.
+fn read_config(path: &str) -> (SchedulerConfig, String) {
+    let content = match fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Failed to read config file {}: {}", path, e);
+            std::process::exit(1);
+        }
+    };
+
+    let config: SchedulerConfig = match toml::from_str(&content) {
+        Ok(c) => c,
+        Err(e) => {
+            eprintln!("Failed to parse config file {}: {}", path, e);
+            std::process::exit(1);
+        }
+    };
+
+    (config, content)
 }
 
 /* -------------------------------------------------------------------------- */
@@ -169,40 +254,45 @@ fn main() {
     // without printing any log initialization messages.
     let args = Args::parse();
 
-    // setup logger.
-    let env = env_logger::Env::default().default_filter_or("info");
-    env_logger::Builder::from_env(env)
-        .format(|buf, record| {
-            let target = record.target();
-            let module = target.split("::").last().unwrap_or(target);
-            writeln!(
-                buf,
-                "{} [{:5}] {} - {}",
-                chrono::Local::now().format("%Y/%m/%d %H:%M:%S%.6f"),
-                record.level(),
-                module,
-                record.args()
-            )
-        })
-        .init();
+    // Read and parse configuration file before logger setup.
+    let (config, raw_config) = read_config(&args.config);
+
+    // Resolve logging configuration and initialize asynchronous logger.
+    let log_cfg = resolve_log_config(&args, &config);
+    let _logger_handle = logging::init(&log_cfg).unwrap_or_else(|e| {
+        eprintln!("Failed to initialize logger: {}", e);
+        std::process::exit(1);
+    });
+
     info!("# Starting Ritsu server v{}", env!("CARGO_PKG_VERSION"));
     info!("- Config file: {}", args.config);
+    info!("- Log level: {}", log_cfg.console_level_display());
+    if let Some(ref dir) = log_cfg.file_dir {
+        let log_path = dir.join(format!("{}.log", log_cfg.file_basename));
+        info!("- Log file: {}", log_path.display());
+        info!("- Log file level: {}", log_cfg.file_level_display());
+    } else {
+        info!("- Log file: disabled");
+    }
     info!("----------------------------------------");
 
-    // load configuration from file.
-    let config = load_config(&args.config);
+    // Output raw configuration with <CONFIG> prefix for each line after logger initialization.
+    for line in raw_config.lines() {
+        info!("<CONFIG> {}", line);
+    }
 
-    // validate configuration.
+    // Validate configuration.
     if let Err(errors) = config.validate() {
         for (cid, errs) in errors {
             for err in errs {
                 error!("[ClientConfig CID:{:03}] {}", cid, err);
             }
         }
-        panic!(
+        error!(
             "Configuration validation failed for file {}. Please check your configuration.",
             args.config
         );
+        std::process::exit(1);
     }
 
     // derive execution rules.

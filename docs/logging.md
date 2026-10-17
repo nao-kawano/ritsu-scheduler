@@ -83,3 +83,39 @@ For global events like cycle starts or server-initiated aborts, `MID` and `CID` 
 - **Cycle Start:** `<STAT> CYC:000000000008 START`
 - **Manager Transition:** `<STAT> CYC:000000000008 [Manager] Starting -> Running`
 - **Server Abort:** `<STAT> CYC:000000000008 ABORT (Reason: abort requested)`
+
+## Asynchronous File Logging & Performance
+
+The Ritsu scheduler executes high-frequency periodic control loops (e.g., 50ms cycle time). To prevent synchronous disk I/O blocking from causing scheduling jitter, deadline misses (`LATE`), or execution overruns (`OVERRUN`), the server implements asynchronous file logging via `flexi_logger`.
+
+- **Asynchronous File I/O:** Log records destined for the file are dispatched through an in-memory queue and written to disk by a dedicated background worker thread (`WriteMode::Async`).
+- **Console Synchronization Note:** While file I/O is fully asynchronous, console output (`duplicate_to_stderr`) is executed synchronously on the calling thread. In production environments with high-frequency cycles, it is strongly recommended to set the console log level to `info` (or higher) to keep the main event loop lightweight, while capturing detailed events (`debug` or `trace`) in the log file.
+- **Graceful Shutdown:** On normal shutdown, pending asynchronous log buffers are flushed. Note that forcible termination (e.g., `SIGKILL` or `Stop-Process -Force`) may cause unwritten buffer records to be lost.
+
+## Log Level Clamping Rule
+
+Due to the architectural design of `flexi_logger`, the console duplication stream cannot be configured to a more detailed verbosity than the primary file logger stream.
+
+- When file logging is active and the requested console log level is more detailed than the file log level (e.g., console `debug`, file `info`), the server automatically **clamps** the console log level to match the file log level (`info`).
+- The startup log banner explicitly displays when clamping has occurred:
+  ```
+  - Log level:      info (clamped from debug)
+  - Log file:       logs/rt-server.log
+  - Log file level: info
+  ```
+- When file logging is disabled (via `--no-log-file` or omitting `log_file_dir`), the console operates independently at its requested log level without clamping.
+
+## Startup 5-Generation Log Rotation
+
+To prevent unintended log file growth and accidental log erasure upon restart while keeping file access simple and predictable for external visualization tools (such as `rt-vis`):
+
+- **Predictable Active File:** The active log is always written to `{file_basename}.log` (default: `rt-server.log`).
+- **Startup Shift Rotation:** Whenever the server starts with file logging enabled, existing log files in the target directory are automatically shifted:
+  1. The oldest backup (`rt-server.5.log`) is removed if it exists.
+  2. Existing backup files are shifted down in descending order: `rt-server.4.log` -> `rt-server.5.log`, ..., `rt-server.1.log` -> `rt-server.2.log`.
+  3. The previous active log `rt-server.log` is renamed to `rt-server.1.log`.
+  4. A fresh `rt-server.log` is opened for the new session.
+- **Generation Limit:** Up to 5 backup generations (`.1.log` through `.5.log`) are retained (`MAX_LOG_BACKUPS = 5`).
+- **Fault Tolerance:** If file deletion or renaming fails (e.g., due to file locking by another application), a warning is printed to stderr and server startup proceeds without crashing.
+
+EOF

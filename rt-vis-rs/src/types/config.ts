@@ -21,6 +21,9 @@ export interface ServerConfig {
   port: number;
   cycle_time_ms: number;
   stats_interval_cycle?: number;
+  log_level?: string;
+  log_file_dir?: string;
+  log_file_level?: string;
 }
 
 export interface ClientConfig {

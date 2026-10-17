@@ -21,14 +21,23 @@ fn create_config(clients: Vec<ClientConfig>) -> SchedulerConfig {
             port: 8080,
             cycle_time_ms: 100,
             stats_interval_cycle: 1,
+            ..Default::default()
         },
         client_configs: clients,
     }
 }
 
+fn init_test_logger() {
+    let _ = flexi_logger::Logger::try_with_str("trace")
+        .unwrap()
+        .log_to_stderr()
+        .write_mode(flexi_logger::WriteMode::SupportCapture)
+        .start();
+}
+
 #[test]
 fn test_simulate_plan_single_process() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     let config = create_config(vec![ClientConfig::new(1, 1, 0, vec![], 40).unwrap()]);
 
@@ -72,7 +81,7 @@ fn test_simulate_plan_single_process() {
 
 #[test]
 fn test_simulate_plan_dependencies() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // Process 1: takes 120ms.
     // Process 2: depends on 1, takes 50ms.
@@ -148,7 +157,7 @@ fn test_simulate_plan_dependencies() {
 
 #[test]
 fn test_simulate_plan_offset() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // Process 1: cycle 2, offset 0
     // Process 2: cycle 2, offset 1
@@ -222,7 +231,7 @@ fn test_simulate_plan_offset() {
 
 #[test]
 fn test_simulate_plan_concurrent_metrics() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // Process 1: cycle 2, offset 0, duration 150ms. (Runs at 0ms, 200ms)
     // Process 2: cycle 2, offset 1, duration 30ms. (Runs at 100ms, 300ms)
@@ -296,7 +305,7 @@ fn test_simulate_plan_concurrent_metrics() {
 
 #[test]
 fn test_simulate_plan_default_duration() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     let config = create_config(vec![
         ClientConfig::new(1, 1, 0, vec![], 0).unwrap(), // 0 duration
@@ -331,7 +340,7 @@ fn test_simulate_plan_default_duration() {
 
 #[test]
 fn test_simulate_plan_status_overrun_and_recovery() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // P1: Cycle 1, Duration 150ms (Causes Overrun every cycle)
     // P99: Cycle 2 (Extends simulation range to Cycle 4 to see recovery at Cycle 2)
@@ -366,7 +375,7 @@ fn test_simulate_plan_status_overrun_and_recovery() {
 
 #[test]
 fn test_simulate_plan_status_cascade_skip() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // P1(10ms) -> P2(150ms) -> P3(10ms) -> P4(10ms)
     // All Cycle 1, Offset 0.
@@ -422,7 +431,7 @@ fn test_simulate_plan_status_cascade_skip() {
 
 #[test]
 fn test_simulate_plan_floating_chain_anchor() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
 
     // P1 (10ms) -> P2 (40ms) -> P3 (20ms)
     // Server cycle_time_ms: 50ms. All processes: Cycle 2, Offset 0.

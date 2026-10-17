@@ -27,10 +27,18 @@ fn create_entries() -> HashMap<u16, ProcessEntry> {
     entries
 }
 
+fn init_test_logger() {
+    let _ = flexi_logger::Logger::try_with_str("trace")
+        .unwrap()
+        .log_to_stderr()
+        .write_mode(flexi_logger::WriteMode::SupportCapture)
+        .start();
+}
+
 #[test]
 fn test_new() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let sched = Scheduler::new(create_entries());
 
     // setup condition.
@@ -55,8 +63,8 @@ fn test_new() {
 
 #[test]
 fn test_reset_state() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut sched = Scheduler::new(create_entries());
 
     // setup condition.
@@ -78,8 +86,8 @@ fn test_reset_state() {
 
 #[test]
 fn test_on_start_normal() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut sched = Scheduler::new(create_entries());
 
     // setup condition.
@@ -139,8 +147,8 @@ fn test_on_start_normal() {
 
 #[test]
 fn test_on_ready_normal() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut sched = Scheduler::new(create_entries());
 
     // setup condition.
@@ -213,8 +221,8 @@ fn test_on_ready_normal() {
 
 #[test]
 fn test_on_done_normal() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut sched = Scheduler::new(create_entries());
 
     // setup condition.
@@ -272,8 +280,8 @@ fn test_on_done_normal() {
 
 #[test]
 fn test_find_forward_all() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let sched = Scheduler::new(create_entries());
     let es = &sched.entries;
     let fd = &sched.graph_forward;
@@ -311,8 +319,8 @@ fn test_find_forward_all() {
 
 #[test]
 fn test_find_forward_same_cycle() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let sched = Scheduler::new(create_entries());
     let es = &sched.entries;
     let fd = &sched.graph_forward;
@@ -352,8 +360,8 @@ fn test_find_forward_same_cycle() {
 
 #[test]
 fn test_scenario_overrun_and_late() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut sched = Scheduler::new(create_entries());
 
     // scenario:
@@ -450,8 +458,8 @@ fn test_scenario_overrun_and_late() {
 
 #[test]
 fn test_scenario_idle_and_late() {
+    init_test_logger();
     // create objects.
-    let _ = env_logger::builder().is_test(true).try_init();
     let mut sched = Scheduler::new(create_entries());
 
     // scenario:
@@ -544,7 +552,7 @@ fn test_scenario_idle_and_late() {
 
 #[test]
 fn test_dependency_past_ghost_clear() {
-    let _ = env_logger::builder().is_test(true).try_init();
+    init_test_logger();
     let mut sched = Scheduler::new(create_entries());
 
     // Setup all processes to Ready
