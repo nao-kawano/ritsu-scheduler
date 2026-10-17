@@ -6,7 +6,6 @@ license.workspace = true
 
 [dependencies]
 clap.workspace = true
-env_logger.workspace = true
 flexi_logger.workspace = true
 log.workspace = true
 rt-config.workspace = true

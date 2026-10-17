@@ -8,5 +8,4 @@ license.workspace = true
 log.workspace = true
 
 [dev-dependencies]
-env_logger.workspace = true
 flexi_logger.workspace = true

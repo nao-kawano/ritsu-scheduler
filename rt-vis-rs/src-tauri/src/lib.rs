@@ -104,29 +104,37 @@ fn get_log_range(
     Ok(store.get_range(start_ms, end_ms))
 }
 
+#[cfg(debug_assertions)]
+/// Formats log records with standard microsecond timestamp layout:
+/// YYYY/MM/DD HH:MM:SS.ffffff [LEVEL] Module - Message
+fn format_log(
+    w: &mut dyn std::io::Write,
+    now: &mut flexi_logger::DeferredNow,
+    record: &log::Record,
+) -> Result<(), std::io::Error> {
+    let target = record.target();
+    let module = target.split("::").last().unwrap_or(target);
+    write!(
+        w,
+        "{} [{:5}] {} - {}",
+        now.format("%Y/%m/%d %H:%M:%S%.6f"),
+        record.level(),
+        module,
+        record.args()
+    )
+}
+
 /* -------------------------------------------------------------------------- */
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     #[cfg(debug_assertions)]
-    {
-        let env = env_logger::Env::default().default_filter_or("debug");
-        env_logger::Builder::from_env(env)
-            .format(|buf, record| {
-                use std::io::Write;
-                let target = record.target();
-                let module = target.split("::").last().unwrap_or(target);
-                writeln!(
-                    buf,
-                    "{} [{:5}] {} - {}",
-                    chrono::Local::now().format("%Y/%m/%d %H:%M:%S%.6f"),
-                    record.level(),
-                    module,
-                    record.args()
-                )
-            })
-            .init();
-    }
+    let _logger_handle = flexi_logger::Logger::try_with_str("debug")
+        .expect("Failed to initialize logger")
+        .format(format_log)
+        .log_to_stderr()
+        .start()
+        .expect("Failed to start logger");
 
     tauri::Builder::default()
         .manage(AppState::default())
