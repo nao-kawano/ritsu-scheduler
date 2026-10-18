@@ -14,6 +14,12 @@ A lightweight, deterministic process scheduler that manages user processes consi
   - This repository includes sample clients for **Rust**, **Python**, and **C/C++**.
 - **Simulation & Visualization**: Advanced tools for system planning and scheduling analysis.
 
+**Visualizer Highlights:**
+| Create Mode | Analyze Mode |
+| :---: | :---: |
+| <img src="docs/assets/rt-vis_create-process-edit.png" width="350" /><br />Configure process periods, execution times, and dependencies. | <img src="docs/assets/rt-vis_analyze-actual-overlay.png" width="350" /><br />Overlay actual execution logs onto scheduled plans, inspecting timing deltas and exact log lines. |
+| <img src="docs/assets/rt-vis_create-realtime-validation.png" width="350" /><br />Interactive drag-and-drop editing immediately highlights deadline overruns and cascading delays. | <img src="docs/assets/rt-vis_analyze-concurrency.png" width="350" /><br />Track planned vs actual concurrent processes to identify system load peaks and bottlenecks. |
+
 ## Process Scheduling
 
 This section describes how Ritsu schedules your processes using a sequence diagram.
@@ -68,4 +74,3 @@ Detailed specifications and guides can be found in the [docs](./docs/README.md) 
 ## License
 
 This project is licensed under the Apache License, Version 2.0. See the [LICENSE](LICENSE) file for details.
-
