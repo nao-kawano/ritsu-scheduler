@@ -28,6 +28,7 @@ import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender } from '../composables/useCanvasRender';
 import { getSimulationCycles, groupPlansByAnchorCycle, filterVisibleActualCycles, findActualCycleForTime } from '../utils/cycle';
+import { mapPlansByInstanceId } from '../utils/simulation';
 import { formatDelta } from '../utils/format';
 import type { ActualExecution, ActualInstantEvent, ActualCycle } from '../types/analyze';
 import type { ThemeStyles } from '../types/canvas';
@@ -167,6 +168,14 @@ const templateCycles = computed(() => {
 const plansByAnchorCycle = computed(() => {
   const plans = plannedExecutionsAnalyzeMode.value;
   return plans && plans.length > 0 ? groupPlansByAnchorCycle(plans) : null;
+});
+
+/**
+ * Planned executions indexed by instance_id for fast dependency lookup.
+ */
+const plansByInstanceId = computed(() => {
+  const plans = plannedExecutionsAnalyzeMode.value;
+  return plans && plans.length > 0 ? mapPlansByInstanceId(plans) : null;
 });
 
 /**
@@ -337,6 +346,59 @@ const renderPlanBoxes = (
       const x = Math.floor(startMs * pxPerMs.value - scrollLeft);
       const barWidth = Math.max(4, Math.floor(plan.duration_ms * pxPerMs.value));
       const y = Math.floor(r * ROW_HEIGHT - scrollTop + (ROW_HEIGHT - PLAN_RECT_HEIGHT) / 2);
+
+      // Render dependency arrows first (so they are positioned behind the Plan Box)
+      if (plan.depends_instance_ids && plan.depends_instance_ids.length > 0 && plansByInstanceId.value) {
+        const toX = x;
+        const toY = Math.floor(r * ROW_HEIGHT - scrollTop + ROW_HEIGHT / 2);
+
+        plan.depends_instance_ids.forEach(depId => {
+          const depPlan = plansByInstanceId.value!.get(depId);
+          if (!depPlan) return;
+
+          const depRow = cidToRowIndex.get(depPlan.cid);
+          if (depRow === undefined) return;
+
+          const cycleDiff = (plan.anchor_cycle || 0) - (depPlan.anchor_cycle || 0);
+          const parentAc = cycleDiff === 0 ? ac : actualCyclesMap.value.get(ac.cycle - cycleDiff);
+          if (!parentAc) return;
+
+          const depStartMs = parentAc.start_ms + (depPlan.anchor_offset_ms || 0);
+          const depWidth = Math.max(4, Math.floor(depPlan.duration_ms * pxPerMs.value));
+          const fromX = Math.floor(depStartMs * pxPerMs.value - scrollLeft) + depWidth;
+          const fromY = Math.floor(depRow * ROW_HEIGHT - scrollTop + ROW_HEIGHT / 2);
+
+          // Vertical culling: skip if both ends are outside viewport vertically
+          if ((fromY < -50 && toY < -50) || (fromY > height + 50 && toY > height + 50)) return;
+
+          const dx = Math.abs(toX - fromX);
+          const cpOffset = Math.max(30, dx * 0.4);
+
+          ctx.save();
+          {
+            ctx.globalAlpha = 0.4;
+            ctx.strokeStyle = styles.primaryColor;
+            ctx.fillStyle = styles.primaryColor;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([]);
+
+            // Cubic Bezier curve path
+            ctx.beginPath();
+            ctx.moveTo(fromX, fromY);
+            ctx.bezierCurveTo(fromX + cpOffset, fromY, toX - cpOffset, toY, toX, toY);
+            ctx.stroke();
+
+            // Arrowhead (pointing right towards child box)
+            ctx.beginPath();
+            ctx.moveTo(toX, toY);
+            ctx.lineTo(toX - 6, toY - 3);
+            ctx.lineTo(toX - 6, toY + 3);
+            ctx.closePath();
+            ctx.fill();
+          }
+          ctx.restore();
+        });
+      }
 
       if (y + PLAN_RECT_HEIGHT >= 0 && y <= height && x + barWidth >= 0 && x <= width) {
         ctx.save();

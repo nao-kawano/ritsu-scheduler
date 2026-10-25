@@ -25,6 +25,7 @@ import { useConfig } from '../composables/useConfig';
 import { useSimulation } from '../composables/useSimulation';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useCreateModeLayout } from '../composables/useCreateModeLayout';
+import { mapPlansByInstanceId } from '../utils/simulation';
 import type { ClientConfigUI } from '../types/config';
 import type { PlannedExecution } from '../types/simulation';
 
@@ -85,6 +86,13 @@ const hoveredInstanceId = ref<number | null>(null);
 const activeExecutions = computed(() => {
   const existingCids = new Set(configCreateMode.client_configs.map((c: ClientConfigUI) => c.data.client_id));
   return plannedExecutionsCreateMode.value.filter(e => existingCids.has(e.cid));
+});
+
+/**
+ * Map active execution instances by instance_id for fast dependency lookup.
+ */
+const executionsByInstanceId = computed(() => {
+  return mapPlansByInstanceId(activeExecutions.value);
 });
 
 /**
@@ -191,8 +199,7 @@ const svgHeight = computed(() => {
  */
 const dependencyArrows = computed(() => {
   const arrows = [];
-  // Use activeExecutions to ensure arrows are only drawn for visible bars
-  const execMap = new Map(activeExecutions.value.map(e => [e.instance_id, e]));
+  const execMap = executionsByInstanceId.value;
 
   for (const exec of activeExecutions.value) {
     const toX = getPos(exec.start_ms);
