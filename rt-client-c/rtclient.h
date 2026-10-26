@@ -33,10 +33,21 @@ typedef int RT_SOCKET;
 /* Compile options / Source configuration options. */
 
 /*
- * Uncomment the following line to disable all internal logging outputs to stdout.
- * Alternatively, you can define this macro via your compiler flags (e.g., -DRTCLIENT_NO_LOG).
+ * Log level configuration for internal library logging (outputs to stderr).
+ * Available levels:
+ *   RTCLIENT_LOG_LEVEL_OFF   0: Completely silent.
+ *   RTCLIENT_LOG_LEVEL_ERROR 1: Critical errors only.
+ *   RTCLIENT_LOG_LEVEL_WARN  2: Warnings, retries, and mismatches (DEFAULT).
+ *   RTCLIENT_LOG_LEVEL_DEBUG 3: Full packet trace (>> send, << recv) and details.
  */
-// #define RTCLIENT_NO_LOG
+#define RTCLIENT_LOG_LEVEL_OFF   0
+#define RTCLIENT_LOG_LEVEL_ERROR 1
+#define RTCLIENT_LOG_LEVEL_WARN  2
+#define RTCLIENT_LOG_LEVEL_DEBUG 3
+
+#ifndef RTCLIENT_LOG_LEVEL
+#define RTCLIENT_LOG_LEVEL RTCLIENT_LOG_LEVEL_WARN
+#endif
 
 /* -------------------------------------------------------------------------- */
 
@@ -237,8 +248,9 @@ static void rt_message_init_error(RtMessage* out_msg, uint16_t cid, uint8_t mid)
 /* -------------------------------------------------------------------------- */
 /* Logging Helpers */
 
-// Thread-safe core logger with millisecond precision timestamp.
-static void rt_log_print(const char* fmt, ...) {
+#if RTCLIENT_LOG_LEVEL > RTCLIENT_LOG_LEVEL_OFF
+// Thread-safe core logger with millisecond precision timestamp and level prefix.
+static inline void rt_log_print(const char* level_str, const char* fmt, ...) {
     int hours = 0, minutes = 0, seconds = 0, millis = 0;
     // Get current local time with millisecond precision.
 #if defined(_WIN32)
@@ -260,9 +272,9 @@ static void rt_log_print(const char* fmt, ...) {
     millis = tv.tv_usec / 1000;
 #endif /* defined(_WIN32) */
 
-    // Format timestamp prefix (HH:MM:SS.mmm).
+    // Format timestamp and level prefix (HH:MM:SS.mmm [LEVEL] ).
     char line_buf[RT_MESSAGE_LEN_MAX + 128];
-    int len = snprintf(line_buf, sizeof(line_buf), "%02d:%02d:%02d.%03d ", hours, minutes, seconds, millis);
+    int len = snprintf(line_buf, sizeof(line_buf), "%02d:%02d:%02d.%03d [%s] ", hours, minutes, seconds, millis, level_str ? level_str : "LOG");
     if (len < 0 || (size_t)len >= sizeof(line_buf)) {
         return;
     }
@@ -284,50 +296,65 @@ static void rt_log_print(const char* fmt, ...) {
     line_buf[total_len]     = '\n';
     line_buf[total_len + 1] = '\0';
 
-    // Write to stdout atomically (thread-safe).
+    // Write to stderr atomically (thread-safe).
 #if defined(_WIN32)
-    _lock_file(stdout);
-    fputs(line_buf, stdout);
-    fflush(stdout);
-    _unlock_file(stdout);
+    _lock_file(stderr);
+    fputs(line_buf, stderr);
+    fflush(stderr);
+    _unlock_file(stderr);
 #else  /* defined(_WIN32) */
-    flockfile(stdout);
-    fputs(line_buf, stdout);
-    fflush(stdout);
-    funlockfile(stdout);
+    flockfile(stderr);
+    fputs(line_buf, stderr);
+    fflush(stderr);
+    funlockfile(stderr);
 #endif /* defined(_WIN32) */
 }
+#endif /* RTCLIENT_LOG_LEVEL > RTCLIENT_LOG_LEVEL_OFF */
 
+#if RTCLIENT_LOG_LEVEL >= RTCLIENT_LOG_LEVEL_DEBUG
 // Formats and logs outgoing communication messages.
-static void rt_log_comm_send(const RtClient* client, RtMessageType mtype, uint32_t count, uint32_t retry_count, double timeout_sec) {
+static inline void rt_log_comm_send(const RtClient* client, RtMessageType mtype, uint32_t count, uint32_t retry_count, double timeout_sec) {
     if (!client) {
         return;
     }
     const char* type_name = rtclient_get_msg_str(mtype);
-    rt_log_print(">> send %s CID:%03d MID:%d (%u/%u) t/o=%.3fs",
+    rt_log_print("DEBUG", ">> send %s CID:%03d MID:%d (%u/%u) t/o=%.3fs",
                  type_name, client->client_id, client->message_id, count + 1, 1 + retry_count, timeout_sec);
 }
 
 // Formats and logs incoming communication messages.
-static void rt_log_comm_recv(const RtClient* client, RtMessageType mtype, uint8_t mid, const char* req_name) {
+static inline void rt_log_comm_recv(const RtClient* client, RtMessageType mtype, uint8_t mid, const char* req_name) {
     if (!client) {
         return;
     }
     const char* type_name = rtclient_get_msg_str(mtype);
     if (req_name && req_name[0] != '\0') {
-        rt_log_print("<< recv %s for %s CID:%03d MID:%d", type_name, req_name, client->client_id, mid);
+        rt_log_print("DEBUG", "<< recv %s for %s CID:%03d MID:%d", type_name, req_name, client->client_id, mid);
     } else {
-        rt_log_print("<< recv %s CID:%03d MID:%d", type_name, client->client_id, mid);
+        rt_log_print("DEBUG", "<< recv %s CID:%03d MID:%d", type_name, client->client_id, mid);
     }
 }
+#endif /* RTCLIENT_LOG_LEVEL >= RTCLIENT_LOG_LEVEL_DEBUG */
 
-/* Logging macros for compile-time elimination */
-#ifndef RTCLIENT_NO_LOG
-#define RT_LOG(...)                                                      rt_log_print(__VA_ARGS__)
+/* Logging macros for compile-time elimination based on RTCLIENT_LOG_LEVEL */
+#if RTCLIENT_LOG_LEVEL >= RTCLIENT_LOG_LEVEL_ERROR
+#define RT_LOG_ERROR(...) rt_log_print("ERROR", __VA_ARGS__)
+#else
+#define RT_LOG_ERROR(...) ((void)0)
+#endif
+
+#if RTCLIENT_LOG_LEVEL >= RTCLIENT_LOG_LEVEL_WARN
+#define RT_LOG_WARN(...) rt_log_print("WARN", __VA_ARGS__)
+#else
+#define RT_LOG_WARN(...) ((void)0)
+#endif
+
+#if RTCLIENT_LOG_LEVEL >= RTCLIENT_LOG_LEVEL_DEBUG
+#define RT_LOG_DEBUG(...)                                                rt_log_print("DEBUG", __VA_ARGS__)
 #define RT_LOG_COMM_SEND(client, mtype, count, retry_count, timeout_sec) rt_log_comm_send(client, mtype, count, retry_count, timeout_sec)
 #define RT_LOG_COMM_RECV(client, mtype, mid, req_name)                   rt_log_comm_recv(client, mtype, mid, req_name)
 #else
-#define RT_LOG(...)                                                      ((void)0)
+#define RT_LOG_DEBUG(...)                                                ((void)0)
 #define RT_LOG_COMM_SEND(client, mtype, count, retry_count, timeout_sec) ((void)0)
 #define RT_LOG_COMM_RECV(client, mtype, mid, req_name)                   ((void)0)
 #endif
@@ -522,15 +549,16 @@ static bool rt_wait_for_response(RtClient* client, double timeout_sec, RtMessage
     if (!client || !out_msg || RT_SOCK_IS_INVALID(client->sock)) {
         return false;
     }
+    // Suppress warning when internal logging is compiled out (OFF/ERROR levels).
+    (void)req_type;
 
     char recv_buf[RT_MESSAGE_LEN_MAX];
-    const char* req_name = rtclient_get_msg_str(req_type);
     double wait_start    = rt_get_time_sec();
 
     while (1) {
         double elapsed = rt_get_time_sec() - wait_start;
         if (elapsed >= timeout_sec) {
-            RT_LOG("timeout, retrying... %s", req_name);
+            RT_LOG_WARN("timeout, retrying... %s", rtclient_get_msg_str(req_type));
             return false;
         }
         double remaining = timeout_sec - elapsed;
@@ -543,12 +571,12 @@ static bool rt_wait_for_response(RtClient* client, double timeout_sec, RtMessage
 #if defined(_WIN32)
             int err = WSAGetLastError();
             if (err == WSAETIMEDOUT) {
-                RT_LOG("timeout, retrying... %s", req_name);
+                RT_LOG_WARN("timeout, retrying... %s", rtclient_get_msg_str(req_type));
                 return false;
             }
 #else  /* defined(_WIN32) */
             if (errno == EAGAIN || errno == EWOULDBLOCK) {
-                RT_LOG("timeout, retrying... %s", req_name);
+                RT_LOG_WARN("timeout, retrying... %s", rtclient_get_msg_str(req_type));
                 return false;
             } else if (errno == EINTR) {
                 continue;
@@ -561,16 +589,16 @@ static bool rt_wait_for_response(RtClient* client, double timeout_sec, RtMessage
         RtMessage msg;
         if (rt_parse_message(recv_buf, &msg)) {
             if (msg.mid == expected_mid && msg.cid == client->client_id) {
-                RT_LOG_COMM_RECV(client, msg.mtype, expected_mid, req_name);
+                RT_LOG_COMM_RECV(client, msg.mtype, expected_mid, rtclient_get_msg_str(req_type));
                 *out_msg = msg;
                 return true;
             } else {
-                RT_LOG("<< mid/cid mismatch, expected MID:%d CID:%03d, actual MID:%d CID:%03d, discard and keep waiting",
-                       expected_mid, client->client_id, msg.mid, msg.cid);
+                RT_LOG_WARN("<< mid/cid mismatch, expected MID:%d CID:%03d, actual MID:%d CID:%03d, discard and keep waiting",
+                            expected_mid, client->client_id, msg.mid, msg.cid);
                 continue;
             }
         } else {
-            RT_LOG("parse error: %s", recv_buf);
+            RT_LOG_WARN("parse error: %s", recv_buf);
             continue;
         }
     }
@@ -652,7 +680,7 @@ static bool rt_send_request(RtClient* client, RtMessageType req_type, double tim
         RT_LOG_COMM_SEND(client, req_type, count, retry_count, timeout_sec);
         int n = sendto(client->sock, send_buf, (int)pos, 0, (struct sockaddr*)&client->server_addr, sizeof(client->server_addr));
         if (n < 0) {
-            RT_LOG("sendto failed");
+            RT_LOG_ERROR("sendto failed");
             break;
         }
         if (rt_wait_for_response(client, timeout_sec, req_type, client->message_id, out_msg)) {
@@ -745,7 +773,7 @@ bool rtclient_join(RtClient* client) {
         return false;
     }
     if (client->connected) {
-        RT_LOG("already joined, skip");
+        RT_LOG_WARN("already joined, skip");
         return true;
     }
 
@@ -757,6 +785,7 @@ bool rtclient_join(RtClient* client) {
     // Create a UDP socket.
     RT_SOCKET sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
     if (RT_SOCK_IS_INVALID(sock)) {
+        RT_LOG_ERROR("failed to bind socket");
         return false;
     }
     client->sock = sock;
@@ -767,6 +796,7 @@ bool rtclient_join(RtClient* client) {
     addr.sin_addr.s_addr = htonl(INADDR_ANY);
     addr.sin_port        = htons(0);
     if (bind(client->sock, (struct sockaddr*)&addr, sizeof(addr)) == RT_SOCKET_ERROR) {
+        RT_LOG_ERROR("failed to bind socket");
         rt_socket_close(client);
         return false;
     }
@@ -781,13 +811,19 @@ bool rtclient_join(RtClient* client) {
         if (resp.mtype == RT_MSG_JOINED) {
             client->connected   = true;
             client->startup     = true;
+#if RTCLIENT_LOG_LEVEL >= RTCLIENT_LOG_LEVEL_DEBUG
             const char* ver_str = rtclient_get_extra(&resp, "version");
-            RT_LOG("joined successfully (version=%s)", ver_str ? ver_str : "unknown");
+            RT_LOG_DEBUG("joined successfully (version=%s)", ver_str ? ver_str : "unknown");
+#endif
             return true;
         } else {
+#if RTCLIENT_LOG_LEVEL >= RTCLIENT_LOG_LEVEL_ERROR
             const char* reason_str = rtclient_get_extra(&resp, "reason");
-            RT_LOG("failed to join: %d (reason=%s)", resp.mtype, reason_str ? reason_str : "N/A");
+            RT_LOG_ERROR("failed to join: %s (reason=%s)", rtclient_get_msg_str(resp.mtype), reason_str ? reason_str : "N/A");
+#endif
         }
+    } else {
+        RT_LOG_ERROR("failed to join: timeout");
     }
 
     rt_socket_close(client);
@@ -800,7 +836,7 @@ void rtclient_exit(RtClient* client) {
         return;
     }
     if (!client->connected || RT_SOCK_IS_INVALID(client->sock)) {
-        RT_LOG("not connected, skip");
+        RT_LOG_WARN("not connected, skip");
         return;
     }
 

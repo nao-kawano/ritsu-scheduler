@@ -131,9 +131,16 @@ After a successful build, run the executable:
 ## 5. Notes & Platform-specific details
 
 - **High-Precision Windows Timer**: Windows platforms default to a 15.6ms timer resolution. To guarantee 1ms precision for retry and timeout handling, the library dynamically invokes `timeBeginPeriod(1)` and `timeEndPeriod(1)`.
-- **Disabling Internal Logging**: The library prints communication logs (`>> send` and `<< recv`) to the standard output. If you want to disable these logs completely to run silently, define `RTCLIENT_NO_LOG` before including `rtclient.h` in your implementation file:
+- **Internal Logging and Log Level Control**: The library outputs internal logs to the standard error output (`stderr`) with millisecond-precision timestamps (`HH:MM:SS.mmm [LEVEL]`). You can configure the log level at compile time by defining `RTCLIENT_LOG_LEVEL` before including `rtclient.h` (or passing `-DRTCLIENT_LOG_LEVEL=<level>` to your compiler).
+  Available log levels:
+  - `RTCLIENT_LOG_LEVEL_OFF` (`0`): Completely silent (zero logging overhead).
+  - `RTCLIENT_LOG_LEVEL_ERROR` (`1`): Critical error logs only.
+  - `RTCLIENT_LOG_LEVEL_WARN` (`2`): Warnings, retries, and mismatches (**Default**).
+  - `RTCLIENT_LOG_LEVEL_DEBUG` (`3`): Full communication packet trace (`>> send`, `<< recv`).
+
+  Example (to enable debug tracing):
   ```c
-  #define RTCLIENT_NO_LOG
+  #define RTCLIENT_LOG_LEVEL RTCLIENT_LOG_LEVEL_DEBUG
   #define RTCLIENT_IMPLEMENTATION
   #include "rtclient.h"
   ```
