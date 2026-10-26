@@ -354,7 +354,12 @@ impl RtClient {
                 }
             },
             Err(e) => {
-                if e.kind() == io::ErrorKind::TimedOut {
+                // On Windows, timeout manifests as TimedOut (WSAETIMEDOUT).
+                // On Linux/POSIX, timeout manifests as WouldBlock (EAGAIN/EWOULDBLOCK).
+                if matches!(
+                    e.kind(),
+                    io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock
+                ) {
                     return (None, true);
                 } else {
                     warn!("failed to receive: {:?}", e);
