@@ -129,13 +129,23 @@ impl RtClient {
                     if resp.mtype == MessageType::Joined {
                         self.connected = true;
                         self.startup = true;
+                        let ver_str = resp
+                            .get_extra("version")
+                            .map(|s| s.as_str())
+                            .unwrap_or("unknown");
+                        trace!("joined successfully (version={})", ver_str);
                         return true;
                     } else {
+                        let reason_str = resp
+                            .get_extra("reason")
+                            .map(|s| s.as_str())
+                            .unwrap_or("N/A");
+                        error!("failed to join: {} (reason={})", resp.mtype, reason_str);
                         return false;
                     }
                 }
                 Err(e) => {
-                    error!("Error creating socket: {}", e);
+                    error!("failed to bind socket: {}", e);
                     return false;
                 }
             }
@@ -248,7 +258,7 @@ impl RtClient {
         let mut recv_buf = [0u8; MESSAGE_LEN_MAX];
         for count in 0..=retry_count {
             trace!(
-                ">> send {:?} CID:{:03} MID:{} ({}/{}) t/o:{:.3}s",
+                ">> send {:?} CID:{:03} MID:{} ({}/{}) t/o={:.3}s",
                 req_type,
                 self.client_id,
                 self.message_id,
@@ -312,7 +322,7 @@ impl RtClient {
                 return None;
             }
             if let Some(response) = response {
-                if response.mid == expected_mid {
+                if response.mid == expected_mid && response.cid == self.client_id {
                     trace!(
                         "<< recv {:?} for {:?} CID:{:03} MID:{}",
                         response.mtype, req_type, self.client_id, expected_mid
@@ -320,10 +330,10 @@ impl RtClient {
                     return Some(response);
                 }
                 warn!(
-                    "<< mid mismatch, expected MID:{}, actual MID:{}, discard and keep waiting",
-                    expected_mid, response.mid
+                    "<< mid/cid mismatch, expected MID:{} CID:{:03}, actual MID:{} CID:{:03}, discard and keep waiting",
+                    expected_mid, self.client_id, response.mid, response.cid
                 );
-                continue; // invalid mid, keep waiting for the next packet.
+                continue; // invalid mid or cid, keep waiting for the next packet.
             }
             // Other error in _recv_response (like parse error), keep waiting until deadline.
             continue;

@@ -736,6 +736,47 @@ fn test_ready_mid_mismatch() {
 }
 
 #[test]
+fn test_ready_cid_mismatch() {
+    init_test_logger();
+
+    // create objects.
+    let sock = UdpSocket::bind("127.0.0.1:0").unwrap();
+    let port = sock.local_addr().unwrap().port();
+    let mut client: RtClient = RtClient::new("127.0.0.1", port, 10, 0.1, 1.0);
+    client.config.retry_sec_ready = 0.1;
+    client.config.retry_count_ready = 2;
+
+    // setup condition.
+    let responses: Vec<MockResponse> = vec![
+        // Join.
+        MockResponse::new(MessageType::Joined, 0.0),
+        // Ready -> Mismatch CID (99 instead of 10), then immediate followup.
+        MockResponse::new_with_id_followup(MessageType::Start, 2, 99, 0.0),
+        // Ready -> Correct MID and CID.
+        MockResponse::new_with_id(MessageType::Start, 2, 10, 0.0),
+    ];
+    let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
+    let mock_handle = start_mock_server(sock, responses, &requests);
+
+    // do.
+    let _ = client.join();
+    let ret = client.wait_next();
+    let _ = mock_handle.join();
+
+    // check result.
+    assert_eq!(ret.mtype, MessageType::Start);
+    {
+        let requests = requests.lock().unwrap();
+        // Join + Ready(only 1 attempt, even after mismatch because it should keep waiting)
+        assert_eq!(requests.len(), 2);
+        assert_eq!(requests[0].mtype, MessageType::Join);
+        assert_eq!(requests[1].mtype, MessageType::Ready);
+        assert_eq!(requests[1].mid, 2);
+        assert_eq!(requests[1].cid, 10);
+    }
+}
+
+#[test]
 fn test_done_retry_ng() {
     init_test_logger();
 
