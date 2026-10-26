@@ -134,20 +134,9 @@ impl ManagerProc for ManagerProcExiting {
                         Message::new(MessageType::Ok, client.last_mid, message.cid, None).unwrap(),
                     );
                 }
-                ClientState::Exiting => {
+                ClientState::Exiting | ClientState::Active | ClientState::Sync => {
                     debug!(
                         "<STAT> CYC:{:012} CID:{:03} MID:{} EXIT",
-                        context.running_cycle, message.cid, message.mid
-                    );
-                    client.set_client_state(ClientState::None, context.running_cycle);
-                    context.num_active_clients -= 1;
-                    responses.push(
-                        Message::new(MessageType::Ok, client.last_mid, message.cid, None).unwrap(),
-                    );
-                }
-                ClientState::Active | ClientState::Sync => {
-                    warn!(
-                        "<STAT> CYC:{:012} CID:{:03} MID:{} EXIT (Unexpected)",
                         context.running_cycle, message.cid, message.mid
                     );
                     client.set_client_state(ClientState::None, context.running_cycle);

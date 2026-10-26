@@ -298,6 +298,19 @@ fn main() {
     // derive execution rules.
     let rules = config.get_client_rules();
 
+    // Collect and format expected client IDs before client_configs is moved.
+    let mut expected_cids: Vec<u16> = config
+        .client_configs
+        .iter()
+        .map(|c| c.client_id)
+        .collect();
+    expected_cids.sort_unstable();
+    let cids_str = expected_cids
+        .iter()
+        .map(|cid| format!("{:03}", cid))
+        .collect::<Vec<_>>()
+        .join(", ");
+
     // setup channel between modules.
     let (tx, rx): (mpsc::Sender<Event>, mpsc::Receiver<Event>) = mpsc::channel();
 
@@ -307,6 +320,8 @@ fn main() {
         rules,
         config.server_config.stats_interval_cycle,
     );
+
+    info!("Waiting for clients: CID [{}]...", cids_str);
 
     // setup client connector.
     let tx_client = tx.clone();

@@ -203,6 +203,29 @@ fn test_on_client_exit() {
 }
 
 #[test]
+fn test_on_client_exit_active_client() {
+    init_test_logger();
+    // create objects.
+    let mut ctx = create_context();
+    let proc = ManagerProcExiting;
+
+    // send event from an Active client (autonomous exit).
+    let m = Message::new(MessageType::Exit, 0, 1, None).unwrap();
+    let result = proc.on_client_exit(&mut ctx, &m).unwrap();
+
+    // check result.
+    assert_eq!(result.len(), 1);
+    assert_eq!(result[0].mtype, MessageType::Ok);
+    assert_eq!(result[0].cid, 1);
+    assert_eq!(ctx.state, ManagerState::Exiting);
+    assert_eq!(ctx.state_changed, false);
+    assert_eq!(ctx.clients.get(&0).unwrap().state, ClientState::Exiting);
+    assert_eq!(ctx.clients.get(&1).unwrap().state, ClientState::None);
+    assert_eq!(ctx.clients.get(&2).unwrap().state, ClientState::Active);
+    assert_eq!(ctx.num_active_clients, 2);
+}
+
+#[test]
 fn test_on_client_exit_all() {
     init_test_logger();
     // create objects.
