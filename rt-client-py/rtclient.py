@@ -12,24 +12,24 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-import time
-import socket
 import datetime
-from enum import Enum
+from enum import Enum, IntEnum
+import socket
+import sys
+import time
 
 PACKET_FORMAT: str = "{}@{:d}:{:03d}"
 PACKET_ENCODING: str = "utf-8"
 
 
-def log(message: str) -> None:
+class LogLevel(IntEnum):
     """
-    Log a message with a timestamp.
-    Args:
-        message (str): The message to log.
+    Log level enum for controlling client library output.
     """
-    now = datetime.datetime.now()
-    timestamp = now.strftime("%H:%M:%S.%f")
-    print(f"{timestamp} {message}")
+    OFF = 0
+    ERROR = 1
+    WARN = 2
+    DEBUG = 3
 
 
 class RequestType(Enum):
@@ -129,7 +129,7 @@ class RtClient:
     A client for the Ritsu.
     """
 
-    def __init__(self, host: str, port: int, client_id: int, run_cycle_sec: float, startup_wait_sec: float, retry_sec: float | None = None, retry_count: int | None = None) -> None:
+    def __init__(self, host: str, port: int, client_id: int, run_cycle_sec: float, startup_wait_sec: float, retry_sec: float | None = None, retry_count: int | None = None, log_level: LogLevel = LogLevel.WARN) -> None:
         """
         Initialize the RtClient object.
         Args:
@@ -140,6 +140,7 @@ class RtClient:
             startup_wait_sec (float): The startup wait time in seconds.
             retry_sec (float, optional): The retransmission interval in seconds.
             retry_count (int, optional): The number of retries.
+            log_level (LogLevel, optional): The log level for internal logging. Defaults to LogLevel.WARN.
         """
         self.host: str = host
         self.port: int = port
@@ -149,6 +150,32 @@ class RtClient:
         self.connected: bool = False
         self.startup: bool = True
         self.message_id: int = 0
+        self.log_level: LogLevel = log_level
+
+    def _log(self, level: LogLevel, level_name: str, message: str) -> None:
+        """
+        Internal logger that outputs to stderr if the configured log level permits.
+        Args:
+            level (LogLevel): The log level of this message.
+            level_name (str): The string representation of the level (e.g. ERROR, WARN, DEBUG).
+            message (str): The log message body.
+        """
+        if self.log_level >= level:
+            now = datetime.datetime.now()
+            timestamp = now.strftime("%H:%M:%S.%f")[:-3]
+            print(f"{timestamp} [{level_name}] {message}", file=sys.stderr)
+
+    def _log_error(self, message: str) -> None:
+        """Log an error message to stderr."""
+        self._log(LogLevel.ERROR, "ERROR", message)
+
+    def _log_warn(self, message: str) -> None:
+        """Log a warning message to stderr."""
+        self._log(LogLevel.WARN, "WARN", message)
+
+    def _log_debug(self, message: str) -> None:
+        """Log a debug message to stderr."""
+        self._log(LogLevel.DEBUG, "DEBUG", message)
 
     def join(self) -> bool:
         """
@@ -157,11 +184,15 @@ class RtClient:
             bool: True if the join was successful, False otherwise.
         """
         if self.connected:
-            log("already joined, skip")
+            self._log_warn("already joined, skip")
             return True
         else:
-            self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            self.sock.bind(("0.0.0.0", 0))
+            try:
+                self.sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+                self.sock.bind(("0.0.0.0", 0))
+            except Exception as e:
+                self._log_error(f"failed to bind socket: {e}")
+                return False
             resp_type, extras = self._send_request(RequestType.JOIN,
                                                    self.config.RETRY_SEC_JOIN,
                                                    self.config.RETRY_COUNT_JOIN,
@@ -169,10 +200,11 @@ class RtClient:
             if resp_type == ResponseType.JOINED:
                 self.connected = True
                 self.startup = True
-                log(f"joined successfully (version={extras.get("version", "unknown")})")
+                self._log_debug(f"joined successfully (version={extras.get('version', 'unknown')})")
                 return True
             else:
-                log(f"failed to join: {resp_type.value} (reason={extras.get("reason", "N/A")}, cid={extras.get("cid", "N/A")})")
+                self._log_error(
+                    f"failed to join: {resp_type.value} (reason={extras.get('reason', 'N/A')})")
                 return False
 
     def exit(self) -> None:
@@ -180,7 +212,7 @@ class RtClient:
         Exit from the Ritsu server.
         """
         if not self.connected:
-            log("not connected, skip")
+            self._log_warn("not connected, skip")
         else:
             _ = self._send_request(RequestType.EXIT,
                                    self.config.RETRY_SEC_EXIT,
@@ -239,7 +271,8 @@ class RtClient:
         ret_extras: dict[str, str] = {}
         packet: bytes = self._create_packet(req_type, extras)
         for count in range(1 + retry_count):
-            log(f">> send {req_type.value} CID:{self.client_id:03d} MID:{self.message_id} ({count+1}/{1+retry_count}) t/o={timeout_sec:.3f}s")
+            self._log_debug(
+                f">> send {req_type.value} CID:{self.client_id:03d} MID:{self.message_id} ({count+1}/{1+retry_count}) t/o={timeout_sec:.3f}s")
             self.sock.sendto(packet, (self.host, self.port))
             res = self._wait_for_matching_response(timeout_sec, req_type, self.message_id)
             if res is not None:
@@ -249,7 +282,7 @@ class RtClient:
 
     def _wait_for_matching_response(self, timeout_sec: float, req_type: RequestType, expected_mid: int) -> tuple[ResponseType, dict[str, str]] | None:
         """
-        Wait for a response that matches the expected MessageID.
+        Wait for a response that matches the expected MessageID and ClientID.
         Args:
             timeout_sec (float): The timeout in seconds.
             req_type (RequestType): The type of request waiting for response.
@@ -261,24 +294,25 @@ class RtClient:
         while True:
             elapsed = time.time() - wait_start
             if elapsed >= timeout_sec:
-                log(f"timeout, retrying... {req_type.value}")
+                self._log_warn(f"timeout, retrying... {req_type.value}")
                 return None
             remaining = timeout_sec - elapsed
             self.sock.settimeout(remaining)
             try:
                 data, _ = self.sock.recvfrom(self.config.PACKET_SIZE)
-                resp_type, resp_id, extras = self._parse_packet(data)
-                if resp_id == expected_mid:
-                    log(f"<< recv {resp_type.value} for {req_type.value} CID:{self.client_id:03d} MID:{expected_mid}")
+                resp_type, resp_id, resp_cid, extras = self._parse_packet(data)
+                if resp_id == expected_mid and resp_cid == self.client_id:
+                    self._log_debug(
+                        f"<< recv {resp_type.value} for {req_type.value} CID:{self.client_id:03d} MID:{expected_mid}")
                     return resp_type, extras
-                log(
-                    f"<< mid mismatch, expected MID:{expected_mid}, actual MID:{resp_id}, discard and keep waiting")
+                self._log_warn(
+                    f"<< mid/cid mismatch, expected MID:{expected_mid} CID:{self.client_id:03d}, actual MID:{resp_id} CID:{resp_cid:03d}, discard and keep waiting")
             except socket.timeout:
-                log(f"timeout, retrying... {req_type.value}")
+                self._log_warn(f"timeout, retrying... {req_type.value}")
                 return None
             except Exception as e:
                 # If parse error or other error, keep waiting
-                log(f"parse error: {e}")
+                self._log_warn(f"parse error: {e}")
                 continue
 
     def _create_packet(self, request: RequestType, extras: dict[str, str] | None = None) -> bytes:
@@ -302,13 +336,13 @@ class RtClient:
 
         return packet_str.encode(PACKET_ENCODING)
 
-    def _parse_packet(self, data: bytes) -> tuple[ResponseType, int, dict[str, str]]:
+    def _parse_packet(self, data: bytes) -> tuple[ResponseType, int, int, dict[str, str]]:
         """
         Parse a packet received from the server.
         Args:
             data (bytes): The data received from the server.
         Returns:
-            Tuple[ResponseType, int, dict[str, str]]: A tuple containing the response type, message ID and extras.
+            Tuple[ResponseType, int, int, dict[str, str]]: A tuple containing the response type, message ID, client ID, and extras.
         Raises:
             ValueError: If the packet format is invalid.
         """
@@ -329,9 +363,6 @@ class RtClient:
         if len(bodies[0]) != 3:  # client id must be 3-digit.
             raise ValueError(f"Invalid client id {parts[1]}")
         client_id = int(bodies[0])
-        if client_id != self.client_id:
-            raise ValueError(
-                f"Invalid client id mismatch, expected {self.client_id}, actual {client_id}")
         # -- extras
         extras = {}
         for extra_str in bodies[1:]:
@@ -343,7 +374,7 @@ class RtClient:
             else:
                 extras[extra_str] = ""
 
-        return (resp_type, resp_id, extras)
+        return (resp_type, resp_id, client_id, extras)
 
     def _clear_recv_buffer(self) -> None:
         """Clears the receive buffer by reading and discarding any data present.
@@ -362,9 +393,12 @@ class RtClient:
 
 if __name__ == "__main__":
     # Example usage:
-    import sys
-    import time
     import argparse
+
+    def sample_log(message: str) -> None:
+        now = datetime.datetime.now()
+        timestamp = now.strftime("%H:%M:%S.%f")[:-3]
+        print(f"{timestamp} {message}", file=sys.stderr)
 
     parser = argparse.ArgumentParser(description="Ritsu client with argparse")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address")
@@ -378,55 +412,59 @@ if __name__ == "__main__":
                         help="Simulated process time (sec)")
     parser.add_argument("--proc-count", type=int, default=5,
                         help="max run count (times)")
+    parser.add_argument("--log-level", type=str, default="warn",
+                        choices=["off", "error", "warn", "debug"],
+                        help="Log level: off, error, warn, debug (default: warn)")
     args = parser.parse_args()
 
     PROC_COUNT_MAX: int = args.proc_count
     proc_count: int = 0
 
+    log_level = LogLevel[args.log_level.upper()]
     client: RtClient = RtClient(
         args.host,
         args.port,
         args.client_id,
         args.run_cycle_sec,
-        args.startup_wait_sec
+        args.startup_wait_sec,
+        log_level=log_level,
     )
 
     joined: bool = client.join()
     if not joined:
-        log(f"failed to join, exit")
+        sample_log("failed to join, exit")
         sys.exit(-1)
 
-    log(f"client joined")
+    sample_log("client joined")
     while True:
         try:
             resp_type, extras = client.wait_next()
             cyc = extras.get("cycle", "N/A")
-            log(f"wait_next done: {resp_type.value}, cycle={cyc}, count={proc_count}")
+            sample_log(f"wait_next done: {resp_type.value}, cycle={cyc}, count={proc_count}")
             if resp_type == ResponseType.START:
-                log(f"got START, do some process with {args.proc_time_sec:.3f} sec ...")
+                sample_log(f"got START, do some process with {args.proc_time_sec:.3f} sec ...")
                 # some process here.
                 time.sleep(args.proc_time_sec)
                 # client must send DONE and send READY (wait_next).
                 client.notify_done()
             elif resp_type == ResponseType.SKIP:
                 # client must send READY (wait_next) for next proc.
-                log("got SKIP, retry")
+                sample_log("got SKIP, retry")
             elif resp_type == ResponseType.LATE:
                 # client must send READY (wait_next) for next proc.
-                log("got LATE, retry")
+                sample_log("got LATE, retry")
             else:
                 # client must send EXIT if got ERROR.
-                log(f"got {resp_type.value}, going to exit (reason={extras.get("reason", "N/A")}, cid={extras.get("cid", "N/A")})")
+                sample_log(
+                    f"got {resp_type.value}, going to exit (reason={extras.get('reason', 'N/A')}, cid={extras.get('cid', 'N/A')})")
                 break
 
             # logic for a sample program.
             proc_count += 1
             if proc_count >= PROC_COUNT_MAX:
-                log("completed, going to exit")
+                sample_log("completed, going to exit")
                 break
         except KeyboardInterrupt:
-            log("abort, going to exit")
+            sample_log("abort, going to exit")
             break
     client.exit()
-
-    pass
