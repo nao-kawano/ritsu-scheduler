@@ -119,7 +119,12 @@ impl ClientTransport for UdpTransport {
                     }
                 }
                 Err(e) => {
-                    if e.kind() == io::ErrorKind::TimedOut {
+                    // On Windows, timeout manifests as TimedOut (WSAETIMEDOUT).
+                    // On Linux/POSIX, timeout manifests as WouldBlock (EAGAIN/EWOULDBLOCK).
+                    if matches!(
+                        e.kind(),
+                        io::ErrorKind::TimedOut | io::ErrorKind::WouldBlock
+                    ) {
                         continue;
                     } else if e.kind() == io::ErrorKind::ConnectionReset {
                         // On Windows, recv_from may return ConnectionReset if a previous send_to
