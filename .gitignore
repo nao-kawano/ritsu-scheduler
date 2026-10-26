@@ -37,5 +37,7 @@ Thumbs.db
 **/test_logs/
 *.log
 !**/fixtures/**
-/utils/release-pkg/
+/demo/robot-pipeline/build/
+/demo/robot-pipeline/planner_node/target/
 /rt-client-c/examples/build/
+/utils/release-pkg/

@@ -1,0 +1,52 @@
+[server_config]
+port = 10000
+cycle_time_ms = 200
+stats_interval_cycle = 10
+log_level = "info"
+log_file_dir = "./logs"
+log_file_level = "debug"
+
+# 1. Sensor acquisition (periodic cycle start)
+[[client_configs]]
+client_id = 10
+display_name = "Sensor (C++)"
+cycle = 1
+cycle_offset = 0
+depends = []
+expected_duration_ms = 10
+
+# 2. AI vision inference (parallel fork after sensor)
+[[client_configs]]
+client_id = 20
+display_name = "AI-Vision (Py)"
+cycle = 1
+cycle_offset = 0
+depends = [10]
+expected_duration_ms = 70
+
+# 3. Odometry estimation (parallel fork after sensor)
+[[client_configs]]
+client_id = 30
+display_name = "Odometry (C++)"
+cycle = 1
+cycle_offset = 0
+depends = [10]
+expected_duration_ms = 20
+
+# 4. Motion planning (join barrier after AI and Odometry)
+[[client_configs]]
+client_id = 40
+display_name = "Planner (Rust)"
+cycle = 1
+cycle_offset = 0
+depends = [20, 30]
+expected_duration_ms = 40
+
+# 5. Motor actuation (runs after planner)
+[[client_configs]]
+client_id = 50
+display_name = "Motor (C++)"
+cycle = 1
+cycle_offset = 0
+depends = [40]
+expected_duration_ms = 20
