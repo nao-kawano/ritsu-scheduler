@@ -22,3 +22,7 @@ mod rtclientconfig;
 // export.
 pub use rtclient::RtClient;
 pub use rtclientconfig::RtClientConfig;
+
+// Re-export external types used in public API.
+pub use rt_message::Message;
+pub use rt_message::MessageType;
