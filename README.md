@@ -20,6 +20,39 @@ A lightweight, deterministic process scheduler that manages user processes consi
 | <img src="docs/assets/rt-vis_create-process-edit.png" width="350" /><br />Configure process periods, execution times, and dependencies. | <img src="docs/assets/rt-vis_analyze-actual-overlay.png" width="350" /><br />Overlay actual execution logs onto scheduled plans, inspecting timing deltas and exact log lines. |
 | <img src="docs/assets/rt-vis_create-realtime-validation.png" width="350" /><br />Interactive drag-and-drop editing immediately highlights deadline overruns and cascading delays. | <img src="docs/assets/rt-vis_analyze-concurrency.png" width="350" /><br />Track planned vs actual concurrent processes to identify system load peaks and bottlenecks. |
 
+## Quickstart
+
+Experience Ritsu's multi-language coordination and deterministic DAG execution with our reference demo.
+
+### Robot Pipeline Demo
+
+Simulates an Autonomous Mobile Robot (AMR) obstacle-avoidance pipeline where five heterogeneous processes execute cooperatively at 5 Hz across C, Python, and Rust. This demo is fully self-contained using standard libraries with zero external dependencies.
+
+```text
+[Sensor (C)] ──┬──> [AI-Vision (Python)] ──┬──> [Planner (Rust)] ──> [Motor (C)]
+               └──> [Odometry (C)]       ──┘
+```
+
+1. **Run the demo** (builds and launches all 5 nodes in dedicated console windows automatically):
+   - **Windows (PowerShell):**
+     ```powershell
+     cd demo/robot-pipeline
+     .\run_demo.ps1
+     ```
+   - **Linux / macOS (Bash):**
+     ```bash
+     cd demo/robot-pipeline
+     ./run_demo.sh
+     ```
+
+2. **Inspect with the visualizer**:  
+   Launch `rt-vis` and open `demo/robot-pipeline/logs/rt-server.log` in **Analyze** mode to inspect scheduled vs. actual timelines and safety slack margins:
+   ```bash
+   cargo run -p rt-vis
+   ```
+
+For detailed architecture, prerequisites, and scenario specifications, see the [Robot Pipeline Demo Guide](demo/robot-pipeline/README.md).
+
 ## Process Scheduling
 
 This section describes how Ritsu schedules your processes using a sequence diagram.
