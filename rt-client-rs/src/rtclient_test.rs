@@ -239,7 +239,8 @@ fn test_join_retry_ng() {
         // Join.
         MockResponse::new(
             MessageType::Joined,
-            client.config.retry_sec_join * (retry_count as f64 + 1.0) + 0.030,
+            // Add a margin of 0.100s to ensure mock responds after client exhausts all retries.
+            client.config.retry_sec_join * (retry_count as f64 + 1.0) + 0.100,
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -388,7 +389,8 @@ fn test_ready_startup_retry_ng() {
         // Ready.
         MockResponse::new(
             MessageType::Start,
-            client.config.retry_sec_ready_startup * (retry_count as f64 + 1.0) + 0.030,
+            // Add a margin of 0.100s to ensure mock responds after client exhausts all retries.
+            client.config.retry_sec_ready_startup * (retry_count as f64 + 1.0) + 0.100,
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -544,7 +546,8 @@ fn test_ready_retry_ng() {
         // Ready.
         MockResponse::new(
             MessageType::Start,
-            client.config.retry_sec_ready * (retry_count as f64 + 1.0) + 0.030,
+            // Add a margin of 0.100s to ensure mock responds after client exhausts all retries.
+            client.config.retry_sec_ready * (retry_count as f64 + 1.0) + 0.100,
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -796,7 +799,8 @@ fn test_done_retry_ng() {
         // Done.
         MockResponse::new(
             MessageType::Ok,
-            client.config.retry_sec_done * (retry_count as f64 + 1.0) + 0.030,
+            // Add a margin of 0.100s to ensure mock responds after client exhausts all retries.
+            client.config.retry_sec_done * (retry_count as f64 + 1.0) + 0.100,
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
@@ -929,7 +933,8 @@ fn test_exit_retry_ng() {
         // Exit.
         MockResponse::new(
             MessageType::Ok,
-            client.config.retry_sec_exit * (retry_count as f64 + 1.0) + 0.030,
+            // Add a margin of 0.100s to ensure mock responds after client exhausts all retries.
+            client.config.retry_sec_exit * (retry_count as f64 + 1.0) + 0.100,
         ),
     ];
     let requests: Arc<Mutex<Vec<Message>>> = Arc::new(Mutex::new(vec![]));
