@@ -29,6 +29,9 @@ Thumbs.db
 **/.venv/
 **/venv/
 **/.pytest_cache/
+**/*.egg-info/
+**/.eggs/
+*.whl
 
 # --- Project Specific ---
 /.agent-memory/
@@ -40,4 +43,6 @@ Thumbs.db
 /demo/robot-pipeline/build/
 /demo/robot-pipeline/planner_node/target/
 /rt-client-c/examples/build/
+/rt-client-py/build/
+/rt-client-py/dist/
 /utils/release-pkg/

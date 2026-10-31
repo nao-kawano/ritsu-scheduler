@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rt-client"
+version = "0.2.0"
+description = "Lightweight Python client library for the Ritsu deterministic process scheduler"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "Naoyuki Kawano" }
+]
+requires-python = ">=3.9"
+keywords = ["scheduler", "deterministic", "robotics", "orchestrator"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+dependencies = []
+
+[tool.setuptools]
+py-modules = ["rtclient"]
