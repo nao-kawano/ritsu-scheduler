@@ -85,6 +85,12 @@ cd demo/robot-pipeline
 .\run_demo.ps1
 ```
 
+> [!TIP]
+> If script execution is restricted by PowerShell's execution policy, run the script with a temporary process-level bypass:
+> ```powershell
+> powershell -ExecutionPolicy Bypass -File .\run_demo.ps1
+> ```
+
 ### Linux / macOS (Bash)
 
 ```bash
