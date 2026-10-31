@@ -1,8 +1,17 @@
 # Ritsu: A Deterministic Process Scheduler
 
-A lightweight, deterministic process scheduler that manages user processes considering periodic cycles and dependencies.
+<p align="left">
+  <img src="https://img.shields.io/badge/License-Apache_2.0-blue.svg" alt="License">
+  <img src="https://img.shields.io/badge/Built_with-Rust-orange?logo=rust" alt="Rust">
+  <img src="https://img.shields.io/badge/GUI-Tauri-24C8DB?logo=tauri&logoColor=white" alt="Tauri">
+  <img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Windows%20%7C%20macOS-lightgrey" alt="Platform">
+</p>
+
+A lightweight process scheduler that deterministically coordinates multi-process pipelines based on periodic cycles and DAG dependencies.
 
 ![Ritsu Visualizer Screenshot](docs/assets/rt-vis_screenshot.png)
+
+Note: Ritsu targets predictable, soft real-time coordination and reproducible execution order across processes, not hard real-time execution guarantees.
 
 ## Features
 
@@ -15,10 +24,22 @@ A lightweight, deterministic process scheduler that manages user processes consi
 - **Simulation & Visualization**: Advanced tools for system planning and scheduling analysis.
 
 **Visualizer Highlights:**
+
 | Create Mode | Analyze Mode |
 | :---: | :---: |
-| <img src="docs/assets/rt-vis_create-process-edit.png" width="350" /><br />Configure process periods, execution times, and dependencies. | <img src="docs/assets/rt-vis_analyze-actual-overlay.png" width="350" /><br />Overlay actual execution logs onto scheduled plans, inspecting timing deltas and exact log lines. |
-| <img src="docs/assets/rt-vis_create-realtime-validation.png" width="350" /><br />Interactive drag-and-drop editing immediately highlights deadline overruns and cascading delays. | <img src="docs/assets/rt-vis_analyze-concurrency.png" width="350" /><br />Track planned vs actual concurrent processes to identify system load peaks and bottlenecks. |
+| <img src="docs/assets/rt-vis_create-process-edit.png" width="350" /><br />Configure process periods, execution times, and dependencies interactively. | <img src="docs/assets/rt-vis_analyze-actual-overlay.png" width="350" /><br />Overlay actual execution logs onto scheduled plans to inspect timing deltas and execution lines. |
+| <img src="docs/assets/rt-vis_create-realtime-validation.png" width="350" /><br />Interactive drag-and-drop editing immediately highlights deadline overruns and cascading delays. | <img src="docs/assets/rt-vis_analyze-concurrency.png" width="350" /><br />Track planned vs actual concurrency to identify system load peaks and execution bottlenecks. |
+
+## Why Ritsu?
+
+Coordinating multi-language pipelines (such as C sensor drivers, Python ML inference, and Rust motion planners) often requires deterministic timing across heterogeneous processes without adding large runtime overhead or relying on fragile ad-hoc timer loops.
+
+Ritsu complements existing systems with a focused, lightweight approach:
+
+- **Minimal Footprint & Easy Integration**: Pure standard-library coordination over modular transports (UDP by default). Works cleanly alongside existing communication middleware, shared memory, or IPC, without imposing heavy dependencies or complex build systems on client processes.
+- **Control-Plane Focus**: Ritsu strictly manages process execution timing, DAG dependencies, and lifecycle states—leaving payload data transfer (such as ROS topics, shared memory, or IPC) decoupled and flexible.
+- **Deterministic & Fail-Safe**: Built-in state management handles deadline overruns and cycle skips predictably, allowing clients to transition safely into fail-safe states.
+- **Simulation & Verification First**: Design and inspect schedules visually using `rt-vis` before deploying to real hardware, and verify actual execution logs against your planned timeline.
 
 ## Quickstart
 
@@ -32,6 +53,8 @@ Simulates an Autonomous Mobile Robot (AMR) obstacle-avoidance pipeline where fiv
 [Sensor (C)] ──┬──> [AI-Vision (Python)] ──┬──> [Planner (Rust)] ──> [Motor (C)]
                └──> [Odometry (C)]       ──┘
 ```
+
+Prerequisites: Rust, Python, C/C++ Compiler with CMake
 
 1. **Run the demo** (builds and launches all 5 nodes in dedicated console windows automatically):
    - **Windows (PowerShell):**
@@ -55,7 +78,7 @@ For detailed architecture, prerequisites, and scenario specifications, see the [
 
 ## Process Scheduling
 
-This section describes how Ritsu schedules your processes using a sequence diagram.
+This section describes how Ritsu schedules processes using a sequence diagram.
 For more details, please refer to the [detailed documentation](./docs/README.md).
 
 ### Example Scenario: A -> (B, C)
