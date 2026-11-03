@@ -52,8 +52,8 @@ def main() -> int:
     parser.add_argument("--host", default="127.0.0.1", help="Server host")
     parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Server port")
     parser.add_argument("--client-id", type=int, default=DEFAULT_CID, help="Client ID")
-    parser.add_argument("--run-cycle-sec", type=float, default=0.2,
-                        help="Cycle duration in seconds")
+    parser.add_argument("--interval-sec", type=float, default=0.2,
+                        help="Execution interval in seconds")
     parser.add_argument("--startup-wait-sec", type=float, default=60.0, help="Startup timeout")
     args = parser.parse_args()
 
@@ -61,7 +61,7 @@ def main() -> int:
         args.host,
         args.port,
         args.client_id,
-        args.run_cycle_sec,
+        args.interval_sec,
         args.startup_wait_sec
     )
 
