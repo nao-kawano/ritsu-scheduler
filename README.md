@@ -105,11 +105,13 @@ sequenceDiagram
   Note over S: Dependency check -> Run B and C
   S --) B: START
   S --) C: START
+  A -) S: READY (Next cycle)
   Note over B,C: Processing...
 
-  A -) S: READY (Next cycle)
   B -) S: DONE
+  B -) S: READY (Next cycle)
   C -) S: DONE
+  C -) S: READY (Next cycle)
 ```
 
 ## Repository Structure
