@@ -19,23 +19,23 @@ import type { ActualCycle } from '../types/analyze';
 
 /**
  * Calculates the total simulation cycles to render/calculate.
- * Formula: max(1, max_cycle_of_clients) * 2
+ * Formula: max(1, max_interval_of_clients) * 2
  * NOTE: Keep in sync with backend: simulator.rs -> max_manager_cycle
  */
 export function getSimulationCycles(configs: ClientConfig[] | ClientConfigUI[]): number {
   if (!configs || configs.length === 0) return 2;
 
-  const maxCycle = Math.max(
+  const maxInterval = Math.max(
     1,
     ...configs.map(c => {
       if ('data' in c) {
-        return c.data.cycle || 1;
+        return c.data.interval || 1;
       }
-      return c.cycle || 1;
+      return c.interval || 1;
     })
   );
 
-  return maxCycle * 2;
+  return maxInterval * 2;
 }
 
 /**
