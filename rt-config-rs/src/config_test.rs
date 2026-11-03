@@ -23,7 +23,7 @@ fn test_client_config_validation() {
     // Invalid CID.
     assert!(ClientConfig::new(CLIENT_ID_MAX + 1, 2, 0, vec![], 0).is_err());
 
-    // Invalid cycle.
+    // Invalid interval.
     assert!(ClientConfig::new(1, 0, 0, vec![], 0).is_err());
 
     // Invalid offset.
@@ -76,7 +76,7 @@ fn test_get_client_rules_valid() {
 fn test_get_client_rules_invalid_all_errors() {
     let scheduler_config = create_config(vec![
         ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
-        ClientConfig::new(1, 3, 0, vec![0], 0).unwrap(), // Error: Different cycle
+        ClientConfig::new(1, 3, 0, vec![0], 0).unwrap(), // Error: Different interval
         ClientConfig::new(2, 2, 0, vec![0], 0).unwrap(), // Valid
         ClientConfig::new(3, 2, 0, vec![999], 0).unwrap(), // Error: Missing CID 999
         ClientConfig::new(4, 2, 0, vec![2], 0).unwrap(), // Valid
@@ -95,7 +95,7 @@ fn test_get_client_rules_invalid_all_errors() {
             .get(&1)
             .unwrap()
             .iter()
-            .any(|e| e.contains("different cycle"))
+            .any(|e| e.contains("different interval"))
     );
     assert!(
         errors
@@ -109,7 +109,7 @@ fn test_get_client_rules_invalid_all_errors() {
             .get(&5)
             .unwrap()
             .iter()
-            .any(|e| e.contains("larger cycle_offset"))
+            .any(|e| e.contains("larger offset"))
     );
 }
 

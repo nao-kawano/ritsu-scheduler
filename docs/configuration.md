@@ -5,17 +5,18 @@ The scheduler controls process execution based on periodic cycles and process de
 Each process can be configured with a trigger to determine when it runs.
 These triggers can be time-based cycles or the completion of other processes.
 
-## Cycle Terminology
+## Cycle & Timing Terminology
 
-To understand how the scheduler manages execution, we distinguish between the following concepts:
+To understand how the scheduler manages execution, we distinguish between the scheduler's timeline and individual process timing:
 
-### 1. Time / Tick (Scheduler Clock)
-- **`global_cycle`**: The absolute cycle count tracked from the start of the scheduler's event loop (e.g., time-based tick interval).
-- **`running_cycle`**: The execution cycle count tracked from when the scheduler transitions to the `Running` state and actually schedules process executions. It starts at `-1` (representing "not started") and increments to `0` at the first running cycle start.
+### 1. Scheduler Timeline (Cycles)
+- **`cycle_time_ms`**: The base time duration of each cycle in milliseconds (e.g., 50ms).
+- **`global_cycle`**: The absolute cycle count elapsed since the scheduler started its event loop.
+- **`running_cycle`**: The execution cycle count elapsed since the scheduler transitioned to the `Running` state and actively schedules process executions. It starts at `-1` (representing "not started") and increments to `0` at the first running cycle start.
 
-### 2. Scheduling Interval and Offset
-- **`cycle` (process's cycle)**: The configuration parameter that defines the scheduling interval of the process (e.g., run every `1` cycle, run every `2` cycles).
-- **`cycle_offset`**: The offset in running cycles applied to the start timing of the process.
+### 2. Process Timing (Interval & Offset)
+- **`interval`**: The scheduling interval defining how often the process runs in units of running cycles (e.g., `1` for every cycle, `2` for every other cycle).
+- **`offset`**: The phase offset in running cycles applied to the execution timing of the process (`0 <= offset < interval`).
 
 <p align="center">
   <img src="assets/cycle-terminology.drawio.svg" alt="Overview of Cycles" width="800">
@@ -87,41 +88,42 @@ Per client configuration below:
   - **Maximum length is 20 characters** to ensure proper display in the UI.
   - If not specified, it defaults to an empty string.
 
-#### Scheduling Interval (in cycles) (Key: `cycle`)
+#### Scheduling Interval (in cycles) (Key: `interval`)
 
 - Specifies how often to run the process in terms of running cycles (e.g., every cycle, every other cycle).
   - `1` means run every running cycle. If the cycle time is 50ms, run every 50ms.
   - `2` means run every other running cycle. If the cycle time is 50ms, run every 100ms.
 
-#### Scheduling Offset (in cycles) (Key: `cycle_offset`)
+#### Scheduling Offset (in cycles) (Key: `offset`)
 
-- Specifies the offset in running cycles for when this client starts running.
+- Specifies the phase offset in running cycles for when this client starts running.
   - Useful when you want to alternate the execution of clients to distribute the load evenly.
-    - `0`: Start running at the beginning of the specified running cycle.
-    - `1`: Start running one running cycle later than the beginning of the specified running cycle.
-    - Note: The offset value must be less than `cycle`.
+    - `0`: Start running at the beginning of the specified interval.
+    - `1`: Start running one running cycle later than the interval boundary.
+    - Note: The offset value must be strictly less than `interval` (`0 <= offset < interval`).
 
 #### Process Dependencies (Key: `depends`)
 
 - Specifies which processes must be completed before this process can run.
-- All specified processes must have the same `cycle`.
+- All specified dependent processes must have the same `interval`.
+- Dependent processes must have an `offset` less than or equal to this process's `offset` (`dep.offset <= client.offset`).
 - This acts as an AND condition, meaning that this process will only run if
-  both the cycle condition is met and all specified dependent processes have completed.
-  - If the dependent process has the same `cycle` and `cycle_offset`,
+  both the interval/offset condition is met and all specified dependent processes have completed.
+  - If the dependent process has the same `interval` and `offset`,
     this process starts immediately after the dependent process completes.
-  - If the dependent process has a different `cycle_offset`,
-    this process starts when the specified `cycle` and `cycle_offset` are reached,
+  - If the dependent process has a smaller `offset` (earlier phase),
+    this process starts when its own `offset` is reached,
     and only if the dependent process has already completed.
-- For example: `client_id=10`, `cycle=2`, `cycle_offset=0`, `depends=[]` and
-  - `cycle=2`, `cycle_offset=0`, `depends=[10]`
+- For example: `client_id=10`, `interval=2`, `offset=0`, `depends=[]` and
+  - `interval=2`, `offset=0`, `depends=[10]`
     - Run every 2nd cycle, starting immediately after process `10` completes.
-    - This is because the cycle and cycle offset are the same as process `10`.
-  - `cycle=2`, `cycle_offset=1`, `depends=[10]`
+    - This is because the interval and offset are the same as process `10`.
+  - `interval=2`, `offset=1`, `depends=[10]`
     - Run every 2nd cycle, with an offset of 1 cycle, but only if process `10` has already completed.
-    - This process will wait until cycle_offset 1 to check if process `10` is complete before starting.
+    - This process will wait until offset 1 to check if process `10` is complete before starting.
 - Processes are identified by their `client_id`.
 - Multiple dependencies can be specified in an array; this means all dependent processes must complete.
-  - `[]`: No dependencies. Run only based on `cycle` and `cycle_offset`.
+  - `[]`: No dependencies. Run only based on `interval` and `offset`.
   - `[10]`: Run after process `10` completes.
   - `[10, 11]`: Run after both processes `10` and `11` complete.
 - **Lifecycle and Reset**:

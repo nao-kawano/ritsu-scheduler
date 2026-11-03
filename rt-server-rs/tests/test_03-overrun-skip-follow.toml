@@ -5,21 +5,21 @@ stats_interval_cycle = 200
 
 [[client_configs]]
 client_id = 10
-cycle = 2
-cycle_offset = 0
+interval = 2
+offset = 0
 depends = []
 expected_duration_ms = 15
 
 [[client_configs]]
 client_id = 11
-cycle = 2
-cycle_offset = 0
+interval = 2
+offset = 0
 depends = [10]
 expected_duration_ms = 20
 
 [[client_configs]]
 client_id = 20
-cycle = 2
-cycle_offset = 1
+interval = 2
+offset = 1
 depends = []
 expected_duration_ms = 40

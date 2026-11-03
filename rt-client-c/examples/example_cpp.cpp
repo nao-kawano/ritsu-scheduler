@@ -47,7 +47,7 @@ int main(int argc, char* argv[]) {
     std::string host        = "127.0.0.1";
     uint16_t port           = 7878;
     uint16_t client_id      = 1;
-    double run_cycle_sec    = 2.0;
+    double interval_sec     = 2.0;
     double startup_wait_sec = 60.0;
     double proc_time_sec    = 0.4;
     int proc_count_max      = 5;
@@ -59,7 +59,7 @@ int main(int argc, char* argv[]) {
         if (arg == "--host" && i + 1 < argc) host = argv[++i];
         else if (arg == "--port" && i + 1 < argc) port = static_cast<uint16_t>(std::stoi(argv[++i]));
         else if (arg == "--client-id" && i + 1 < argc) client_id = static_cast<uint16_t>(std::stoi(argv[++i]));
-        else if (arg == "--run-cycle-sec" && i + 1 < argc) run_cycle_sec = std::stod(argv[++i]);
+        else if (arg == "--interval-sec" && i + 1 < argc) interval_sec = std::stod(argv[++i]);
         else if (arg == "--startup-wait-sec" && i + 1 < argc) startup_wait_sec = std::stod(argv[++i]);
         else if (arg == "--proc-time-sec" && i + 1 < argc) proc_time_sec = std::stod(argv[++i]);
         else if (arg == "--proc-count" && i + 1 < argc) proc_count_max = std::stoi(argv[++i]);
@@ -67,7 +67,7 @@ int main(int argc, char* argv[]) {
     }
 
     RtClient client;
-    if (!rtclient_init(&client, host.c_str(), port, client_id, run_cycle_sec, startup_wait_sec)) {
+    if (!rtclient_init(&client, host.c_str(), port, client_id, interval_sec, startup_wait_sec)) {
         std::cerr << "Failed to initialize client" << std::endl;
         return -1;
     }

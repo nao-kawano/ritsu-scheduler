@@ -245,8 +245,8 @@ impl SimulationRecorder {
 
 struct CycleTrigger {
     cid: u16,
-    cycle: i64,
-    cycle_offset: i64,
+    interval: i64,
+    offset: i64,
 }
 
 #[tauri::command]
@@ -276,7 +276,7 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
     let mut is_floating_map = HashMap::new();
     let mut entries = HashMap::new();
     let mut triggers = Vec::new();
-    let mut max_cycle: u32 = 1;
+    let mut max_interval: u32 = 1;
 
     for client in &config.client_configs {
         let rule = rules.get(&client.client_id).unwrap();
@@ -289,12 +289,12 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
         if !rule.is_floating {
             triggers.push(CycleTrigger {
                 cid: client.client_id,
-                cycle: client.cycle as i64,
-                cycle_offset: client.cycle_offset as i64,
+                interval: client.interval as i64,
+                offset: client.offset as i64,
             });
         }
-        if client.cycle as u32 > max_cycle {
-            max_cycle = client.cycle as u32;
+        if client.interval as u32 > max_interval {
+            max_interval = client.interval as u32;
         }
     }
 
@@ -318,9 +318,9 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
     });
     let mut recorder = SimulationRecorder::new();
     let mut manager_cycle: i64 = 0;
-    // Simulate for 2x max_cycle to cover offset scenarios.
-    // NOTE: Keep in sync with frontend: useCreateModeLayout.ts -> totalCycles.
-    let max_manager_cycle = (max_cycle * 2) as i64;
+    // Simulate for 2x max_interval to cover offset scenarios.
+    // NOTE: Keep in sync with frontend: cycle.ts -> getSimulationCycles.
+    let max_manager_cycle = (max_interval * 2) as i64;
     let mut loop_count = 0;
 
     while let Some(event) = events.pop() {
@@ -349,7 +349,7 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
                 });
                 // Trigger processes for this cycle.
                 for t in &triggers {
-                    if (manager_cycle % t.cycle) == t.cycle_offset {
+                    if (manager_cycle % t.interval) == t.offset {
                         if let Ok(changes) = scheduler.on_start(t.cid) {
                             // Record process state.
                             recorder.record_changes(

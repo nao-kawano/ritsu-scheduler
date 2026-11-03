@@ -45,7 +45,7 @@ Here is a minimal C++ example demonstrating how to initialize the client, join t
 int main() {
     RtClient client;
 
-    // Initialize client config (host, port, client_id, run_cycle_sec, startup_wait_sec)
+    // Initialize client config (host, port, client_id, interval_sec, startup_wait_sec)
     if (!rtclient_init(&client, "127.0.0.1", 7878, 1, 2.0, 60.0)) {
         std::cerr << "Initialization failed" << std::endl;
         return -1;

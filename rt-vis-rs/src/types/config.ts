@@ -29,8 +29,8 @@ export interface ServerConfig {
 export interface ClientConfig {
   client_id: number;
   display_name: string;
-  cycle: number;
-  cycle_offset: number;
+  interval: number;
+  offset: number;
   depends: number[];
   expected_duration_ms?: number;
 }

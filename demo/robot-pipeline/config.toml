@@ -10,8 +10,8 @@ log_file_level = "debug"
 [[client_configs]]
 client_id = 10
 display_name = "Sensor (C++)"
-cycle = 1
-cycle_offset = 0
+interval = 1
+offset = 0
 depends = []
 expected_duration_ms = 10
 
@@ -19,8 +19,8 @@ expected_duration_ms = 10
 [[client_configs]]
 client_id = 20
 display_name = "AI-Vision (Py)"
-cycle = 1
-cycle_offset = 0
+interval = 1
+offset = 0
 depends = [10]
 expected_duration_ms = 70
 
@@ -28,8 +28,8 @@ expected_duration_ms = 70
 [[client_configs]]
 client_id = 30
 display_name = "Odometry (C++)"
-cycle = 1
-cycle_offset = 0
+interval = 1
+offset = 0
 depends = [10]
 expected_duration_ms = 20
 
@@ -37,8 +37,8 @@ expected_duration_ms = 20
 [[client_configs]]
 client_id = 40
 display_name = "Planner (Rust)"
-cycle = 1
-cycle_offset = 0
+interval = 1
+offset = 0
 depends = [20, 30]
 expected_duration_ms = 40
 
@@ -46,7 +46,7 @@ expected_duration_ms = 40
 [[client_configs]]
 client_id = 50
 display_name = "Motor (C++)"
-cycle = 1
-cycle_offset = 0
+interval = 1
+offset = 0
 depends = [40]
 expected_duration_ms = 20

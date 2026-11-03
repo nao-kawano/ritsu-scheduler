@@ -63,20 +63,20 @@ impl RtClient {
     /// * `host` - The server hostname or IP address.
     /// * `port` - The server port number.
     /// * `client_id` - The unique identifier for this client. 0 ~ 999.
-    /// * `run_cycle_sec` - The expected execution cycle of the client in seconds.
-    ///   For example, if the server's Cycle Time is 100ms and the client's Cycle is 2, set this to 0.2 (200ms).
+    /// * `interval_sec` - The expected execution interval of the client in seconds.
+    ///   For example, if the server's Cycle Time is 100ms and the client's Interval is 2, set this to 0.2 (200ms).
     /// * `startup_wait_sec` - The total time to wait during the startup phase in seconds.
     pub fn new(
         host: &str,
         port: u16,
         client_id: u16,
-        run_cycle_sec: f64,
+        interval_sec: f64,
         startup_wait_sec: f64,
     ) -> Self {
         RtClient {
             server_addr: format!("{}:{}", host, port),
             client_id,
-            config: RtClientConfig::new(run_cycle_sec, startup_wait_sec),
+            config: RtClientConfig::new(interval_sec, startup_wait_sec),
             sock: None,
             connected: false,
             startup: true,

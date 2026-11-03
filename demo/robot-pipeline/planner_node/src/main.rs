@@ -69,7 +69,7 @@ fn main() {
     let mut host = "127.0.0.1".to_string();
     let mut port = DEFAULT_PORT;
     let mut client_id = DEFAULT_CID;
-    let run_cycle_sec = 0.2;
+    let interval_sec = 0.2;
     let startup_wait_sec = 60.0;
 
     let args: Vec<String> = env::args().collect();
@@ -92,7 +92,7 @@ fn main() {
     let seed = Instant::now().elapsed().as_nanos() as u64 ^ (client_id as u64);
     let mut rng = SimpleRng::new(seed);
 
-    let mut client = RtClient::new(&host, port, client_id, run_cycle_sec, startup_wait_sec);
+    let mut client = RtClient::new(&host, port, client_id, interval_sec, startup_wait_sec);
 
     if !client.join() {
         eprintln!("[{NODE_NAME}] Failed to join server");

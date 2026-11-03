@@ -38,9 +38,9 @@ struct Args {
     #[arg(long, default_value_t = 1)]
     client_id: u16,
 
-    /// Cycle duration in seconds
+    /// Execution interval in seconds
     #[arg(long, default_value_t = 2.0)]
-    run_cycle_sec: f64,
+    interval_sec: f64,
 
     /// Timeout for startup phase in seconds
     #[arg(long, default_value_t = 60.0)]
@@ -68,7 +68,7 @@ fn main() {
         &args.host,
         args.port,
         args.client_id,
-        args.run_cycle_sec,
+        args.interval_sec,
         args.startup_wait_sec,
     );
 

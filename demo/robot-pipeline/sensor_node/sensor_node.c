@@ -82,7 +82,7 @@ int main(int argc, char* argv[]) {
     const char* host        = "127.0.0.1";
     uint16_t port           = DEFAULT_PORT;
     uint16_t client_id      = DEFAULT_CID;
-    double run_cycle_sec    = 0.2;
+    double interval_sec     = 0.2;
     double startup_wait_sec = 60.0;
 
     for (int i = 1; i < argc; ++i) {
@@ -98,7 +98,7 @@ int main(int argc, char* argv[]) {
     srand((unsigned int)time(NULL) ^ (unsigned int)client_id);
 
     RtClient client;
-    if (!rtclient_init(&client, host, port, client_id, run_cycle_sec, startup_wait_sec)) {
+    if (!rtclient_init(&client, host, port, client_id, interval_sec, startup_wait_sec)) {
         fprintf(stderr, "[%s] Failed to initialize client\n", NODE_NAME);
         return 1;
     }

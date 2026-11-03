@@ -8,22 +8,22 @@
 2026/09/06 00:01:25.281640 [INFO ] rt_server - <CONFIG> 
 2026/09/06 00:01:25.281893 [INFO ] rt_server - <CONFIG> [[client_configs]]
 2026/09/06 00:01:25.282152 [INFO ] rt_server - <CONFIG> client_id = 10
-2026/09/06 00:01:25.282332 [INFO ] rt_server - <CONFIG> cycle = 2
-2026/09/06 00:01:25.282409 [INFO ] rt_server - <CONFIG> cycle_offset = 0
+2026/09/06 00:01:25.282332 [INFO ] rt_server - <CONFIG> interval = 2
+2026/09/06 00:01:25.282409 [INFO ] rt_server - <CONFIG> offset = 0
 2026/09/06 00:01:25.282482 [INFO ] rt_server - <CONFIG> depends = []
 2026/09/06 00:01:25.282558 [INFO ] rt_server - <CONFIG> expected_duration_ms = 15
 2026/09/06 00:01:25.282631 [INFO ] rt_server - <CONFIG> 
 2026/09/06 00:01:25.282705 [INFO ] rt_server - <CONFIG> [[client_configs]]
 2026/09/06 00:01:25.282779 [INFO ] rt_server - <CONFIG> client_id = 11
-2026/09/06 00:01:25.282852 [INFO ] rt_server - <CONFIG> cycle = 2
-2026/09/06 00:01:25.282920 [INFO ] rt_server - <CONFIG> cycle_offset = 0
+2026/09/06 00:01:25.282852 [INFO ] rt_server - <CONFIG> interval = 2
+2026/09/06 00:01:25.282920 [INFO ] rt_server - <CONFIG> offset = 0
 2026/09/06 00:01:25.283028 [INFO ] rt_server - <CONFIG> depends = [10]
 2026/09/06 00:01:25.283232 [INFO ] rt_server - <CONFIG> expected_duration_ms = 20
 2026/09/06 00:01:25.283340 [INFO ] rt_server - <CONFIG> 
 2026/09/06 00:01:25.283415 [INFO ] rt_server - <CONFIG> [[client_configs]]
 2026/09/06 00:01:25.283489 [INFO ] rt_server - <CONFIG> client_id = 20
-2026/09/06 00:01:25.283560 [INFO ] rt_server - <CONFIG> cycle = 2
-2026/09/06 00:01:25.283630 [INFO ] rt_server - <CONFIG> cycle_offset = 1
+2026/09/06 00:01:25.283560 [INFO ] rt_server - <CONFIG> interval = 2
+2026/09/06 00:01:25.283630 [INFO ] rt_server - <CONFIG> offset = 1
 2026/09/06 00:01:25.283701 [INFO ] rt_server - <CONFIG> depends = []
 2026/09/06 00:01:25.283772 [INFO ] rt_server - <CONFIG> expected_duration_ms = 40
 2026/09/06 00:01:25.283997 [INFO ] clients - starting

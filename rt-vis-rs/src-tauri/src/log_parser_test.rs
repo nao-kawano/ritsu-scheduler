@@ -39,8 +39,8 @@ const SAMPLE_LOG_RETRANSMIT: &str = r#"2026/09/06 00:00:00.000000 [INFO ] main -
 2026/09/06 00:00:00.004000 [INFO ] main - <CONFIG> [[client_configs]]
 2026/09/06 00:00:00.005000 [INFO ] main - <CONFIG> client_id = 1
 2026/09/06 00:00:00.006000 [INFO ] main - <CONFIG> display_name = "Camera"
-2026/09/06 00:00:00.007000 [INFO ] main - <CONFIG> cycle = 1
-2026/09/06 00:00:00.008000 [INFO ] main - <CONFIG> cycle_offset = 0
+2026/09/06 00:00:00.007000 [INFO ] main - <CONFIG> interval = 1
+2026/09/06 00:00:00.008000 [INFO ] main - <CONFIG> offset = 0
 2026/09/06 00:00:00.009000 [INFO ] main - <CONFIG> depends = []
 2026/09/06 00:00:00.010000 [INFO ] main - <CONFIG> expected_duration_ms = 10
 2026/09/06 00:00:00.050000 [DEBUG] process_starting - <STAT> CYC:-00000000001 CID:001 MID:1 JOIN

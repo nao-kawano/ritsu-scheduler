@@ -34,7 +34,7 @@ pub struct RtClientConfig {
     pub retry_count_ready_startup: u32,
 
     /// Seconds to wait before retrying a Ready request during normal execution.
-    /// Default is `run_cycle_sec * 2.2` to accommodate skipped cycles and dependency execution times.
+    /// Default is `interval_sec * 2.2` to accommodate skipped cycles and dependency execution times.
     pub retry_sec_ready: f64,
     /// Number of times to retry a Ready request during normal execution.
     pub retry_count_ready: u32,
@@ -58,10 +58,10 @@ impl RtClientConfig {
     ///
     /// # Arguments
     ///
-    /// * `run_cycle_sec` - The expected execution cycle of the client in seconds.
-    ///   For example, if the server's Cycle Time is 50ms and the client's Cycle is 2, set this to 0.1 (100ms).
+    /// * `interval_sec` - The expected execution interval of the client in seconds.
+    ///   For example, if the server's Cycle Time is 50ms and the client's Interval is 2, set this to 0.1 (100ms).
     /// * `startup_wait_sec` - The total time to wait during the startup phase in seconds.
-    pub fn new(run_cycle_sec: f64, startup_wait_sec: f64) -> Self {
+    pub fn new(interval_sec: f64, startup_wait_sec: f64) -> Self {
         RtClientConfig {
             retry_sec_join: 0.003,
             retry_count_join: 5,
@@ -69,7 +69,7 @@ impl RtClientConfig {
             retry_count_ready_startup: (startup_wait_sec
                 / RtClientConfig::TIMEOUT_SEC_READY_STARTUP_DEFAULT)
                 as u32,
-            retry_sec_ready: run_cycle_sec * 2.2,
+            retry_sec_ready: interval_sec * 2.2,
             retry_count_ready: 3,
             retry_sec_done: 0.003,
             retry_count_done: 5,

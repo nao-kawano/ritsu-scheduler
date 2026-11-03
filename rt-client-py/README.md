@@ -46,12 +46,12 @@ import time
 from rtclient import RtClient, ResponseType, LogLevel
 
 def main():
-    # Initialize client config (host, port, client_id, run_cycle_sec, startup_wait_sec)
+    # Initialize client config (host, port, client_id, interval_sec, startup_wait_sec)
     client = RtClient(
         host="127.0.0.1",
         port=7878,
         client_id=1,
-        run_cycle_sec=2.0,
+        interval_sec=2.0,
         startup_wait_sec=60.0,
         log_level=LogLevel.WARN,
     )
@@ -100,7 +100,7 @@ if __name__ == "__main__":
 You can execute it directly to test communication with a running Ritsu server:
 
 ```bash
-python -m rtclient --host 127.0.0.1 --port 7878 --client-id 1 --run-cycle-sec 2.0 --proc-time-sec 0.4 --proc-count 5
+python -m rtclient --host 127.0.0.1 --port 7878 --client-id 1 --interval-sec 2.0 --proc-time-sec 0.4 --proc-count 5
 ```
 
 ### CLI Arguments
@@ -108,7 +108,7 @@ python -m rtclient --host 127.0.0.1 --port 7878 --client-id 1 --run-cycle-sec 2.
 - `--host`: Server IP address (default: `127.0.0.1`).
 - `--port`: Server UDP port (default: `7878`).
 - `--client-id`: Unique Client ID assigned in scheduler configuration (default: `1`).
-- `--run-cycle-sec`: Execution cycle time in seconds (default: `2.0`).
+- `--interval-sec`: Execution interval in seconds (default: `2.0`).
 - `--startup-wait-sec`: Maximum wait timeout for startup barrier in seconds (default: `60.0`).
 - `--proc-time-sec`: Simulated task execution duration in seconds (default: `0.4`).
 - `--proc-count`: Maximum number of execution cycles before exiting (default: `5`).

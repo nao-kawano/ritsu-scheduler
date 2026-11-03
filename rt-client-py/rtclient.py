@@ -86,7 +86,7 @@ class Config:
     # Retry count for READY request during startup. Set in __init__.
     RETRY_COUNT_READY_STARTUP: int = 0
 
-    # Retry time for READY request in seconds. Set in __init__. Default is run_cycle_sec * 2.2.
+    # Retry time for READY request in seconds. Set in __init__. Default is interval_sec * 2.2.
     RETRY_SEC_READY: float = 0.000
     # Retry count for READY request.
     RETRY_COUNT_READY: int = 3
@@ -101,11 +101,11 @@ class Config:
     # Retry count for EXIT request.
     RETRY_COUNT_EXIT: int = 5
 
-    def __init__(self, run_cycle_sec: float, startup_wait_sec: float, retry_sec: float | None = None, retry_count: int | None = None) -> None:
+    def __init__(self, interval_sec: float, startup_wait_sec: float, retry_sec: float | None = None, retry_count: int | None = None) -> None:
         """
         Initialize the Config object.
         Args:
-            run_cycle_sec (float): The run cycle time in seconds.
+            interval_sec (float): The expected execution interval in seconds.
             startup_wait_sec (float): The startup wait time in seconds.
             retry_sec (float, optional): The retransmission interval in seconds.
             retry_count (int, optional): The number of retries.
@@ -113,7 +113,7 @@ class Config:
         self.RETRY_COUNT_READY_STARTUP = int(
             startup_wait_sec / self.RETRY_SEC_READY_STARTUP)
         # with margin (2.2x to handle skipped cycles + dependency wait)
-        self.RETRY_SEC_READY = run_cycle_sec * 2.2
+        self.RETRY_SEC_READY = interval_sec * 2.2
         if retry_sec is not None:
             self.RETRY_SEC_JOIN = retry_sec
             self.RETRY_SEC_DONE = retry_sec
@@ -129,14 +129,14 @@ class RtClient:
     A client for the Ritsu.
     """
 
-    def __init__(self, host: str, port: int, client_id: int, run_cycle_sec: float, startup_wait_sec: float, retry_sec: float | None = None, retry_count: int | None = None, log_level: LogLevel = LogLevel.WARN) -> None:
+    def __init__(self, host: str, port: int, client_id: int, interval_sec: float, startup_wait_sec: float, retry_sec: float | None = None, retry_count: int | None = None, log_level: LogLevel = LogLevel.WARN) -> None:
         """
         Initialize the RtClient object.
         Args:
             host (str): The host address of the server.
             port (int): The port number of the server.
             client_id (int): The ID of the client.
-            run_cycle_sec (float): The run cycle time in seconds.
+            interval_sec (float): The expected execution interval in seconds.
             startup_wait_sec (float): The startup wait time in seconds.
             retry_sec (float, optional): The retransmission interval in seconds.
             retry_count (int, optional): The number of retries.
@@ -145,7 +145,7 @@ class RtClient:
         self.host: str = host
         self.port: int = port
         self.client_id: int = client_id
-        self.config: Config = Config(run_cycle_sec, startup_wait_sec, retry_sec, retry_count)
+        self.config: Config = Config(interval_sec, startup_wait_sec, retry_sec, retry_count)
         self.sock: socket.socket | None = None
         self.connected: bool = False
         self.startup: bool = True
@@ -404,8 +404,8 @@ if __name__ == "__main__":
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host address")
     parser.add_argument("--port", type=int, default=7878, help="Port number")
     parser.add_argument("--client-id", type=int, default=1, help="Client ID: 0~999")
-    parser.add_argument("--run-cycle-sec", type=float, default=2.0,
-                        help="Execution cycle time (sec): 2.0 if cycle=2, cycle_time=1.0")
+    parser.add_argument("--interval-sec", type=float, default=2.0,
+                        help="Execution interval (sec): 2.0 if interval=2, cycle_time=1.0")
     parser.add_argument("--startup-wait-sec", type=float, default=60.0,
                         help="Startup wait time (sec)")
     parser.add_argument("--proc-time-sec", type=float, default=0.4,
@@ -425,7 +425,7 @@ if __name__ == "__main__":
         args.host,
         args.port,
         args.client_id,
-        args.run_cycle_sec,
+        args.interval_sec,
         args.startup_wait_sec,
         log_level=log_level,
     )

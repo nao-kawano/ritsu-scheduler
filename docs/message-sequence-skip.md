@@ -29,7 +29,7 @@ Example: ProcessA->ProcessB scenario
 
 ### Pattern 1: Same Cycle (Floating Dependency)
 
-This scenario shows when ProcessA (cycle=1, offset=0) and ProcessB (cycle=1, offset=0, floating) run in the same cycle, and B depends on A.
+This scenario shows when ProcessA (interval=1, offset=0) and ProcessB (interval=1, offset=0, floating) run in the same cycle, and B depends on A.
 If A overruns, B is skipped simultaneously at the start of the cycle.
 
 ```mermaid
@@ -38,8 +38,8 @@ sequenceDiagram
   participant A as ProcessA
   participant B as ProcessB
 
-  Note over A: ProcessA (cycle=1, offset=0)
-  Note over B: ProcessB (cycle=1, offset=0, floating, depends=[A])
+  Note over A: ProcessA (interval=1, offset=0)
+  Note over B: ProcessB (interval=1, offset=0, floating, depends=[A])
 
   A -) S: READY
   Note over A: Ready
@@ -78,9 +78,9 @@ Note over S,B: << cycle N+1 >>
 Note over S,B: << cycle N+2 >>
 ```
 
-### Pattern 2: Different Cycles (Offset-based Dependency)
+### Pattern 2: Different Offsets (Offset-based Dependency)
 
-This scenario shows when ProcessA (cycle=2, offset=0) and ProcessB (cycle=2, offset=1) run in different cycles, and B depends on A.
+This scenario shows when ProcessA (interval=2, offset=0) and ProcessB (interval=2, offset=1) run with different offsets, and B depends on A.
 If A is still running during cycle N+1, B triggers an autonomous skip at its own startup timing, while A continues running without transitioning to Overrun.
 
 ```mermaid
@@ -89,8 +89,8 @@ sequenceDiagram
   participant A as ProcessA
   participant B as ProcessB
 
-  Note over A: ProcessA (cycle=2, offset=0)
-  Note over B: ProcessB (cycle=2, offset=1, depends=[A])
+  Note over A: ProcessA (interval=2, offset=0)
+  Note over B: ProcessB (interval=2, offset=1, depends=[A])
 
   A -) S: READY
   Note over A: Ready

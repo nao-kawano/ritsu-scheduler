@@ -51,8 +51,8 @@ pub struct ClientConfig {
     pub client_id: u16,
     #[serde(default)]
     pub display_name: String,
-    pub cycle: u8,
-    pub cycle_offset: u8,
+    pub interval: u8,
+    pub offset: u8,
     pub depends: Vec<u16>,
     #[serde(default)]
     pub expected_duration_ms: u32,
@@ -66,15 +66,15 @@ impl ClientConfig {
         if self.client_id > CLIENT_ID_MAX {
             errs.push(format!("Client ID {:03} is too large", self.client_id));
         }
-        // Validate cycle.
-        if self.cycle == 0 {
-            errs.push("Cycle must not be zero".to_string());
+        // Validate interval.
+        if self.interval == 0 {
+            errs.push("Interval must not be zero".to_string());
         }
-        // Validate cycle_offset.
-        if self.cycle_offset >= self.cycle {
+        // Validate offset.
+        if self.offset >= self.interval {
             errs.push(format!(
-                "CycleOffset ({}) must be less than trigger cycle ({})",
-                self.cycle_offset, self.cycle
+                "Offset ({}) must be less than interval ({})",
+                self.offset, self.interval
             ));
         }
         // Validate depends.
@@ -99,16 +99,16 @@ impl ClientConfig {
     /// Create a new ClientConfig with basic validation.
     pub fn new(
         client_id: u16,
-        cycle: u8,
-        cycle_offset: u8,
+        interval: u8,
+        offset: u8,
         depends: Vec<u16>,
         expected_duration_ms: u32,
     ) -> Result<Self, String> {
         Self::new_with_display_name(
             client_id,
             "".to_string(),
-            cycle,
-            cycle_offset,
+            interval,
+            offset,
             depends,
             expected_duration_ms,
         )
@@ -118,16 +118,16 @@ impl ClientConfig {
     pub fn new_with_display_name(
         client_id: u16,
         display_name: String,
-        cycle: u8,
-        cycle_offset: u8,
+        interval: u8,
+        offset: u8,
         depends: Vec<u16>,
         expected_duration_ms: u32,
     ) -> Result<Self, String> {
         let config = Self {
             client_id,
             display_name,
-            cycle,
-            cycle_offset,
+            interval,
+            offset,
             depends,
             expected_duration_ms,
         };
@@ -192,18 +192,18 @@ impl SchedulerConfig {
             for depend_id in &client.depends {
                 match configs.get(depend_id) {
                     Some(dep_config) => {
-                        // All dependent processes must have the same cycle.
-                        if dep_config.cycle != client.cycle {
+                        // All dependent processes must have the same interval.
+                        if dep_config.interval != client.interval {
                             client_errors.push(format!(
-                                "Dependent process CID:{:03} has different cycle ({} vs {})",
-                                dep_config.client_id, dep_config.cycle, client.cycle
+                                "Dependent process CID:{:03} has different interval ({} vs {})",
+                                dep_config.client_id, dep_config.interval, client.interval
                             ));
                         }
-                        // Dependent processes must not have a future cycle offset.
-                        if dep_config.cycle_offset > client.cycle_offset {
+                        // Dependent processes must not have a future offset.
+                        if dep_config.offset > client.offset {
                             client_errors.push(format!(
-                                "Dependent process CID:{:03} has larger cycle_offset ({} > {})",
-                                dep_config.client_id, dep_config.cycle_offset, client.cycle_offset
+                                "Dependent process CID:{:03} has larger offset ({} > {})",
+                                dep_config.client_id, dep_config.offset, client.offset
                             ));
                         }
                     }
@@ -221,7 +221,7 @@ impl SchedulerConfig {
             }
         }
 
-        // Circular Dependency Check (Same Cycle & Offset)
+        // Circular Dependency Check (Same Interval & Offset)
         let mut visit_states: HashMap<u16, VisitState> = HashMap::new();
         for client in &self.client_configs {
             if !visit_states.contains_key(&client.client_id) {
@@ -243,7 +243,7 @@ impl SchedulerConfig {
         }
     }
 
-    /// Recursively detect circular dependencies within the same Cycle and CycleOffset.
+    /// Recursively detect circular dependencies within the same Interval and Offset.
     fn detect_cycle(
         &self,
         cid: u16,
@@ -263,9 +263,9 @@ impl SchedulerConfig {
                     None => continue,
                 };
 
-                // Cycles only occur within the same Cycle and CycleOffset (floating dependencies).
-                if dep_config.cycle != config.cycle
-                    || dep_config.cycle_offset != config.cycle_offset
+                // Cycles only occur within the same Interval and Offset (floating dependencies).
+                if dep_config.interval != config.interval
+                    || dep_config.offset != config.offset
                 {
                     continue;
                 }
@@ -353,9 +353,9 @@ impl SchedulerConfig {
 
             for depend_id in &client.depends {
                 if let Some(dep_config) = configs.get(depend_id) {
-                    // If the dependent process has the same cycle and cycle offset,
+                    // If the dependent process has the same interval and offset,
                     // this process starts immediately after the dependent process completes.
-                    if dep_config.cycle_offset == client.cycle_offset {
+                    if dep_config.offset == client.offset {
                         is_floating = true;
                     }
                 }

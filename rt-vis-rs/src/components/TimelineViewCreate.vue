@@ -162,19 +162,19 @@ const guideRegion = computed(() => {
 
   const { mode, clientWrap } = dragState.value;
   const cycleMs = cycleTimeMs.value;
-  const processCycle = clientWrap.data.cycle;
+  const processInterval = clientWrap.data.interval;
 
   let startMs = 0;
   let durationMs = 0;
 
   if (mode === 'duration') {
     // For Duration: Shows the valid duration range within the current scheduled cycle.
-    startMs = clientWrap.data.cycle_offset * cycleMs;
-    durationMs = processCycle * cycleMs;
+    startMs = clientWrap.data.offset * cycleMs;
+    durationMs = processInterval * cycleMs;
   } else if (mode === 'offset') {
     // For Offset: Shows all valid offset slots.
     startMs = 0;
-    durationMs = processCycle * cycleMs;
+    durationMs = processInterval * cycleMs;
   }
 
   return {
@@ -289,7 +289,7 @@ const startDrag = (event: MouseEvent, exec: PlannedExecution, mode: DragMode) =>
   dragState.value = {
     mode,
     startX: event.clientX,
-    initialValue: mode === 'offset' ? clientWrap.data.cycle_offset : (clientWrap.data.expected_duration_ms ?? 0),
+    initialValue: mode === 'offset' ? clientWrap.data.offset : (clientWrap.data.expected_duration_ms ?? 0),
     clientWrap
   };
 
@@ -318,7 +318,7 @@ const onDrag = (event: MouseEvent) => {
 
     // Boundary Guards: [MinorGrid, TotalCycleDuration]
     const minDuration = minorGridMs;
-    const maxDuration = clientWrap.data.cycle * cycleTimeMs.value;
+    const maxDuration = clientWrap.data.interval * cycleTimeMs.value;
     newDuration = Math.max(minDuration, Math.min(maxDuration, newDuration));
 
     // Update SSOT only if the value actually changed to minimize reactivity churn.
@@ -333,11 +333,11 @@ const onDrag = (event: MouseEvent) => {
     let newOffset = initialValue + deltaCycles;
 
     // Boundary Guards: [0, cycle - 1]
-    newOffset = Math.max(0, Math.min(clientWrap.data.cycle - 1, newOffset));
+    newOffset = Math.max(0, Math.min(clientWrap.data.interval - 1, newOffset));
 
     // Update SSOT only if the value actually changed.
-    if (clientWrap.data.cycle_offset !== newOffset) {
-      clientWrap.data.cycle_offset = newOffset;
+    if (clientWrap.data.offset !== newOffset) {
+      clientWrap.data.offset = newOffset;
     }
   }
 };
