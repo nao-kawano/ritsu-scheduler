@@ -43,7 +43,7 @@ use std::thread;
 use std::time::Duration;
 
 fn main() {
-    // Initialize client config (host, port, client_id, run_cycle_sec, startup_wait_sec)
+    // Initialize client config (host, port, client_id, interval_sec, startup_wait_sec)
     let mut client = RtClient::new("127.0.0.1", 7878, 1, 2.0, 60.0);
 
     // Join the scheduler server
@@ -109,7 +109,7 @@ fn main() {
 cargo run --package rt-client --example example_rs -- --help
 
 # Run the example client
-cargo run --package rt-client --example example_rs -- --host 127.0.0.1 --port 7878 --client-id 1 --run-cycle-sec 2.0 --proc-time-sec 0.4 --proc-count 5
+cargo run --package rt-client --example example_rs -- --host 127.0.0.1 --port 7878 --client-id 1 --interval-sec 2.0 --proc-time-sec 0.4 --proc-count 5
 ```
 
 ### From the `rt-client-rs` Directory
@@ -124,7 +124,7 @@ cargo run --example example_rs -- --host 127.0.0.1 --port 7878 --client-id 1
 - `--host`: Server IP address (default: `127.0.0.1`).
 - `--port`: Server UDP port (default: `7878`).
 - `--client-id`: Unique Client ID assigned in scheduler configuration (default: `1`).
-- `--run-cycle-sec`: Execution cycle time in seconds (default: `2.0`).
+- `--interval-sec`: Execution interval in seconds (default: `2.0`).
 - `--startup-wait-sec`: Maximum wait timeout for startup barrier in seconds (default: `60.0`).
 - `--proc-time-sec`: Simulated task execution duration in seconds (default: `0.4`).
 - `--proc-count`: Maximum number of execution cycles before exiting (default: `5`).
