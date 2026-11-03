@@ -147,7 +147,7 @@ extern "C" {
 #endif /* __cplusplus */
 
 // Initializes the client instance with default configurations.
-bool rtclient_init(RtClient* client, const char* host, uint16_t port, uint16_t client_id, double run_cycle_sec, double startup_wait_sec);
+bool rtclient_init(RtClient* client, const char* host, uint16_t port, uint16_t client_id, double interval_sec, double startup_wait_sec);
 
 // Initializes the client instance with custom configurations.
 bool rtclient_init_with_config(RtClient* client, const char* host, uint16_t port, uint16_t client_id, const RtClientConfig* config);
@@ -703,7 +703,7 @@ static bool rt_send_request(RtClient* client, RtMessageType req_type, double tim
 /* -------------------------------------------------------------------------- */
 
 // Initializes the client instance with default configurations.
-bool rtclient_init(RtClient* client, const char* host, uint16_t port, uint16_t client_id, double run_cycle_sec, double startup_wait_sec) {
+bool rtclient_init(RtClient* client, const char* host, uint16_t port, uint16_t client_id, double interval_sec, double startup_wait_sec) {
     double count_startup = startup_wait_sec / 5.000;
 
     RtClientConfig config;
@@ -711,7 +711,7 @@ bool rtclient_init(RtClient* client, const char* host, uint16_t port, uint16_t c
     config.retry_count_join          = 5;
     config.retry_sec_ready_startup   = 5.000;
     config.retry_count_ready_startup = (count_startup > 0.0) ? (uint32_t)count_startup : 1;
-    config.retry_sec_ready           = run_cycle_sec * 2.2;
+    config.retry_sec_ready           = interval_sec * 2.2;
     config.retry_count_ready         = 3;
     config.retry_sec_done            = 0.003;
     config.retry_count_done          = 5;
