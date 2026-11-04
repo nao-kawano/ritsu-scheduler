@@ -33,11 +33,11 @@ const mockConfig: SchedulerConfig = {
     stats_interval_cycle: 200
   },
   client_configs: [
-    { client_id: 1, display_name: "Camera", interval: 2, offset: 0, depends: [], expected_duration_ms: 10 },
-    { client_id: 101, display_name: "ObjectDetect", interval: 2, offset: 0, depends: [1], expected_duration_ms: 60 },
-    { client_id: 102, display_name: "LaneDetect", interval: 2, offset: 0, depends: [1], expected_duration_ms: 20 },
-    { client_id: 501, display_name: "Control", interval: 2, offset: 0, depends: [101, 102], expected_duration_ms: 20 },
-    { client_id: 901, display_name: "Telemetry", interval: 2, offset: 1, depends: [], expected_duration_ms: 25 },
+    { client_id: 1, interval: 2, offset: 0, depends: [], display_name: "Camera", expected_duration_ms: 10 },
+    { client_id: 101, interval: 2, offset: 0, depends: [1], display_name: "ObjectDetect", expected_duration_ms: 60 },
+    { client_id: 102, interval: 2, offset: 0, depends: [1], display_name: "LaneDetect", expected_duration_ms: 20 },
+    { client_id: 501, interval: 2, offset: 0, depends: [101, 102], display_name: "Control", expected_duration_ms: 20 },
+    { client_id: 901, interval: 2, offset: 1, depends: [], display_name: "Telemetry", expected_duration_ms: 25 },
   ]
 };
 

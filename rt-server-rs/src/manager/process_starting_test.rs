@@ -19,9 +19,12 @@ use rt_config::{ClientConfig, SchedulerConfig, ServerConfig};
 
 fn create_context() -> ManagerContext {
     let client_configs = vec![
-        ClientConfig::new(0, 1, 0, vec![], 0).unwrap(),
-        ClientConfig::new(1, 2, 1, vec![], 0).unwrap(),
-        ClientConfig::new(2, 1, 0, vec![0], 0).unwrap(),
+        ClientConfig::new(0, 1).unwrap(),
+        ClientConfig::builder(1, 2).offset(1).build().unwrap(),
+        ClientConfig::builder(2, 1)
+            .depends(vec![0])
+            .build()
+            .unwrap(),
     ];
     let server_config = ServerConfig {
         port: 8080,

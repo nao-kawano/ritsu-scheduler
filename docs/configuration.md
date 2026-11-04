@@ -80,14 +80,6 @@ Per client configuration below:
   - Each client has a unique ID represented as an integer (`u16`, from `0` to `999`).
   - This ID is used to identify the client in the scheduler.
 
-#### Display Name (Key: `display_name`)
-
-- Specifies a human-readable name for this process.
-  - This value is used by visualization tools (like Ritsu Vis) to make it easier to identify processes.
-  - It does not affect the actual execution of the process in the scheduler.
-  - **Maximum length is 20 characters** to ensure proper display in the UI.
-  - If not specified, it defaults to an empty string.
-
 #### Scheduling Interval (in cycles) (Key: `interval`)
 
 - Specifies how often to run the process in terms of running cycles (e.g., every cycle, every other cycle).
@@ -130,6 +122,14 @@ Per client configuration below:
   - Dependency completion flags are cleared at the start of each process's execution cycle.
   - This ensures that a process always waits for the execution result of the _latest_ execution cycle of its dependencies,
     preventing premature startup due to leftover completion flags from previous execution cycles.
+
+#### Display Name (Key: `display_name`)
+
+- Specifies a human-readable name for this process.
+  - This value is used by visualization tools (like Ritsu Vis) to make it easier to identify processes.
+  - It does not affect the actual execution of the process in the scheduler.
+  - **Maximum length is 20 characters** to ensure proper display in the UI.
+  - If not specified, it defaults to an empty string.
 
 #### Expected Execution Duration (Key: `expected_duration_ms`)
 

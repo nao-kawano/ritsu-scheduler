@@ -20,6 +20,8 @@ mod config;
 
 // export.
 pub use config::ClientConfig;
+pub use config::ClientConfigBuilder;
+pub use config::ClientConfigError;
 pub use config::ClientRule;
 pub use config::SchedulerConfig;
 pub use config::ServerConfig;

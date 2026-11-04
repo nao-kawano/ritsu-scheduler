@@ -18,32 +18,76 @@ use super::*;
 #[test]
 fn test_client_config_validation() {
     // Valid config.
-    assert!(ClientConfig::new(1, 2, 0, vec![], 0).is_ok());
+    assert!(ClientConfig::new(1, 2).is_ok());
 
     // Invalid CID.
-    assert!(ClientConfig::new(CLIENT_ID_MAX + 1, 2, 0, vec![], 0).is_err());
+    assert!(ClientConfig::new(CLIENT_ID_MAX + 1, 2).is_err());
 
     // Invalid interval.
-    assert!(ClientConfig::new(1, 0, 0, vec![], 0).is_err());
+    assert!(ClientConfig::new(1, 0).is_err());
 
     // Invalid offset.
-    assert!(ClientConfig::new(1, 2, 2, vec![], 0).is_err());
+    assert!(ClientConfig::builder(1, 2).offset(2).build().is_err());
 
     // Invalid depends.
-    assert!(ClientConfig::new(1, 2, 0, vec![CLIENT_ID_MAX + 1], 0).is_err());
+    assert!(
+        ClientConfig::builder(1, 2)
+            .depends(vec![CLIENT_ID_MAX + 1])
+            .build()
+            .is_err()
+    );
 
     // Self-dependency.
-    assert!(ClientConfig::new(1, 2, 0, vec![1], 0).is_err());
+    assert!(
+        ClientConfig::builder(1, 2)
+            .depends(vec![1])
+            .build()
+            .is_err()
+    );
 
     // Duplicate dependency.
-    assert!(ClientConfig::new(1, 2, 0, vec![10, 10], 0).is_err());
+    assert!(
+        ClientConfig::builder(1, 2)
+            .depends(vec![10, 10])
+            .build()
+            .is_err()
+    );
 }
 
 #[test]
-fn test_client_config_new_with_display_name() {
-    let name = "Test Process".to_string();
-    let config = ClientConfig::new_with_display_name(1, name.clone(), 2, 0, vec![], 10).unwrap();
+fn test_client_config_error() {
+    let invalid_cid = CLIENT_ID_MAX + 1;
+    let err = ClientConfig::builder(invalid_cid, 1).build().unwrap_err();
+    assert_eq!(err.client_id, invalid_cid);
+    assert_eq!(
+        err.errors,
+        vec![format!("Client ID {:03} is too large", invalid_cid)]
+    );
+    assert_eq!(
+        err.to_string(),
+        format!(
+            "[ClientConfig CID:{:03}] Client ID {:03} is too large",
+            invalid_cid, invalid_cid
+        )
+    );
+}
+
+#[test]
+fn test_client_config_builder() {
+    let name = "Test Process";
+    let config = ClientConfig::builder(1, 2)
+        .offset(1)
+        .depends(vec![0])
+        .display_name(name)
+        .expected_duration_ms(10)
+        .build()
+        .unwrap();
+    assert_eq!(config.client_id, 1);
+    assert_eq!(config.interval, 2);
+    assert_eq!(config.offset, 1);
+    assert_eq!(config.depends, vec![0]);
     assert_eq!(config.display_name, name);
+    assert_eq!(config.expected_duration_ms, 10);
 }
 
 fn create_config(client_configs: Vec<ClientConfig>) -> SchedulerConfig {
@@ -60,9 +104,16 @@ fn create_config(client_configs: Vec<ClientConfig>) -> SchedulerConfig {
 #[test]
 fn test_get_client_rules_valid() {
     let scheduler_config = create_config(vec![
-        ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
-        ClientConfig::new(1, 2, 0, vec![0], 0).unwrap(), // Floating (same offset)
-        ClientConfig::new(2, 2, 1, vec![1], 0).unwrap(), // Non-floating (different offset)
+        ClientConfig::new(0, 2).unwrap(),
+        ClientConfig::builder(1, 2)
+            .depends(vec![0])
+            .build()
+            .unwrap(), // Floating (same offset)
+        ClientConfig::builder(2, 2)
+            .offset(1)
+            .depends(vec![1])
+            .build()
+            .unwrap(), // Non-floating (different offset)
     ]);
 
     let rules = scheduler_config.get_client_rules();
@@ -75,13 +126,28 @@ fn test_get_client_rules_valid() {
 #[test]
 fn test_get_client_rules_invalid_all_errors() {
     let scheduler_config = create_config(vec![
-        ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
-        ClientConfig::new(1, 3, 0, vec![0], 0).unwrap(), // Error: Different interval
-        ClientConfig::new(2, 2, 0, vec![0], 0).unwrap(), // Valid
-        ClientConfig::new(3, 2, 0, vec![999], 0).unwrap(), // Error: Missing CID 999
-        ClientConfig::new(4, 2, 0, vec![2], 0).unwrap(), // Valid
-        ClientConfig::new(5, 2, 0, vec![6], 0).unwrap(), // Error: CID 6 has future offset
-        ClientConfig::new(6, 2, 1, vec![], 0).unwrap(),
+        ClientConfig::new(0, 2).unwrap(),
+        ClientConfig::builder(1, 3)
+            .depends(vec![0])
+            .build()
+            .unwrap(), // Error: Different interval
+        ClientConfig::builder(2, 2)
+            .depends(vec![0])
+            .build()
+            .unwrap(), // Valid
+        ClientConfig::builder(3, 2)
+            .depends(vec![999])
+            .build()
+            .unwrap(), // Error: Missing CID 999
+        ClientConfig::builder(4, 2)
+            .depends(vec![2])
+            .build()
+            .unwrap(), // Valid
+        ClientConfig::builder(5, 2)
+            .depends(vec![6])
+            .build()
+            .unwrap(), // Error: CID 6 has future offset
+        ClientConfig::builder(6, 2).offset(1).build().unwrap(),
     ]);
 
     let result = scheduler_config.validate();
@@ -116,8 +182,8 @@ fn test_get_client_rules_invalid_all_errors() {
 #[test]
 fn test_get_client_rules_duplicate_cid() {
     let scheduler_config = create_config(vec![
-        ClientConfig::new(10, 2, 0, vec![], 0).unwrap(),
-        ClientConfig::new(10, 2, 0, vec![], 0).unwrap(),
+        ClientConfig::new(10, 2).unwrap(),
+        ClientConfig::new(10, 2).unwrap(),
     ]);
 
     let result = scheduler_config.validate();
@@ -138,11 +204,20 @@ fn test_get_client_rules_duplicate_cid() {
 fn test_circular_mutual_dependency() {
     let scheduler_config = create_config(vec![
         // Healthy Tree (X -> Y)
-        ClientConfig::new(100, 1, 0, vec![], 0).unwrap(),
-        ClientConfig::new(101, 1, 0, vec![100], 0).unwrap(),
+        ClientConfig::new(100, 1).unwrap(),
+        ClientConfig::builder(101, 1)
+            .depends(vec![100])
+            .build()
+            .unwrap(),
         // Mutual dependency (A <-> B)
-        ClientConfig::new(10, 1, 0, vec![11], 0).unwrap(),
-        ClientConfig::new(11, 1, 0, vec![10], 0).unwrap(),
+        ClientConfig::builder(10, 1)
+            .depends(vec![11])
+            .build()
+            .unwrap(),
+        ClientConfig::builder(11, 1)
+            .depends(vec![10])
+            .build()
+            .unwrap(),
     ]);
 
     let errors = scheduler_config
@@ -176,12 +251,24 @@ fn test_circular_mutual_dependency() {
 fn test_circular_whole_loop() {
     let scheduler_config = create_config(vec![
         // Healthy Tree (X -> Y)
-        ClientConfig::new(100, 1, 0, vec![], 0).unwrap(),
-        ClientConfig::new(101, 1, 0, vec![100], 0).unwrap(),
+        ClientConfig::new(100, 1).unwrap(),
+        ClientConfig::builder(101, 1)
+            .depends(vec![100])
+            .build()
+            .unwrap(),
         // Whole loop (A -> C -> B -> A)
-        ClientConfig::new(20, 1, 0, vec![22], 0).unwrap(),
-        ClientConfig::new(21, 1, 0, vec![20], 0).unwrap(),
-        ClientConfig::new(22, 1, 0, vec![21], 0).unwrap(),
+        ClientConfig::builder(20, 1)
+            .depends(vec![22])
+            .build()
+            .unwrap(),
+        ClientConfig::builder(21, 1)
+            .depends(vec![20])
+            .build()
+            .unwrap(),
+        ClientConfig::builder(22, 1)
+            .depends(vec![21])
+            .build()
+            .unwrap(),
     ]);
 
     let errors = scheduler_config
@@ -221,12 +308,21 @@ fn test_circular_whole_loop() {
 fn test_circular_mid_path_loop() {
     let scheduler_config = create_config(vec![
         // Healthy Tree (X -> Y)
-        ClientConfig::new(100, 1, 0, vec![], 0).unwrap(),
-        ClientConfig::new(101, 1, 0, vec![100], 0).unwrap(),
+        ClientConfig::new(100, 1).unwrap(),
+        ClientConfig::builder(101, 1)
+            .depends(vec![100])
+            .build()
+            .unwrap(),
         // Mid-path loop (A -> B <-> C)
-        ClientConfig::new(30, 1, 0, vec![], 0).unwrap(), // healthy start
-        ClientConfig::new(31, 1, 0, vec![30, 32], 0).unwrap(), // depends on A AND C
-        ClientConfig::new(32, 1, 0, vec![31], 0).unwrap(), // depends on B
+        ClientConfig::new(30, 1).unwrap(), // healthy start
+        ClientConfig::builder(31, 1)
+            .depends(vec![30, 32])
+            .build()
+            .unwrap(), // depends on A AND C
+        ClientConfig::builder(32, 1)
+            .depends(vec![31])
+            .build()
+            .unwrap(), // depends on B
     ]);
 
     let errors = scheduler_config

@@ -39,7 +39,12 @@ fn init_test_logger() {
 fn test_simulate_plan_single_process() {
     init_test_logger();
 
-    let config = create_config(vec![ClientConfig::new(1, 1, 0, vec![], 40).unwrap()]);
+    let config = create_config(vec![
+        ClientConfig::builder(1, 1)
+            .expected_duration_ms(40)
+            .build()
+            .unwrap(),
+    ]);
 
     let result = simulate_plan(config).unwrap();
 
@@ -86,8 +91,15 @@ fn test_simulate_plan_dependencies() {
     // Process 1: takes 120ms.
     // Process 2: depends on 1, takes 50ms.
     let config = create_config(vec![
-        ClientConfig::new(1, 2, 0, vec![], 120).unwrap(),
-        ClientConfig::new(2, 2, 0, vec![1], 50).unwrap(),
+        ClientConfig::builder(1, 2)
+            .expected_duration_ms(120)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(2, 2)
+            .depends(vec![1])
+            .expected_duration_ms(50)
+            .build()
+            .unwrap(),
     ]);
 
     let result = simulate_plan(config).unwrap();
@@ -162,8 +174,15 @@ fn test_simulate_plan_offset() {
     // Process 1: cycle 2, offset 0
     // Process 2: cycle 2, offset 1
     let config = create_config(vec![
-        ClientConfig::new(1, 2, 0, vec![], 10).unwrap(),
-        ClientConfig::new(2, 2, 1, vec![], 10).unwrap(),
+        ClientConfig::builder(1, 2)
+            .expected_duration_ms(10)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(2, 2)
+            .offset(1)
+            .expected_duration_ms(10)
+            .build()
+            .unwrap(),
     ]);
 
     let result = simulate_plan(config).unwrap();
@@ -236,8 +255,15 @@ fn test_simulate_plan_concurrent_metrics() {
     // Process 1: cycle 2, offset 0, duration 150ms. (Runs at 0ms, 200ms)
     // Process 2: cycle 2, offset 1, duration 30ms. (Runs at 100ms, 300ms)
     let config = create_config(vec![
-        ClientConfig::new(1, 2, 0, vec![], 150).unwrap(),
-        ClientConfig::new(2, 2, 1, vec![], 30).unwrap(),
+        ClientConfig::builder(1, 2)
+            .expected_duration_ms(150)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(2, 2)
+            .offset(1)
+            .expected_duration_ms(30)
+            .build()
+            .unwrap(),
     ]);
 
     let result = simulate_plan(config).unwrap();
@@ -308,7 +334,7 @@ fn test_simulate_plan_default_duration() {
     init_test_logger();
 
     let config = create_config(vec![
-        ClientConfig::new(1, 1, 0, vec![], 0).unwrap(), // 0 duration
+        ClientConfig::new(1, 1).unwrap(), // 0 duration
     ]);
 
     let result = simulate_plan(config).unwrap();
@@ -345,8 +371,14 @@ fn test_simulate_plan_status_overrun_and_recovery() {
     // P1: Cycle 1, Duration 150ms (Causes Overrun every cycle)
     // P99: Cycle 2 (Extends simulation range to Cycle 4 to see recovery at Cycle 2)
     let config = create_config(vec![
-        ClientConfig::new(1, 1, 0, vec![], 150).unwrap(),
-        ClientConfig::new(99, 2, 0, vec![], 10).unwrap(),
+        ClientConfig::builder(1, 1)
+            .expected_duration_ms(150)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(99, 2)
+            .expected_duration_ms(10)
+            .build()
+            .unwrap(),
     ]);
 
     let result = simulate_plan(config).unwrap();
@@ -381,10 +413,25 @@ fn test_simulate_plan_status_cascade_skip() {
     // All Cycle 1, Offset 0.
     // P2-P4 are Floating because they depend on the previous one in the same offset.
     let config = create_config(vec![
-        ClientConfig::new(1, 1, 0, vec![], 10).unwrap(),
-        ClientConfig::new(2, 1, 0, vec![1], 150).unwrap(),
-        ClientConfig::new(3, 1, 0, vec![2], 10).unwrap(),
-        ClientConfig::new(4, 1, 0, vec![3], 10).unwrap(),
+        ClientConfig::builder(1, 1)
+            .expected_duration_ms(10)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(2, 1)
+            .depends(vec![1])
+            .expected_duration_ms(150)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(3, 1)
+            .depends(vec![2])
+            .expected_duration_ms(10)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(4, 1)
+            .depends(vec![3])
+            .expected_duration_ms(10)
+            .build()
+            .unwrap(),
     ]);
 
     let result = simulate_plan(config).unwrap();
@@ -439,9 +486,20 @@ fn test_simulate_plan_floating_chain_anchor() {
     // Under the anchor model, P3 inherits anchor_cycle 0 and has anchor_offset_ms = 50,
     // avoiding modulo 50 % 50 = 0 warp.
     let mut config = create_config(vec![
-        ClientConfig::new(101, 2, 0, vec![], 10).unwrap(),
-        ClientConfig::new(201, 2, 0, vec![101], 40).unwrap(),
-        ClientConfig::new(501, 2, 0, vec![201], 20).unwrap(),
+        ClientConfig::builder(101, 2)
+            .expected_duration_ms(10)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(201, 2)
+            .depends(vec![101])
+            .expected_duration_ms(40)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(501, 2)
+            .depends(vec![201])
+            .expected_duration_ms(20)
+            .build()
+            .unwrap(),
     ]);
     config.server_config.cycle_time_ms = 50;
 

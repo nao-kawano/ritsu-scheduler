@@ -45,34 +45,65 @@ pub struct ServerConfig {
     pub log_file_level: String,
 }
 
+/// Dedicated error type for client configuration validation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClientConfigError {
+    pub client_id: u16,
+    pub errors: Vec<String>,
+}
+
+impl std::fmt::Display for ClientConfigError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "[ClientConfig CID:{:03}] {}",
+            self.client_id,
+            self.errors.join(", ")
+        )
+    }
+}
+
+impl std::error::Error for ClientConfigError {}
+
 /// Configuration for a client process.
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ClientConfig {
     pub client_id: u16,
-    #[serde(default)]
-    pub display_name: String,
     pub interval: u8,
     pub offset: u8,
     pub depends: Vec<u16>,
+
+    #[serde(default)]
+    pub display_name: String,
     #[serde(default)]
     pub expected_duration_ms: u32,
 }
 
 impl ClientConfig {
+    /// Creates a minimal ClientConfig with default options (offset=0, depends=[], etc.).
+    pub fn new(client_id: u16, interval: u8) -> Result<Self, ClientConfigError> {
+        Self::builder(client_id, interval).build()
+    }
+
+    /// Starts building a ClientConfig with required parameters.
+    pub fn builder(client_id: u16, interval: u8) -> ClientConfigBuilder {
+        ClientConfigBuilder::new(client_id, interval)
+    }
+
     /// Basic validation of the client configuration.
-    pub fn validate(&self) -> Vec<String> {
-        let mut errs = Vec::new();
+    pub fn validate(&self) -> Result<(), ClientConfigError> {
+        let mut errors = Vec::new();
         // Validate client_id.
         if self.client_id > CLIENT_ID_MAX {
-            errs.push(format!("Client ID {:03} is too large", self.client_id));
+            errors.push(format!("Client ID {:03} is too large", self.client_id));
         }
         // Validate interval.
         if self.interval == 0 {
-            errs.push("Interval must not be zero".to_string());
+            errors.push("Interval must not be zero".to_string());
         }
         // Validate offset.
         if self.offset >= self.interval {
-            errs.push(format!(
+            errors.push(format!(
                 "Offset ({}) must be less than interval ({})",
                 self.offset, self.interval
             ));
@@ -81,66 +112,83 @@ impl ClientConfig {
         let mut seen_depends = HashSet::new();
         for depend in &self.depends {
             if *depend > CLIENT_ID_MAX {
-                errs.push(format!("Depends CID:{:03} is too large", depend));
+                errors.push(format!("Depends CID:{:03} is too large", depend));
             }
             if *depend == self.client_id {
-                errs.push(format!(
+                errors.push(format!(
                     "Self-dependency is not allowed (CID:{:03})",
                     depend
                 ));
             }
             if !seen_depends.insert(*depend) {
-                errs.push(format!("Duplicate dependency CID:{:03}", depend));
+                errors.push(format!("Duplicate dependency CID:{:03}", depend));
             }
         }
-        errs
-    }
 
-    /// Create a new ClientConfig with basic validation.
-    pub fn new(
-        client_id: u16,
-        interval: u8,
-        offset: u8,
-        depends: Vec<u16>,
-        expected_duration_ms: u32,
-    ) -> Result<Self, String> {
-        Self::new_with_display_name(
-            client_id,
-            "".to_string(),
-            interval,
-            offset,
-            depends,
-            expected_duration_ms,
-        )
-    }
-
-    /// Create a new ClientConfig with a display name and basic validation.
-    pub fn new_with_display_name(
-        client_id: u16,
-        display_name: String,
-        interval: u8,
-        offset: u8,
-        depends: Vec<u16>,
-        expected_duration_ms: u32,
-    ) -> Result<Self, String> {
-        let config = Self {
-            client_id,
-            display_name,
-            interval,
-            offset,
-            depends,
-            expected_duration_ms,
-        };
-        let errs = config.validate();
-        if errs.is_empty() {
-            Ok(config)
+        if errors.is_empty() {
+            Ok(())
         } else {
-            Err(format!(
-                "[ClientConfig CID:{:03}] {}",
-                client_id,
-                errs.join(", ")
-            ))
+            Err(ClientConfigError {
+                client_id: self.client_id,
+                errors,
+            })
         }
+    }
+}
+
+/// Builder for constructing ClientConfig instances.
+pub struct ClientConfigBuilder {
+    client_id: u16,
+    interval: u8,
+    offset: u8,
+    depends: Vec<u16>,
+    display_name: String,
+    expected_duration_ms: u32,
+}
+
+impl ClientConfigBuilder {
+    pub fn new(client_id: u16, interval: u8) -> Self {
+        Self {
+            client_id,
+            interval,
+            offset: 0,
+            depends: Vec::new(),
+            display_name: String::new(),
+            expected_duration_ms: 0,
+        }
+    }
+
+    pub fn offset(mut self, offset: u8) -> Self {
+        self.offset = offset;
+        self
+    }
+
+    pub fn depends(mut self, depends: Vec<u16>) -> Self {
+        self.depends = depends;
+        self
+    }
+
+    pub fn display_name(mut self, name: impl Into<String>) -> Self {
+        self.display_name = name.into();
+        self
+    }
+
+    pub fn expected_duration_ms(mut self, ms: u32) -> Self {
+        self.expected_duration_ms = ms;
+        self
+    }
+
+    pub fn build(self) -> Result<ClientConfig, ClientConfigError> {
+        let config = ClientConfig {
+            client_id: self.client_id,
+            interval: self.interval,
+            offset: self.offset,
+            depends: self.depends,
+            display_name: self.display_name,
+            expected_duration_ms: self.expected_duration_ms,
+        };
+        config.validate()?;
+        Ok(config)
     }
 }
 
@@ -187,7 +235,10 @@ impl SchedulerConfig {
 
         // Validate each client's dependencies and individual settings.
         for client in &self.client_configs {
-            let mut client_errors = client.validate();
+            let mut client_errors = match client.validate() {
+                Ok(()) => Vec::new(),
+                Err(e) => e.errors,
+            };
 
             for depend_id in &client.depends {
                 match configs.get(depend_id) {
@@ -264,9 +315,7 @@ impl SchedulerConfig {
                 };
 
                 // Cycles only occur within the same Interval and Offset (floating dependencies).
-                if dep_config.interval != config.interval
-                    || dep_config.offset != config.offset
-                {
+                if dep_config.interval != config.interval || dep_config.offset != config.offset {
                     continue;
                 }
 
