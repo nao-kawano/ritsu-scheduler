@@ -36,6 +36,7 @@ log_file_level = "debug"   # Capture detailed transition metrics to file
 # offset:               (u8)  Starting cycle offset. Must be less than 'interval'.
 # depends:              (list) List of Client IDs that must complete before this runs.
 #                       All dependents must have the SAME 'interval' value.
+# display_name:         (string, optional) Human-readable name for visualization (max 20 chars).
 # expected_duration_ms: (u32, optional) Expected execution time for visualization.
 # ------------------------------------------------------------------------------
 
@@ -45,6 +46,7 @@ client_id = 10
 interval = 2
 offset = 0
 depends = []
+display_name = "Sensor"
 expected_duration_ms = 15
 
 # Example 2: A dependent process.
@@ -55,6 +57,7 @@ client_id = 11
 interval = 2
 offset = 0
 depends = [10]
+display_name = "Processor"
 expected_duration_ms = 20
 
 # Example 3: A staggered process.
@@ -65,4 +68,5 @@ client_id = 20
 interval = 2
 offset = 1
 depends = []
+display_name = "Actuator"
 expected_duration_ms = 40
