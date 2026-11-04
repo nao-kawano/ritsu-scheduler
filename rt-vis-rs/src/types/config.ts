@@ -28,10 +28,10 @@ export interface ServerConfig {
 
 export interface ClientConfig {
   client_id: number;
-  display_name: string;
   interval: number;
   offset: number;
   depends: number[];
+  display_name: string;
   expected_duration_ms?: number;
 }
 
