@@ -43,8 +43,11 @@ fn test_manager_context_new() {
         ..Default::default()
     };
     let client_configs = vec![
-        ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
-        ClientConfig::new(1, 2, 0, vec![0], 0).unwrap(),
+        ClientConfig::new(0, 2).unwrap(),
+        ClientConfig::builder(1, 2)
+            .depends(vec![0])
+            .build()
+            .unwrap(),
     ];
     let scheduler_config = SchedulerConfig {
         server_config,
@@ -73,7 +76,7 @@ fn test_manager_context_set_state() {
         cycle_time_ms: 50,
         ..Default::default()
     };
-    let client_configs = vec![ClientConfig::new(0, 1, 0, vec![], 0).unwrap()];
+    let client_configs = vec![ClientConfig::new(0, 1).unwrap()];
     let scheduler_config = SchedulerConfig {
         server_config,
         client_configs,
@@ -112,7 +115,12 @@ fn test_manager_context_new_empty_configs() {
 #[should_panic]
 fn test_manager_context_new_no_rule() {
     // Given
-    let configs = vec![ClientConfig::new(1, 2, 0, vec![0], 0).unwrap()];
+    let configs = vec![
+        ClientConfig::builder(1, 2)
+            .depends(vec![0])
+            .build()
+            .unwrap(),
+    ];
     let rules: HashMap<u16, ClientRule> = HashMap::new(); // Missing rule for CID 1
 
     // When
@@ -122,7 +130,7 @@ fn test_manager_context_new_no_rule() {
 #[test]
 fn test_server_stats_calc_elapsed_times_normal() {
     // Given
-    let configs = vec![ClientConfig::new(0, 1, 0, vec![], 0).unwrap()];
+    let configs = vec![ClientConfig::new(0, 1).unwrap()];
     let scheduler_config = SchedulerConfig {
         server_config: ServerConfig {
             port: 8080,
@@ -153,7 +161,7 @@ fn test_server_stats_calc_elapsed_times_normal() {
 #[test]
 fn test_server_stats_calc_elapsed_times_bypass_running() {
     // Given
-    let configs = vec![ClientConfig::new(0, 1, 0, vec![], 0).unwrap()];
+    let configs = vec![ClientConfig::new(0, 1).unwrap()];
     let scheduler_config = SchedulerConfig {
         server_config: ServerConfig {
             port: 8080,
@@ -184,7 +192,7 @@ fn test_server_stats_calc_elapsed_times_bypass_running() {
 #[test]
 fn test_server_stats_calc_elapsed_times_direct_exit() {
     // Given
-    let configs = vec![ClientConfig::new(0, 1, 0, vec![], 0).unwrap()];
+    let configs = vec![ClientConfig::new(0, 1).unwrap()];
     let scheduler_config = SchedulerConfig {
         server_config: ServerConfig {
             port: 8080,

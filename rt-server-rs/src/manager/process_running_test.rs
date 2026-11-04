@@ -24,10 +24,17 @@ use std::collections::HashMap;
 
 fn create_context_scenarios() -> ManagerContext {
     let client_configs = vec![
-        ClientConfig::new(0, 2, 0, vec![], 0).unwrap(),
-        ClientConfig::new(1, 2, 0, vec![0], 0).unwrap(), // Floating (depends on 0, same offset)
-        ClientConfig::new(2, 2, 1, vec![1], 0).unwrap(), // Non-Floating (depends on 1, different offset)
-        ClientConfig::new(3, 2, 1, vec![], 0).unwrap(),  // Root (offset 1)
+        ClientConfig::new(0, 2).unwrap(),
+        ClientConfig::builder(1, 2)
+            .depends(vec![0])
+            .build()
+            .unwrap(), // Floating (depends on 0, same offset)
+        ClientConfig::builder(2, 2)
+            .offset(1)
+            .depends(vec![1])
+            .build()
+            .unwrap(), // Non-Floating (depends on 1, different offset)
+        ClientConfig::builder(3, 2).offset(1).build().unwrap(), // Root (offset 1)
     ];
     let server_config = ServerConfig {
         port: 8080,
