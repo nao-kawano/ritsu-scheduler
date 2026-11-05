@@ -27,7 +27,7 @@ import { useExecutionLog } from '../composables/useExecutionLog';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender } from '../composables/useCanvasRender';
-import { getSimulationCycles, findActualCycleForTime } from '../utils/cycle';
+import { getMaxStartCycle, getSteadyPeriod, findActualCycleForTime } from '../utils/cycle';
 import {
   computePlannedConcurrencySteps,
   findActualConcurrencyForTime,
@@ -172,10 +172,17 @@ const crosshairStyle = computed(() => {
 // --- Data Mapping & Computed Lookups ---
 
 /**
- * Number of cycles in one full template simulation period.
+ * Maximum start_cycle among all client configurations, defining the pipeline warmup threshold.
  */
-const templateCycles = computed(() => {
-  return getSimulationCycles(activeConfig.value.client_configs);
+const maxStartCycle = computed(() => {
+  return getMaxStartCycle(activeConfig.value.client_configs);
+});
+
+/**
+ * Repeating steady-state period in cycles for cyclic or pipelined execution.
+ */
+const steadyPeriod = computed(() => {
+  return getSteadyPeriod(activeConfig.value.client_configs);
 });
 
 // -----------------------------------------------------------------------------
@@ -242,7 +249,7 @@ const renderMetricsRow1Planned = (
   const startMs = Math.max(0, scrollLeft / pxPerMs.value - marginMs);
   const endMs = (scrollLeft + width) / pxPerMs.value + marginMs;
 
-  const steps = computePlannedConcurrencySteps(plannedExecs, actualCycles, templateCycles.value, startMs, endMs);
+  const steps = computePlannedConcurrencySteps(plannedExecs, actualCycles, maxStartCycle.value, steadyPeriod.value, startMs, endMs);
   visiblePlannedSteps = steps;
   if (steps.length === 0) return;
 

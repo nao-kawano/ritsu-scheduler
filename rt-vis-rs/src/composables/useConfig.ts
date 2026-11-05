@@ -35,11 +35,11 @@ const sampleConfigCreateMode: SchedulerConfigUI = {
     stats_interval_cycle: 200
   },
   client_configs: [
-    { configId: 1, data: { client_id: 1, interval: 2, offset: 0, depends: [], display_name: "Camera", expected_duration_ms: 10 } },
-    { configId: 2, data: { client_id: 101, interval: 2, offset: 0, depends: [1], display_name: "ObjectDetect", expected_duration_ms: 60 } },
-    { configId: 3, data: { client_id: 102, interval: 2, offset: 0, depends: [1], display_name: "LaneDetect", expected_duration_ms: 20 } },
-    { configId: 4, data: { client_id: 501, interval: 2, offset: 0, depends: [101, 102], display_name: "Control", expected_duration_ms: 20 } },
-    { configId: 5, data: { client_id: 901, interval: 2, offset: 1, depends: [], display_name: "Telemetry", expected_duration_ms: 25 } },
+    { configId: 1, data: { client_id: 1, start_cycle: 0, interval: 2, offset: 0, depends: [], display_name: "Camera", expected_duration_ms: 10 } },
+    { configId: 2, data: { client_id: 101, start_cycle: 0, interval: 2, offset: 0, depends: [1], display_name: "ObjectDetect", expected_duration_ms: 60 } },
+    { configId: 3, data: { client_id: 102, start_cycle: 0, interval: 2, offset: 0, depends: [1], display_name: "LaneDetect", expected_duration_ms: 20 } },
+    { configId: 4, data: { client_id: 501, start_cycle: 0, interval: 2, offset: 0, depends: [101, 102], display_name: "Control", expected_duration_ms: 20 } },
+    { configId: 5, data: { client_id: 901, start_cycle: 0, interval: 2, offset: 1, depends: [], display_name: "Telemetry", expected_duration_ms: 25 } },
   ]
 };
 
@@ -130,6 +130,7 @@ export function useConfig() {
       configId: nextConfigId++,
       data: {
         client_id: newId,
+        start_cycle: 0,
         interval: 1,
         offset: 0,
         depends: [],

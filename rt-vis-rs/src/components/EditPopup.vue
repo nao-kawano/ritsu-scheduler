@@ -182,6 +182,9 @@ onMounted(() => {
           <label class="rt-input-label">CID</label>
           <input type="number" v-model="draft.client_id" min="0" required class="rt-input" />
 
+          <label class="rt-input-label">Start Cycle</label>
+          <input type="number" v-model="draft.start_cycle" min="0" required class="rt-input" />
+
           <label class="rt-input-label">Interval</label>
           <input type="number" v-model="draft.interval" min="1" required class="rt-input" />
 

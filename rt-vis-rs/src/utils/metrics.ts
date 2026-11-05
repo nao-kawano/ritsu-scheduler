@@ -15,7 +15,7 @@
 
 import type { PlannedExecution } from '../types/simulation';
 import type { ActualCycle, ActualMetricPoint } from '../types/analyze';
-import { groupPlansByAnchorCycle, filterVisibleActualCycles } from './cycle';
+import { groupPlansByAnchorCycle, filterVisibleActualCycles, mapToTemplateCycle } from './cycle';
 
 /**
  * Discrete time and level step point for concurrency waveform rendering.
@@ -32,7 +32,8 @@ export interface ConcurrencyStep {
 export function computePlannedConcurrencySteps(
   plannedExecs: PlannedExecution[],
   actualCycles: ActualCycle[],
-  templateCycles: number,
+  maxStartCycle: number,
+  steadyPeriod: number,
   startMs: number,
   endMs: number
 ): ConcurrencyStep[] {
@@ -46,7 +47,7 @@ export function computePlannedConcurrencySteps(
   // Collect discrete start (+1) and end (-1) time events across visible planned instances
   const timeDeltaMap = new Map<number, number>();
   visibleCycles.forEach(ac => {
-    const templateCycle = ac.cycle % templateCycles;
+    const templateCycle = mapToTemplateCycle(ac.cycle, maxStartCycle, steadyPeriod);
     const matchingPlans = plansByAnchorCycle.get(templateCycle);
     if (!matchingPlans) return;
 

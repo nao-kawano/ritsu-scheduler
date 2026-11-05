@@ -27,7 +27,7 @@ import { useExecutionLog } from '../composables/useExecutionLog';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender } from '../composables/useCanvasRender';
-import { getSimulationCycles, groupPlansByAnchorCycle, filterVisibleActualCycles, findActualCycleForTime } from '../utils/cycle';
+import { getSimulationCycles, getMaxStartCycle, getSteadyPeriod, mapToTemplateCycle, groupPlansByAnchorCycle, filterVisibleActualCycles, findActualCycleForTime } from '../utils/cycle';
 import { mapPlansByInstanceId } from '../utils/simulation';
 import { formatDelta } from '../utils/format';
 import type { ActualExecution, ActualInstantEvent, ActualCycle } from '../types/analyze';
@@ -160,6 +160,20 @@ const actualCyclesMap = computed(() => {
  */
 const templateCycles = computed(() => {
   return getSimulationCycles(activeConfig.value.client_configs);
+});
+
+/**
+ * Maximum start_cycle among all client configurations, defining the pipeline warmup threshold.
+ */
+const maxStartCycle = computed(() => {
+  return getMaxStartCycle(activeConfig.value.client_configs);
+});
+
+/**
+ * Repeating steady-state period in cycles for cyclic or pipelined execution.
+ */
+const steadyPeriod = computed(() => {
+  return getSteadyPeriod(activeConfig.value.client_configs);
 });
 
 /**
@@ -332,7 +346,7 @@ const renderPlanBoxes = (
   // Phase alignment pattern: render exact matching template phase for each visible cycle
   visibleCycles.forEach(ac => {
     const c = ac.cycle;
-    const templateCycle = c % templateCycles.value;
+    const templateCycle = mapToTemplateCycle(c, maxStartCycle.value, steadyPeriod.value);
     const matchingPlans = plansByAnchorCycle.value!.get(templateCycle);
     if (!matchingPlans) return;
 
@@ -467,7 +481,8 @@ const renderActualBars = (
         let planDurationMs: number | null = null;
         let planStartMs: number | null = null;
         if (plansByAnchorCycle.value && templateCycles.value > 0) {
-          const matchingPlans = plansByAnchorCycle.value.get(actual.cycle % templateCycles.value);
+          const templateCycle = mapToTemplateCycle(actual.cycle, maxStartCycle.value, steadyPeriod.value);
+          const matchingPlans = plansByAnchorCycle.value.get(templateCycle);
           const plan = matchingPlans?.find(p => p.cid === cid);
           if (plan) {
             planDurationMs = plan.duration_ms;
