@@ -38,6 +38,7 @@ const SAMPLE_LOG_RETRANSMIT: &str = r#"2026/09/06 00:00:00.000000 [INFO ] main -
 2026/09/06 00:00:00.003000 [INFO ] main - <CONFIG> stats_interval_cycle = 0
 2026/09/06 00:00:00.004000 [INFO ] main - <CONFIG> [[client_configs]]
 2026/09/06 00:00:00.005000 [INFO ] main - <CONFIG> client_id = 1
+2026/09/06 00:00:00.005500 [INFO ] main - <CONFIG> start_cycle = 0
 2026/09/06 00:00:00.006000 [INFO ] main - <CONFIG> display_name = "Camera"
 2026/09/06 00:00:00.007000 [INFO ] main - <CONFIG> interval = 1
 2026/09/06 00:00:00.008000 [INFO ] main - <CONFIG> offset = 0
@@ -271,10 +272,10 @@ fn test_parse_error_missing_config() {
 /// Validates graceful closing of in-flight execution when log ends abruptly.
 #[test]
 fn test_parse_truncated_log_safety() {
-    // Slice real log up to line 50:
-    // Line 49 is CYC:0 START, Line 50 is CID:010 Ready -> Running (task start).
-    // Truncating at line 50 leaves CID 10 in-flight (before Line 51: Running -> Idle).
-    let truncated_log: String = LOG_NORMAL.lines().take(50).collect::<Vec<_>>().join("\n");
+    // Slice real log up to line 53:
+    // Line 52 is CYC:0 START, Line 53 is CID:010 Ready -> Running (task start).
+    // Truncating at line 53 leaves CID 10 in-flight (before Line 54: Running -> Idle).
+    let truncated_log: String = LOG_NORMAL.lines().take(53).collect::<Vec<_>>().join("\n");
     let store = parse_log_str(&truncated_log).expect("Should safely handle truncated log");
 
     let execs_cid10 = store.executions_by_cid.get(&10).expect("CID 10 not found");

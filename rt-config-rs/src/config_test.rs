@@ -76,6 +76,7 @@ fn test_client_config_error() {
 fn test_client_config_builder() {
     let name = "Test Process";
     let config = ClientConfig::builder(1, 2)
+        .start_cycle(3)
         .offset(1)
         .depends(vec![0])
         .display_name(name)
@@ -83,11 +84,16 @@ fn test_client_config_builder() {
         .build()
         .unwrap();
     assert_eq!(config.client_id, 1);
+    assert_eq!(config.start_cycle, 3);
     assert_eq!(config.interval, 2);
     assert_eq!(config.offset, 1);
     assert_eq!(config.depends, vec![0]);
     assert_eq!(config.display_name, name);
     assert_eq!(config.expected_duration_ms, 10);
+
+    // Verify default start_cycle is 0.
+    let default_config = ClientConfig::new(2, 4).unwrap();
+    assert_eq!(default_config.start_cycle, 0);
 }
 
 fn create_config(client_configs: Vec<ClientConfig>) -> SchedulerConfig {
@@ -392,4 +398,59 @@ fn test_server_config_logging_custom_values() {
     assert_eq!(deserialized.log_level, "debug");
     assert_eq!(deserialized.log_file_dir, "./custom_logs");
     assert_eq!(deserialized.log_file_level, "trace");
+}
+
+#[test]
+fn test_validate_dependent_start_cycle_mismatch() {
+    let scheduler_config = create_config(vec![
+        ClientConfig::builder(1, 2).start_cycle(0).build().unwrap(),
+        ClientConfig::builder(2, 2)
+            .start_cycle(1)
+            .depends(vec![1])
+            .build()
+            .unwrap(),
+    ]);
+
+    let result = scheduler_config.validate();
+    assert!(result.is_err());
+    let errors = result.err().unwrap();
+    assert_eq!(errors.len(), 1);
+    let cid2_errors = errors.get(&2).unwrap();
+    assert!(
+        cid2_errors
+            .iter()
+            .any(|e| e.contains("Dependent process CID:001 has different start_cycle (0 vs 1)"))
+    );
+}
+
+#[test]
+fn test_client_config_toml_requires_start_cycle() {
+    let valid_toml = r#"
+        client_id = 1
+        start_cycle = 0
+        interval = 2
+        offset = 0
+        depends = []
+    "#;
+    let config: ClientConfig = toml::from_str(valid_toml).unwrap();
+    assert_eq!(config.start_cycle, 0);
+
+    let missing_start_cycle_toml = r#"
+        client_id = 1
+        interval = 2
+        offset = 0
+        depends = []
+    "#;
+    let result: Result<ClientConfig, _> = toml::from_str(missing_start_cycle_toml);
+    assert!(result.is_err());
+
+    let overflow_start_cycle_toml = r#"
+        client_id = 1
+        start_cycle = 256
+        interval = 2
+        offset = 0
+        depends = []
+    "#;
+    let result: Result<ClientConfig, _> = toml::from_str(overflow_start_cycle_toml);
+    assert!(result.is_err());
 }

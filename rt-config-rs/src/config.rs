@@ -69,6 +69,7 @@ impl std::error::Error for ClientConfigError {}
 #[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ClientConfig {
     pub client_id: u16,
+    pub start_cycle: u8,
     pub interval: u8,
     pub offset: u8,
     pub depends: Vec<u16>,
@@ -139,6 +140,7 @@ impl ClientConfig {
 /// Builder for constructing ClientConfig instances.
 pub struct ClientConfigBuilder {
     client_id: u16,
+    start_cycle: u8,
     interval: u8,
     offset: u8,
     depends: Vec<u16>,
@@ -150,12 +152,18 @@ impl ClientConfigBuilder {
     pub fn new(client_id: u16, interval: u8) -> Self {
         Self {
             client_id,
+            start_cycle: 0,
             interval,
             offset: 0,
             depends: Vec::new(),
             display_name: String::new(),
             expected_duration_ms: 0,
         }
+    }
+
+    pub fn start_cycle(mut self, start_cycle: u8) -> Self {
+        self.start_cycle = start_cycle;
+        self
     }
 
     pub fn offset(mut self, offset: u8) -> Self {
@@ -181,6 +189,7 @@ impl ClientConfigBuilder {
     pub fn build(self) -> Result<ClientConfig, ClientConfigError> {
         let config = ClientConfig {
             client_id: self.client_id,
+            start_cycle: self.start_cycle,
             interval: self.interval,
             offset: self.offset,
             depends: self.depends,
@@ -243,6 +252,13 @@ impl SchedulerConfig {
             for depend_id in &client.depends {
                 match configs.get(depend_id) {
                     Some(dep_config) => {
+                        // All dependent processes must have the same start_cycle.
+                        if dep_config.start_cycle != client.start_cycle {
+                            client_errors.push(format!(
+                                "Dependent process CID:{:03} has different start_cycle ({} vs {})",
+                                dep_config.client_id, dep_config.start_cycle, client.start_cycle
+                            ));
+                        }
                         // All dependent processes must have the same interval.
                         if dep_config.interval != client.interval {
                             client_errors.push(format!(
