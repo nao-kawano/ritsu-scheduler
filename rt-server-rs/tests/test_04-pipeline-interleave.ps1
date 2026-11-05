@@ -1,0 +1,185 @@
+param (
+    [string]$BuildMode = "debug"
+)
+
+# --- Test Scenario Parameters ---
+$ScenarioName   = "04-pipeline-interleave"
+$ConfigTemplate = "test_04-pipeline-interleave.toml"
+$WaitTimeMs     = 600
+$ServerPort     = 7904
+
+# Define client process arguments.
+$Clients = @(
+    @{ Id = 10; ProcTime = "0.01"; ProcCount = 5 },   # Chain 1 Lead: triggers server shutdown after 5 iterations
+    @{ Id = 11; ProcTime = "0.01"; ProcCount = 10 },  # Chain 1 Follower
+    @{ Id = 20; ProcTime = "0.01"; ProcCount = 10 },  # Chain 2 Lead (start_cycle = 1)
+    @{ Id = 21; ProcTime = "0.01"; ProcCount = 10 }   # Chain 2 Follower (start_cycle = 1)
+)
+# --------------------------------
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+$ProjectRoot = Resolve-Path "$ScriptDir\..\.."
+$ServerBin = "$ProjectRoot\target\$BuildMode\rt-server.exe"
+$ClientScript = "$ProjectRoot\rt-client-py\rtclient.py"
+$LogDir = "$ScriptDir\test_logs\$ScenarioName"
+$ServerLogPath = "$LogDir\server.log"
+
+# 1. Initialize Log Directory
+if (Test-Path $LogDir) {
+    Remove-Item -Recurse -Force $LogDir | Out-Null
+}
+New-Item -ItemType Directory -Path $LogDir -Force | Out-Null
+
+# 2. Copy config.toml
+Copy-Item "$ScriptDir\$ConfigTemplate" "$LogDir\config.toml"
+
+Write-Host "[INFO] [$ScenarioName] Starting Ritsu Server..."
+if (-not (Test-Path $ServerBin)) {
+    Write-Host "[FAIL] [$ScenarioName] Server binary not found at $ServerBin. Please run cargo build." -ForegroundColor Red
+    exit 1
+}
+
+# 3. Start Ritsu Server (With CLI options: debug level, no log file)
+$ServerProcess = Start-Process -FilePath $ServerBin `
+                               -ArgumentList "--log-level debug --no-log-file" `
+                               -WorkingDirectory $LogDir `
+                               -NoNewWindow `
+                               -RedirectStandardOutput "$LogDir\server_stdout.log" `
+                               -RedirectStandardError $ServerLogPath `
+                               -PassThru
+
+# Wait for Server initialization
+Start-Sleep -Milliseconds 500
+
+if ($ServerProcess.HasExited) {
+    Write-Host "[FAIL] [$ScenarioName] Server exited prematurely. Check $ServerLogPath" -ForegroundColor Red
+    exit 1
+}
+
+# 4. Start Python Clients
+Write-Host "[INFO] [$ScenarioName] Starting Clients..."
+$ClientProcesses = @()
+
+foreach ($client in $Clients) {
+    $cid = $client.Id
+    $procTime = $client.ProcTime
+    $procCount = $client.ProcCount
+    
+    $args = @($ClientScript, "--client-id", "$cid", "--interval-sec", "0.100", "--port", "$ServerPort", "--proc-time-sec", "$procTime", "--proc-count", "$procCount")
+    $proc = Start-Process -FilePath "python" `
+                          -ArgumentList $args `
+                          -WorkingDirectory $LogDir `
+                          -NoNewWindow `
+                          -RedirectStandardOutput "$LogDir\client_$cid.log" `
+                          -RedirectStandardError "$LogDir\client_${cid}_err.log" `
+                          -PassThru
+    $ClientProcesses += $proc
+}
+
+# 5. Wait for scenario execution to complete
+Write-Host "[INFO] [$ScenarioName] Waiting for execution ($WaitTimeMs ms)..."
+Start-Sleep -Milliseconds $WaitTimeMs
+
+# 6. Safety Net - Force Kill remaining processes
+Write-Host "[INFO] [$ScenarioName] Cleaning up processes..."
+foreach ($proc in $ClientProcesses) {
+    if (-not $proc.HasExited) {
+        Stop-Process -Id $proc.Id -Force -ErrorAction SilentlyContinue
+    }
+}
+if (-not $ServerProcess.HasExited) {
+    Stop-Process -Id $ServerProcess.Id -Force -ErrorAction SilentlyContinue
+}
+
+# 7. Print Server Log Output to Console
+Write-Host "`n=== Ritsu Server Output Log ===" -ForegroundColor Cyan
+if (Test-Path $ServerLogPath) {
+    Get-Content $ServerLogPath
+}
+Write-Host "==============================`n" -ForegroundColor Cyan
+
+# 8. Evaluate Test Output
+$Passed = $true
+$Reason = ""
+
+$hasCid10Run = $false
+$hasCid11Run = $false
+$hasCid20Run = $false
+$hasCid21Run = $false
+
+$cid20RanInCycle0 = $false
+$cid10RanInCycle0 = $false
+$cid20RanInCycle1 = $false
+$cid11RanInCycle1 = $false
+$cid21RanInCycle2 = $false
+
+if (Test-Path $ServerLogPath) {
+    $content = Get-Content $ServerLogPath
+    $hasError = $false
+    foreach ($line in $content) {
+        # Skip statistics summary lines
+        if ($line -match '\[STATS\]') {
+            continue
+        }
+        # Check for error level logs
+        if ($line -match '\[WARN\s*\]' -or $line -match '\[ERROR\s*\]') {
+            $hasError = $true
+            $Reason = "Found error/warn log: $line"
+            break
+        }
+        # Check for unexpected scheduling states in normal execution
+        if ($line -match '\bSKIP\b' -or $line -match '\bLATE\b') {
+            $hasError = $true
+            $Reason = "Found unexpected SKIP/LATE state: $line"
+            break
+        }
+        # General execution check
+        if ($line -match 'CID:010.*Ready -> Running') { $hasCid10Run = $true }
+        if ($line -match 'CID:011.*Ready -> Running') { $hasCid11Run = $true }
+        if ($line -match 'CID:020.*Ready -> Running') { $hasCid20Run = $true }
+        if ($line -match 'CID:021.*Ready -> Running') { $hasCid21Run = $true }
+
+        # Pipeline phase check
+        if ($line -match 'CYC:000000000000.*CID:020.*Ready -> Running') { $cid20RanInCycle0 = $true }
+        if ($line -match 'CYC:000000000000.*CID:010.*Ready -> Running') { $cid10RanInCycle0 = $true }
+        if ($line -match 'CYC:000000000001.*CID:020.*Ready -> Running') { $cid20RanInCycle1 = $true }
+        if ($line -match 'CYC:000000000001.*CID:011.*Ready -> Running') { $cid11RanInCycle1 = $true }
+        if ($line -match 'CYC:000000000002.*CID:021.*Ready -> Running') { $cid21RanInCycle2 = $true }
+    }
+    if ($hasError) {
+        $Passed = $false
+    } else {
+        if (-not $hasCid10Run -or -not $hasCid11Run -or -not $hasCid20Run -or -not $hasCid21Run) {
+            $Passed = $false
+            $Reason = "Not all clients executed: CID10=$hasCid10Run, CID11=$hasCid11Run, CID20=$hasCid20Run, CID21=$hasCid21Run"
+        } elseif ($cid20RanInCycle0) {
+            $Passed = $false
+            $Reason = "CID:020 ran in Cycle 0, but start_cycle=1 requires it to be dormant"
+        } elseif (-not $cid10RanInCycle0) {
+            $Passed = $false
+            $Reason = "CID:010 did not run in Cycle 0"
+        } elseif (-not $cid20RanInCycle1) {
+            $Passed = $false
+            $Reason = "CID:020 did not run in Cycle 1 as expected"
+        } elseif (-not $cid11RanInCycle1) {
+            $Passed = $false
+            $Reason = "CID:011 did not run in Cycle 1 as expected"
+        } elseif (-not $cid21RanInCycle2) {
+            $Passed = $false
+            $Reason = "CID:021 did not run in Cycle 2 as expected"
+        }
+    }
+} else {
+    $Passed = $false
+    $Reason = "server.log was not generated"
+}
+
+# 9. Output Final Status
+if ($Passed) {
+    Write-Host "[PASS] [$ScenarioName] Pipeline interleaving verified successfully." -ForegroundColor Green
+    exit 0
+} else {
+    Write-Host "[FAIL] [$ScenarioName] Test failed: $Reason" -ForegroundColor Red
+    Write-Host "[FAIL] [$ScenarioName] Please check log directory: $LogDir" -ForegroundColor Yellow
+    exit 1
+}

@@ -344,9 +344,13 @@ impl ManagerProcRunning {
     // private methods.
 
     fn is_target_cycle(&self, running_cycle: i64, config: &ClientConfig) -> bool {
+        if running_cycle < config.start_cycle as i64 {
+            return false;
+        }
+        let process_cycle = running_cycle - config.start_cycle as i64;
         let target_interval = config.interval as i64;
         let target_offset = config.offset as i64;
-        return running_cycle % target_interval == target_offset;
+        process_cycle % target_interval == target_offset
     }
 
     fn update_stats(&self, context: &mut ManagerContext, changes: &[ProcessStateChange]) {

@@ -419,3 +419,99 @@ fn test_cycle_max_abort() {
     assert_eq!(ctx.clients.get(&3).unwrap().state, ClientState::Exiting);
     assert_eq!(ctx.num_active_clients, 4);
 }
+
+#[test]
+fn test_pipeline_interleave_start_cycle() {
+    init_test_logger();
+    let client_configs = vec![
+        // Chain 1 (starts from cycle 0)
+        ClientConfig::builder(10, 2)
+            .start_cycle(0)
+            .offset(0)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(11, 2)
+            .start_cycle(0)
+            .offset(1)
+            .depends(vec![10])
+            .build()
+            .unwrap(),
+        // Chain 2 (starts from cycle 1, interleaved!)
+        ClientConfig::builder(20, 2)
+            .start_cycle(1)
+            .offset(0)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(21, 2)
+            .start_cycle(1)
+            .offset(1)
+            .depends(vec![20])
+            .build()
+            .unwrap(),
+    ];
+    let server_config = ServerConfig {
+        port: 8080,
+        cycle_time_ms: 50,
+        ..Default::default()
+    };
+    let scheduler_config = SchedulerConfig {
+        server_config,
+        client_configs,
+    };
+    let rules = scheduler_config.get_client_rules();
+
+    let mut ctx = ManagerContext::new(scheduler_config.client_configs, rules, 0);
+    ctx.state = ManagerState::Running;
+    ctx.num_active_clients = ctx.clients.len();
+    for client in ctx.clients.values_mut() {
+        client.state = ClientState::Active;
+        client.last_mid = 1;
+    }
+
+    let proc = ManagerProcRunning;
+    proc.enter_state(&mut ctx);
+
+    // Initial ready for all clients.
+    for &cid in &[10, 11, 20, 21] {
+        let _ = ctx.sched.on_ready(cid);
+    }
+
+    // --- Cycle 0 ---
+    // Chain 1 (CID 10) starts. Chain 2 (CID 20) is dormant (running_cycle 0 < start_cycle 1).
+    let result = proc.on_cycle_start(&mut ctx, 100).unwrap();
+    let started_cids: Vec<u16> = result.iter().map(|m| m.cid).collect();
+    assert_eq!(started_cids, vec![10]);
+
+    // Complete CID 10.
+    let m_done10 = Message::new(MessageType::Done, 1, 10, None).unwrap();
+    let _ = proc.on_client_done(&mut ctx, &m_done10).unwrap();
+    let m_ready10 = Message::new(MessageType::Ready, 2, 10, None).unwrap();
+    let _ = proc.on_client_ready(&mut ctx, &m_ready10).unwrap();
+
+    // --- Cycle 1 ---
+    // Chain 1: CID 11 starts (offset 1, dependency on CID 10 met).
+    // Chain 2: CID 20 starts (process_cycle = 1 - 1 = 0, offset 0).
+    let result = proc.on_cycle_start(&mut ctx, 101).unwrap();
+    let mut started_cids: Vec<u16> = result.iter().map(|m| m.cid).collect();
+    started_cids.sort();
+    assert_eq!(started_cids, vec![11, 20]);
+
+    // Complete CID 11 and CID 20.
+    let m_done11 = Message::new(MessageType::Done, 1, 11, None).unwrap();
+    let _ = proc.on_client_done(&mut ctx, &m_done11).unwrap();
+    let m_ready11 = Message::new(MessageType::Ready, 2, 11, None).unwrap();
+    let _ = proc.on_client_ready(&mut ctx, &m_ready11).unwrap();
+    let m_done20 = Message::new(MessageType::Done, 1, 20, None).unwrap();
+    let _ = proc.on_client_done(&mut ctx, &m_done20).unwrap();
+    let m_ready20 = Message::new(MessageType::Ready, 2, 20, None).unwrap();
+    let _ = proc.on_client_ready(&mut ctx, &m_ready20).unwrap();
+
+    // --- Cycle 2 ---
+    // Chain 1: CID 10 starts again (process_cycle = 2, offset 0).
+    // Chain 2: CID 21 starts (process_cycle = 2 - 1 = 1, offset 1, dependency on CID 20 met).
+    // Note: CID 10 needs to be ready again.
+    let result = proc.on_cycle_start(&mut ctx, 102).unwrap();
+    let mut started_cids: Vec<u16> = result.iter().map(|m| m.cid).collect();
+    started_cids.sort();
+    assert_eq!(started_cids, vec![10, 21]);
+}
