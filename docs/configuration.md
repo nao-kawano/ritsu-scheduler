@@ -33,120 +33,119 @@ By default, the server reads `config.toml` from the current working directory, b
 
 #### Port (Key: `port`)
 
-- Specify the port number for the scheduler.
+- **Requirement**: Required | **Type**: Integer (`u16`) | **Range**: `1` – `65535`
+- Specifies the UDP port number for the scheduler communication.
 
 #### Base Cycle Time (Key: `cycle_time_ms`)
 
-- Specify cycles using a time-based interval in milliseconds (e.g., 50ms).
+- **Requirement**: Required | **Type**: Integer (`u32`) | **Unit**: milliseconds
+- Specifies the base duration of each cycle in milliseconds (e.g., `50`).
   - The scheduler checks which processes should be run at each cycle.
-
-- **NOTE:** This is currently implemented using an interval-based trigger.
+- **Note:** This is currently implemented using an interval-based trigger.
   - The underlying architecture is designed to support various cycle triggers for future extensibility.
 
-#### Statistics Log Interval (in cycles) (Key: `stats_interval_cycle`)
+#### Statistics Log Interval (Key: `stats_interval_cycle`)
 
+- **Requirement**: Optional (Default: `0` / disabled) | **Type**: Integer (`u32`) | **Unit**: cycles
 - Specifies the interval in running cycles at which the scheduler logs performance statistics for each client.
   - A value of `0` or omitting the parameter disables all statistics logging (including the final shutdown log).
-  - If enabled,
+  - If enabled:
     - Logs include metrics like execution time (min, max, average), skip count, late count, and overrun count.
     - Final statistics are also logged when the scheduler shuts down, regardless of the cycle count.
 
 #### Console Log Level (Key: `log_level`)
 
+- **Requirement**: Optional (Default: `"info"`) | **Type**: String
+- **Allowed Values**: `"off"`, `"error"`, `"warn"`, `"info"`, `"debug"`, `"trace"` (case-insensitive)
 - Specifies the log level for the console (stderr).
-- Allowed values: `"off"`, `"error"`, `"warn"`, `"info"`, `"debug"`, `"trace"` (case-insensitive).
-- Defaults to `"info"` if omitted or set to an empty string.
+  - An empty string `""` falls back to the default `"info"`.
 
 #### Log File Directory (Key: `log_file_dir`)
 
+- **Requirement**: Optional (Default: `""` / disabled) | **Type**: String (directory path)
 - Specifies the directory path for log files.
-- Relative paths are resolved relative to the directory containing the configuration file.
-- If omitted or set to an empty string `""`, file logging is disabled.
-- In the sample configuration, this defaults to `"./logs"`.
+  - If omitted or set to an empty string `""`, file logging is disabled.
+  - Relative paths are resolved relative to the directory containing the configuration file (in the sample template, this is set to `"./logs"`).
 
 #### File Log Level (Key: `log_file_level`)
 
+- **Requirement**: Optional (Default: `"debug"`) | **Type**: String
+- **Allowed Values**: `"off"`, `"error"`, `"warn"`, `"info"`, `"debug"`, `"trace"` (case-insensitive)
 - Specifies the log level written to the log file.
-- Allowed values: `"off"`, `"error"`, `"warn"`, `"info"`, `"debug"`, `"trace"` (case-insensitive).
-- Defaults to `"debug"` if omitted or set to an empty string.
+  - An empty string `""` falls back to the default `"debug"`.
   - Recommended to keep at `"debug"` to ensure detailed `<STAT>` transition events are captured for visualization and post-mortem analysis.
 
 ### Client Configuration (Section: `[[client_configs]]`)
 
-Per client configuration below:
+Per-client configuration options:
 
 #### Client ID (Key: `client_id`)
 
+- **Requirement**: Required | **Type**: Integer (`u16`) | **Range**: `0` – `999`
 - Specifies a unique ID for this process.
-  - Each client has a unique ID represented as an integer (`u16`, from `0` to `999`).
-  - This ID is used to identify the client in the scheduler.
+  - Used to identify the client process in the scheduler communication and dependency resolution.
+  - Each client process in the configuration must have a distinct ID.
 
-#### Initial Start Cycle (in cycles) (Key: `start_cycle`)
+#### Initial Start Cycle (Key: `start_cycle`)
 
+- **Requirement**: Required | **Type**: Integer (`u8`) | **Range**: `0` – `255` | **Unit**: cycles
 - Specifies the initial start cycle number in running cycles before the process starts execution.
   - `0`: Starts running from the beginning of the scheduler's running state.
-  - `1`: Delays initial activation by 1 running cycle. The process will remain inactive during cycle `0` and begin its regular schedule starting from cycle `1`.
+  - `1`: Delays initial activation by 1 running cycle. The process remains inactive during cycle `0` and begins its regular schedule starting from cycle `1`.
   - Useful for pipelining (time-axis interleaving) by staggering duplicate task chains across consecutive cycles to maximize execution density.
-  - Represented as an unsigned 8-bit integer (`u8`, from `0` to `255`).
 
-#### Scheduling Interval (in cycles) (Key: `interval`)
+#### Scheduling Interval (Key: `interval`)
 
+- **Requirement**: Required | **Type**: Integer (`u8`) | **Range**: `1` – `255` | **Unit**: cycles
 - Specifies how often to run the process in terms of running cycles (e.g., every cycle, every other cycle).
-  - `1` means run every running cycle. If the cycle time is 50ms, run every 50ms.
-  - `2` means run every other running cycle. If the cycle time is 50ms, run every 100ms.
+  - Must not be `0`.
+  - `1`: Run every running cycle (e.g., every 50ms if `cycle_time_ms = 50`).
+  - `2`: Run every other running cycle (e.g., every 100ms if `cycle_time_ms = 50`).
 
-#### Scheduling Offset (in cycles) (Key: `offset`)
+#### Scheduling Offset (Key: `offset`)
 
+- **Requirement**: Required | **Type**: Integer (`u8`) | **Range**: `0 <= offset < interval` | **Unit**: cycles
 - Specifies the phase offset in running cycles for when this client starts running.
-  - Useful when you want to alternate the execution of clients to distribute the load evenly.
-    - `0`: Start running at the beginning of the specified interval.
-    - `1`: Start running one running cycle later than the interval boundary.
-    - Note: The offset value must be strictly less than `interval` (`0 <= offset < interval`).
+  - Useful for alternating the execution of clients to distribute load evenly across cycles.
+  - `0`: Start running at the beginning of the specified interval.
+  - `1`: Start running one running cycle later than the interval boundary.
+  - **Constraint**: The offset value must be strictly less than `interval`.
 
 #### Process Dependencies (Key: `depends`)
 
-- Specifies which processes must be completed before this process can run.
-- All specified dependent processes must have the same `start_cycle` (`dep.start_cycle == client.start_cycle`).
-- All specified dependent processes must have the same `interval`.
-- Dependent processes must have an `offset` less than or equal to this process's `offset` (`dep.offset <= client.offset`).
-- This acts as an AND condition, meaning that this process will only run if
-  both the interval/offset condition is met and all specified dependent processes have completed.
-  - If the dependent process has the same `interval` and `offset`,
-    this process starts immediately after the dependent process completes.
-  - If the dependent process has a smaller `offset` (earlier phase),
-    this process starts when its own `offset` is reached,
-    and only if the dependent process has already completed.
-- For example: `client_id=10`, `interval=2`, `offset=0`, `depends=[]` and
-  - `interval=2`, `offset=0`, `depends=[10]`
-    - Run every 2nd cycle, starting immediately after process `10` completes.
-    - This is because the interval and offset are the same as process `10`.
-  - `interval=2`, `offset=1`, `depends=[10]`
-    - Run every 2nd cycle, with an offset of 1 cycle, but only if process `10` has already completed.
-    - This process will wait until offset 1 to check if process `10` is complete before starting.
-- Processes are identified by their `client_id`.
-- Multiple dependencies can be specified in an array; this means all dependent processes must complete.
-  - `[]`: No dependencies. Run only based on `interval` and `offset`.
-  - `[10]`: Run after process `10` completes.
-  - `[10, 11]`: Run after both processes `10` and `11` complete.
+- **Requirement**: Required | **Type**: Array of Integers (`u16[]`)
+- Specifies a list of Client IDs (`client_id`) that must complete execution before this process can run.
+- **Validation Rules**:
+  - **Same Start Cycle**: All dependent processes must have the same `start_cycle` (`dep.start_cycle == client.start_cycle`).
+  - **Same Interval**: All dependent processes must have the same `interval` (`dep.interval == client.interval`).
+  - **Offset Order**: Dependent processes must have an `offset` less than or equal to this process's `offset` (`dep.offset <= client.offset`).
+  - **No Self / Duplicate Dependencies**: A process cannot depend on itself, and the same dependency cannot appear multiple times.
+  - **No Circular Dependencies**: Circular dependencies within the same interval and offset are strictly prohibited.
+- **Execution Timing (AND condition)**:
+  - This acts as an AND condition; the process only runs if both its interval/offset condition is met and all dependent processes have completed.
+  - **Same Phase (`dep.offset == client.offset`)**: The process starts immediately after the dependent process completes in the same cycle (chain execution).
+  - **Earlier Phase (`dep.offset < client.offset`)**: The process waits until its own offset is reached, verifying that the dependent process has already completed.
+- **Examples**:
+  - `[]`: No dependencies. Runs solely based on `interval` and `offset`.
+  - `[10]`: Runs after process `10` completes.
+  - `[10, 11]`: Runs after both processes `10` and `11` complete.
 - **Lifecycle and Reset**:
   - Dependency completion flags are cleared at the start of each process's execution cycle.
-  - This ensures that a process always waits for the execution result of the _latest_ execution cycle of its dependencies,
-    preventing premature startup due to leftover completion flags from previous execution cycles.
+  - This ensures that a process always waits for the execution result of the _latest_ execution cycle of its dependencies, preventing premature startup due to leftover completion flags from previous execution cycles.
 
 #### Display Name (Key: `display_name`)
 
+- **Requirement**: Optional (Default: `""`) | **Type**: String | **Constraint**: Max 20 characters
 - Specifies a human-readable name for this process.
-  - This value is used by visualization tools (like Ritsu Vis) to make it easier to identify processes.
-  - It does not affect the actual execution of the process in the scheduler.
-  - **Maximum length is 20 characters** to ensure proper display in the UI.
-  - If not specified, it defaults to an empty string.
+  - Used by visualization tools (like Ritsu Vis) to identify processes on charts.
+  - Does not affect the actual execution of the process in the scheduler.
 
 #### Expected Execution Duration (Key: `expected_duration_ms`)
 
+- **Requirement**: Optional (Default: `0`) | **Type**: Integer (`u32`) | **Unit**: milliseconds
 - Specifies the expected execution time for this process in milliseconds.
-  - This value is used by visualization tools (like Ritsu Vis) to display the "planned" execution time on a chart.
-  - It does not affect the actual execution of the process in the scheduler.
-  - Default is `0` if not specified.
+  - Used by visualization tools (like Ritsu Vis) to display the "planned" execution time on charts.
+  - Does not affect the actual execution of the process in the scheduler.
 
 ### Pipeline Execution Pattern (Time-Axis Interleaving)
 
