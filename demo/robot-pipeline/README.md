@@ -20,16 +20,18 @@ The demonstration simulates an Autonomous Mobile Robot (AMR) obstacle-avoidance 
 Ensure the following toolchains are installed on your system before running the demo:
 
 ### Windows
-- **Rust toolchain** (`cargo`, `rustc`): Version 1.85 or later.
-- **CMake**: Version 3.14 or later.
-- **C/C++ Build Tools**: Visual Studio 2019/2022 with the "Desktop development with C++" workload (MSVC).
-- **Python 3**: Python 3.8 or later (accessible via `python` or `py`).
+- **Rust toolchain** (`cargo`, `rustc`): Version 1.85 or later (tested with 1.96).
+- **CMake**: Version 3.14 or later (tested with 4.4).
+- **C/C++ Build Tools**: Visual Studio 2022 with the "Desktop development with C++" workload (MSVC).
+- **Python 3**: Python 3.12 or later (accessible via `python` or `py`).
+- **Node.js & npm**: Version 18 or later (tested with 24, required for `rt-vis`).
 
 ### Linux / macOS
 - **Rust toolchain** (`cargo`, `rustc`): Version 1.85 or later.
 - **CMake**: Version 3.14 or later.
 - **C/C++ Compiler**: GCC (>= 9) or Clang.
-- **Python 3**: Python 3.8 or later (`python3`).
+- **Python 3**: Python 3.12 or later (`python3`).
+- **Node.js & npm**: Version 18 or later (required for `rt-vis`).
 
 ---
 
@@ -113,7 +115,11 @@ Execution events and timing statistics are recorded in `demo/robot-pipeline/logs
 ### Steps to Inspect
 1. Start the visualizer:
    ```bash
-   cargo run -p rt-vis
+   # Install dependencies (first time only)
+   npm --prefix rt-vis-rs install
+
+   # Launch the visualizer
+   npm --prefix rt-vis-rs run tauri dev
    ```
 2. Navigate to the **Analyze** mode in the top navigation bar.
 3. Open `demo/robot-pipeline/logs/rt-server.log`.

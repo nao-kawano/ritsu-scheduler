@@ -54,7 +54,7 @@ Simulates an Autonomous Mobile Robot (AMR) obstacle-avoidance pipeline where fiv
                └──> [Odometry (C)]       ──┘
 ```
 
-Prerequisites: Rust, Python, C/C++ Compiler with CMake
+Prerequisites: Rust (>= 1.85), Python (>= 3.12), C/C++ Compiler with CMake (>= 3.14), Node.js (>= 18)
 
 1. **Run the demo** (builds and launches all 5 nodes in dedicated console windows automatically):
    - **Windows (PowerShell):**
@@ -71,7 +71,11 @@ Prerequisites: Rust, Python, C/C++ Compiler with CMake
 2. **Inspect with the visualizer**:  
    Launch `rt-vis` and open `demo/robot-pipeline/logs/rt-server.log` in **Analyze** mode to inspect scheduled vs. actual timelines and safety slack margins:
    ```bash
-   cargo run -p rt-vis
+   # Install frontend dependencies (first time only)
+   npm --prefix rt-vis-rs install
+
+   # Launch visualizer in development mode
+   npm --prefix rt-vis-rs run tauri dev
    ```
 
 For detailed architecture, prerequisites, and scenario specifications, see the [Robot Pipeline Demo Guide](demo/robot-pipeline/README.md).
