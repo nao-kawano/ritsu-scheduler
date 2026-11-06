@@ -14,7 +14,8 @@ To understand how the scheduler manages execution, we distinguish between the sc
 - **`global_cycle`**: The absolute cycle count elapsed since the scheduler started its event loop.
 - **`running_cycle`**: The execution cycle count elapsed since the scheduler transitioned to the `Running` state and actively schedules process executions. It starts at `-1` (representing "not started") and increments to `0` at the first running cycle start.
 
-### 2. Process Timing (Interval & Offset)
+### 2. Process Timing (Start Cycle, Interval & Offset)
+- **`start_cycle`**: The initial start cycle number at which the process becomes active in units of running cycles (e.g., `0` for running from the initial cycle, `1` for delaying start by 1 cycle for pipelining).
 - **`interval`**: The scheduling interval defining how often the process runs in units of running cycles (e.g., `1` for every cycle, `2` for every other cycle).
 - **`offset`**: The phase offset in running cycles applied to the execution timing of the process (`0 <= offset < interval`).
 
@@ -80,6 +81,14 @@ Per client configuration below:
   - Each client has a unique ID represented as an integer (`u16`, from `0` to `999`).
   - This ID is used to identify the client in the scheduler.
 
+#### Initial Start Cycle (in cycles) (Key: `start_cycle`)
+
+- Specifies the initial start cycle number in running cycles before the process starts execution.
+  - `0`: Starts running from the beginning of the scheduler's running state.
+  - `1`: Delays initial activation by 1 running cycle. The process will remain inactive during cycle `0` and begin its regular schedule starting from cycle `1`.
+  - Useful for pipelining (time-axis interleaving) by staggering duplicate task chains across consecutive cycles to maximize execution density.
+  - Represented as an unsigned 8-bit integer (`u8`, from `0` to `255`).
+
 #### Scheduling Interval (in cycles) (Key: `interval`)
 
 - Specifies how often to run the process in terms of running cycles (e.g., every cycle, every other cycle).
@@ -97,6 +106,7 @@ Per client configuration below:
 #### Process Dependencies (Key: `depends`)
 
 - Specifies which processes must be completed before this process can run.
+- All specified dependent processes must have the same `start_cycle` (`dep.start_cycle == client.start_cycle`).
 - All specified dependent processes must have the same `interval`.
 - Dependent processes must have an `offset` less than or equal to this process's `offset` (`dep.offset <= client.offset`).
 - This acts as an AND condition, meaning that this process will only run if
@@ -137,6 +147,60 @@ Per client configuration below:
   - This value is used by visualization tools (like Ritsu Vis) to display the "planned" execution time on a chart.
   - It does not affect the actual execution of the process in the scheduler.
   - Default is `0` if not specified.
+
+### Pipeline Execution Pattern (Time-Axis Interleaving)
+
+You can achieve pipelined parallel execution by duplicating a task chain and shifting its start cycle:
+
+#### Configuration Example
+
+```toml
+# --- Chain 1 (Starts at cycle 0) ---
+[[client_configs]]
+client_id = 1
+start_cycle = 0
+interval = 2
+offset = 0
+depends = []
+display_name = "TaskA_1"
+
+[[client_configs]]
+client_id = 2
+start_cycle = 0
+interval = 2
+offset = 1
+depends = [1]
+display_name = "TaskB_1"
+
+# --- Chain 2 (Starts at cycle 1: Interleaved!) ---
+[[client_configs]]
+client_id = 11
+start_cycle = 1
+interval = 2
+offset = 0
+depends = []
+display_name = "TaskA_2"
+
+[[client_configs]]
+client_id = 12
+start_cycle = 1
+interval = 2
+offset = 1
+depends = [11]
+display_name = "TaskB_2"
+```
+
+#### Execution Timeline
+
+```
+running_cycle:           0       1       2       3       4
+Chain 1 (start_cycle=0): [ A1 ]  [ B1 ]  [ A1 ]  [ B1 ]  [ A1 ]
+Chain 2 (start_cycle=1):   -     [ A2 ]  [ B2 ]  [ A2 ]  [ B2 ]
+```
+
+- **Cycle 0**: Only Chain 1 (`TaskA_1`) runs. Chain 2 remains inactive (`running_cycle < start_cycle`).
+- **Cycle 1**: Chain 1 executes `TaskB_1`. Chain 2 evaluates its effective cycle as `process_cycle = running_cycle - start_cycle = 1 - 1 = 0`, triggering `TaskA_2` (`0 % 2 == 0`).
+- **Cycle 2**: Chain 1 executes `TaskA_1`. Chain 2 executes `TaskB_2` (`1 % 2 == 1`).
 
 ## Command-Line Overrides
 
