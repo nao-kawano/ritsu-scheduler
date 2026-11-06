@@ -28,6 +28,7 @@ export interface ServerConfig {
 
 export interface ClientConfig {
   client_id: number;
+  start_cycle: number;
   interval: number;
   offset: number;
   depends: number[];

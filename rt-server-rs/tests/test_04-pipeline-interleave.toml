@@ -1,0 +1,42 @@
+[server_config]
+port = 7904
+cycle_time_ms = 50
+stats_interval_cycle = 200
+
+# Chain 1: Normal start (start_cycle = 0)
+[[client_configs]]
+client_id = 10
+start_cycle = 0
+interval = 2
+offset = 0
+depends = []
+display_name = "TaskA_1"
+expected_duration_ms = 15
+
+[[client_configs]]
+client_id = 11
+start_cycle = 0
+interval = 2
+offset = 1
+depends = [10]
+display_name = "TaskB_1"
+expected_duration_ms = 15
+
+# Chain 2: Pipeline interleaved (start_cycle = 1)
+[[client_configs]]
+client_id = 20
+start_cycle = 1
+interval = 2
+offset = 0
+depends = []
+display_name = "TaskA_2"
+expected_duration_ms = 15
+
+[[client_configs]]
+client_id = 21
+start_cycle = 1
+interval = 2
+offset = 1
+depends = [20]
+display_name = "TaskB_2"
+expected_duration_ms = 15

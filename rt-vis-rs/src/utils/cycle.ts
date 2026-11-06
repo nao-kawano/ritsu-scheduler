@@ -18,14 +18,30 @@ import type { PlannedExecution } from '../types/simulation';
 import type { ActualCycle } from '../types/analyze';
 
 /**
- * Calculates the total simulation cycles to render/calculate.
- * Formula: max(1, max_interval_of_clients) * 2
- * NOTE: Keep in sync with backend: simulator.rs -> max_manager_cycle
+ * Calculates the maximum start_cycle among all clients, defining the pipeline warmup threshold.
  */
-export function getSimulationCycles(configs: ClientConfig[] | ClientConfigUI[]): number {
-  if (!configs || configs.length === 0) return 2;
+export function getMaxStartCycle(configs: ClientConfig[] | ClientConfigUI[]): number {
+  if (!configs || configs.length === 0) return 0;
 
-  const maxInterval = Math.max(
+  return Math.max(
+    0,
+    ...configs.map(c => {
+      if ('data' in c) {
+        return c.data.start_cycle;
+      }
+      return c.start_cycle;
+    })
+  );
+}
+
+/**
+ * Calculates the steady-state period (in cycles) for the configuration.
+ * In a periodic or pipelined schedule, all tasks repeat with a period of max_interval.
+ */
+export function getSteadyPeriod(configs: ClientConfig[] | ClientConfigUI[]): number {
+  if (!configs || configs.length === 0) return 1;
+
+  return Math.max(
     1,
     ...configs.map(c => {
       if ('data' in c) {
@@ -34,8 +50,38 @@ export function getSimulationCycles(configs: ClientConfig[] | ClientConfigUI[]):
       return c.interval || 1;
     })
   );
+}
 
-  return maxInterval * 2;
+/**
+ * Calculates the total simulation cycles to render/calculate.
+ * Formula: max_start_cycle + (steady_period * 2)
+ * NOTE: Keep in sync with backend: simulator.rs -> max_manager_cycle
+ */
+export function getSimulationCycles(configs: ClientConfig[] | ClientConfigUI[]): number {
+  if (!configs || configs.length === 0) return 2;
+
+  const maxStartCycle = getMaxStartCycle(configs);
+  const steadyPeriod = getSteadyPeriod(configs);
+
+  return maxStartCycle + (steadyPeriod * 2);
+}
+
+/**
+ * Maps an actual cycle index to the corresponding simulation template anchor cycle index.
+ * - During the transient warmup phase (actualCycle < maxStartCycle), it maps directly to actualCycle.
+ * - In the steady-state phase (actualCycle >= maxStartCycle), it loops through the steady-state period
+ *   starting from maxStartCycle, avoiding phase distortion caused by transient cycle offset.
+ */
+export function mapToTemplateCycle(
+  actualCycle: number,
+  maxStartCycle: number,
+  steadyPeriod: number
+): number {
+  if (actualCycle < maxStartCycle) {
+    return actualCycle;
+  }
+  if (steadyPeriod <= 0) return 0;
+  return maxStartCycle + ((actualCycle - maxStartCycle) % steadyPeriod);
 }
 
 /**

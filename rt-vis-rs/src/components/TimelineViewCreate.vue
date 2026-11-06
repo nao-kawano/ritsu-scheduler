@@ -163,17 +163,18 @@ const guideRegion = computed(() => {
   const { mode, clientWrap } = dragState.value;
   const cycleMs = cycleTimeMs.value;
   const processInterval = clientWrap.data.interval;
+  const startCycle = clientWrap.data.start_cycle;
 
   let startMs = 0;
   let durationMs = 0;
 
   if (mode === 'duration') {
     // For Duration: Shows the valid duration range within the current scheduled cycle.
-    startMs = clientWrap.data.offset * cycleMs;
+    startMs = (startCycle + clientWrap.data.offset) * cycleMs;
     durationMs = processInterval * cycleMs;
   } else if (mode === 'offset') {
     // For Offset: Shows all valid offset slots.
-    startMs = 0;
+    startMs = startCycle * cycleMs;
     durationMs = processInterval * cycleMs;
   }
 

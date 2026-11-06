@@ -32,6 +32,7 @@ log_file_level = "debug"   # Capture detailed transition metrics to file
 # Repeat this section for each client process you want to manage.
 #
 # client_id:            (u16) Unique ID for the process (0-999).
+# start_cycle:          (u8)  Initial start cycle number before starting execution.
 # interval:             (u8)  Execution period. (1 = every cycle, 2 = every 2nd cycle, etc.)
 # offset:               (u8)  Starting cycle offset. Must be less than 'interval'.
 # depends:              (list) List of Client IDs that must complete before this runs.
@@ -43,6 +44,7 @@ log_file_level = "debug"   # Capture detailed transition metrics to file
 # Example 1: A base process that runs every 2 cycles starting from cycle 0.
 [[client_configs]]
 client_id = 10
+start_cycle = 0
 interval = 2
 offset = 0
 depends = []
@@ -54,6 +56,7 @@ expected_duration_ms = 15
 # CID:10 completes in the same cycle (Chain execution).
 [[client_configs]]
 client_id = 11
+start_cycle = 0
 interval = 2
 offset = 0
 depends = [10]
@@ -65,6 +68,7 @@ expected_duration_ms = 20
 # This is useful for load balancing across cycles.
 [[client_configs]]
 client_id = 20
+start_cycle = 0
 interval = 2
 offset = 1
 depends = []

@@ -25,7 +25,8 @@ if ($buildExit -ne 0) {
 $Tests = @(
     @{ Path = "$ScriptDir\test_01-normal.ps1"; Name = "01-normal" },
     @{ Path = "$ScriptDir\test_02-overrun-skip-lead.ps1"; Name = "02-overrun-skip-lead" },
-    @{ Path = "$ScriptDir\test_03-overrun-skip-follow.ps1"; Name = "03-overrun-skip-follow" }
+    @{ Path = "$ScriptDir\test_03-overrun-skip-follow.ps1"; Name = "03-overrun-skip-follow" },
+    @{ Path = "$ScriptDir\test_04-pipeline-interleave.ps1"; Name = "04-pipeline-interleave" }
 )
 
 $results = @()

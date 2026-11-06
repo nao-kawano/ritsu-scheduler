@@ -264,7 +264,7 @@ defineExpose({ scrollEl });
                 </div>
               </div>
               <div class="card-meta">
-                <div class="details">I: {{ clientWrap.data.interval }}, O: {{ clientWrap.data.offset }}, D: {{
+                <div class="details">S: {{ clientWrap.data.start_cycle }}, I: {{ clientWrap.data.interval }}, O: {{ clientWrap.data.offset }}, D: {{
                   clientWrap.data.expected_duration_ms }}ms</div>
                 <div class="depends" :class="{ 'no-deps': clientWrap.data.depends.length === 0 }">Deps: {{
                   clientWrap.data.depends.length > 0 ? clientWrap.data.depends.join(', ') : '-' }}</div>

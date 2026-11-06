@@ -524,3 +524,57 @@ fn test_simulate_plan_floating_chain_anchor() {
     assert_eq!(execs_501[1].anchor_cycle, 2); // Correctly anchored to Cycle 2.
     assert_eq!(execs_501[1].anchor_offset_ms, 50); // 50ms offset from Cycle 2 base.
 }
+
+#[test]
+fn test_simulate_plan_start_cycle() {
+    init_test_logger();
+
+    // Process 1: interval 2, offset 0, start_cycle 0 (Series 1).
+    // Process 2: interval 2, offset 0, start_cycle 1 (Series 2: pipeline interleave).
+    let config = create_config(vec![
+        ClientConfig::builder(1, 2)
+            .start_cycle(0)
+            .expected_duration_ms(10)
+            .build()
+            .unwrap(),
+        ClientConfig::builder(2, 2)
+            .start_cycle(1)
+            .expected_duration_ms(10)
+            .build()
+            .unwrap(),
+    ]);
+
+    let result = simulate_plan(config).unwrap();
+
+    // max_start_cycle = 1, max_interval = 2.
+    // max_manager_cycle = 1 + (2 * 2) = 5 (manager cycles 0, 1, 2, 3, 4).
+    // Process 1 runs at cycle 0, 2, 4 (3 executions).
+    // Process 2 runs at cycle 1, 3 (2 executions, skipped at cycle 0).
+    // Total executions: 5.
+    assert_eq!(result.executions.len(), 5);
+
+    let mut execs_1: Vec<_> = result.executions.iter().filter(|e| e.cid == 1).collect();
+    let mut execs_2: Vec<_> = result.executions.iter().filter(|e| e.cid == 2).collect();
+    execs_1.sort_by_key(|e| e.start_ms);
+    execs_2.sort_by_key(|e| e.start_ms);
+
+    assert_eq!(execs_1.len(), 3);
+    assert_eq!(execs_2.len(), 2);
+
+    // Process 1 executions (Cycle 0, 2, 4)
+    assert_eq!(execs_1[0].start_ms, 0);
+    assert_eq!(execs_1[0].anchor_cycle, 0);
+
+    assert_eq!(execs_1[1].start_ms, 200);
+    assert_eq!(execs_1[1].anchor_cycle, 2);
+
+    assert_eq!(execs_1[2].start_ms, 400);
+    assert_eq!(execs_1[2].anchor_cycle, 4);
+
+    // Process 2 executions (Cycle 1, 3)
+    assert_eq!(execs_2[0].start_ms, 100);
+    assert_eq!(execs_2[0].anchor_cycle, 1);
+
+    assert_eq!(execs_2[1].start_ms, 300);
+    assert_eq!(execs_2[1].anchor_cycle, 3);
+}
