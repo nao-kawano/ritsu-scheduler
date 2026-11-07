@@ -51,14 +51,14 @@ const sampleConfigCreateMode: SchedulerConfigUI = {
 let nextSessionId = sampleConfigCreateMode.sessionId + 1;
 let nextConfigId = Math.max(0, ...sampleConfigCreateMode.client_configs.map(c => c.configId)) + 1;
 
-// Shared reactive state across components
+// Global & Session State
 const configCreateMode = reactive<SchedulerConfigUI>(JSON.parse(JSON.stringify(sampleConfigCreateMode)));
 const configAnalyzeMode = reactive<SchedulerConfigUI>(JSON.parse(JSON.stringify(sampleConfigCreateMode)));
-const selectedClientWrap = ref<ClientConfigUI | null>(null);
-
-// File paths
 const currentConfigPathCreateMode = ref<string>('');
 const currentConfigPathAnalyzeMode = ref<string>('');
+
+// Client State
+const selectedClientWrap = ref<ClientConfigUI | null>(null);
 
 // =============================================================================
 // Internal Helpers
@@ -104,90 +104,16 @@ export function useConfig() {
   // ---------------------------------------------------------------------------
   // Local State & Computed
 
-  const activeConfigPath = computed<string>(() => {
-    return mode.value === 'Create' ? currentConfigPathCreateMode.value : currentConfigPathAnalyzeMode.value;
-  });
-
   const activeConfig = computed<SchedulerConfigUI>(() => {
     return mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
   });
 
+  const activeConfigPath = computed<string>(() => {
+    return mode.value === 'Create' ? currentConfigPathCreateMode.value : currentConfigPathAnalyzeMode.value;
+  });
+
   // ---------------------------------------------------------------------------
   // Methods & Actions
-
-  const openEdit = (clientWrap: ClientConfigUI) => {
-    selectedClientWrap.value = clientWrap;
-  };
-
-  const closeEdit = () => {
-    selectedClientWrap.value = null;
-  };
-
-  const addClient = () => {
-    const targetConfig = mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
-    const newId = Math.max(0, ...targetConfig.client_configs.map(c => c.data.client_id)) + 1;
-    targetConfig.client_configs.push({
-      configId: nextConfigId++,
-      data: {
-        ...DEFAULT_CLIENT_CONFIG,
-        client_id: newId,
-      }
-    });
-  };
-
-  const updateClient = (configId: number, newData: ClientConfig): boolean => {
-    const targetConfig = mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
-
-    // Validate CID uniqueness if it has been changed.
-    const exists = targetConfig.client_configs.some(c =>
-      c.configId !== configId && c.data.client_id === newData.client_id
-    );
-    if (exists) {
-      alert(`CID ${newData.client_id} already exists! Please choose a unique ID.`);
-      return false;
-    }
-
-    // Update the main config array.
-    const idx = targetConfig.client_configs.findIndex(c => c.configId === configId);
-    if (idx !== -1) {
-      targetConfig.client_configs[idx].data = JSON.parse(JSON.stringify(newData)); // Deep copy to SSOT
-      return true;
-    }
-    return false;
-  };
-
-  const deleteClient = (configId: number) => {
-    const targetConfig = mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
-    const idx = targetConfig.client_configs.findIndex(c => c.configId === configId);
-    if (idx === -1) return;
-
-    const targetCid = targetConfig.client_configs[idx].data.client_id;
-
-    // 1. Remove the target process itself
-    targetConfig.client_configs.splice(idx, 1);
-
-    // 2. Cleanup stale dependencies: Remove the deleted CID from all other processes' depends lists
-    targetConfig.client_configs.forEach(c => {
-      c.data.depends = c.data.depends.filter(depId => depId !== targetCid);
-    });
-  };
-
-  /**
-   * Move a client config element from one index to another to reorder.
-   */
-  const moveClientConfig = (fromIndex: number, toIndex: number) => {
-    const targetConfig = mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
-    if (fromIndex === toIndex || toIndex === fromIndex + 1) {
-      return;
-    }
-
-    const target = targetConfig.client_configs[fromIndex];
-    if (!target) return;
-
-    targetConfig.client_configs.splice(fromIndex, 1);
-    const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
-    targetConfig.client_configs.splice(insertIndex, 0, target);
-  };
 
   const newConfig = () => {
     const blankConfig: SchedulerConfig = {
@@ -286,6 +212,80 @@ export function useConfig() {
     configAnalyzeMode.client_configs = wrapped.client_configs;
   };
 
+  const openEdit = (clientWrap: ClientConfigUI) => {
+    selectedClientWrap.value = clientWrap;
+  };
+
+  const closeEdit = () => {
+    selectedClientWrap.value = null;
+  };
+
+  const addClient = () => {
+    const targetConfig = mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
+    const newId = Math.max(0, ...targetConfig.client_configs.map(c => c.data.client_id)) + 1;
+    targetConfig.client_configs.push({
+      configId: nextConfigId++,
+      data: {
+        ...DEFAULT_CLIENT_CONFIG,
+        client_id: newId,
+      }
+    });
+  };
+
+  const updateClient = (configId: number, newData: ClientConfig): boolean => {
+    const targetConfig = mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
+
+    // Validate CID uniqueness if it has been changed.
+    const exists = targetConfig.client_configs.some(c =>
+      c.configId !== configId && c.data.client_id === newData.client_id
+    );
+    if (exists) {
+      alert(`CID ${newData.client_id} already exists! Please choose a unique ID.`);
+      return false;
+    }
+
+    // Update the main config array.
+    const idx = targetConfig.client_configs.findIndex(c => c.configId === configId);
+    if (idx !== -1) {
+      targetConfig.client_configs[idx].data = JSON.parse(JSON.stringify(newData)); // Deep copy to SSOT
+      return true;
+    }
+    return false;
+  };
+
+  const deleteClient = (configId: number) => {
+    const targetConfig = mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
+    const idx = targetConfig.client_configs.findIndex(c => c.configId === configId);
+    if (idx === -1) return;
+
+    const targetCid = targetConfig.client_configs[idx].data.client_id;
+
+    // 1. Remove the target process itself
+    targetConfig.client_configs.splice(idx, 1);
+
+    // 2. Cleanup stale dependencies: Remove the deleted CID from all other processes' depends lists
+    targetConfig.client_configs.forEach(c => {
+      c.data.depends = c.data.depends.filter(depId => depId !== targetCid);
+    });
+  };
+
+  /**
+   * Move a client config element from one index to another to reorder.
+   */
+  const moveClientConfig = (fromIndex: number, toIndex: number) => {
+    const targetConfig = mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
+    if (fromIndex === toIndex || toIndex === fromIndex + 1) {
+      return;
+    }
+
+    const target = targetConfig.client_configs[fromIndex];
+    if (!target) return;
+
+    targetConfig.client_configs.splice(fromIndex, 1);
+    const insertIndex = fromIndex < toIndex ? toIndex - 1 : toIndex;
+    targetConfig.client_configs.splice(insertIndex, 0, target);
+  };
+
   // ---------------------------------------------------------------------------
   // Watchers & Reactive Triggers
 
@@ -303,21 +303,21 @@ export function useConfig() {
   // Public API (Return)
 
   return {
+    activeConfig,
     configCreateMode,
     configAnalyzeMode,
-    selectedClientWrap,
     currentConfigPathCreateMode,
-    activeConfig,
+    selectedClientWrap,
+    newConfig,
+    loadConfig,
+    saveConfig,
+    restoreConfigFromLog,
+    unwrapConfig,
     openEdit,
     closeEdit,
     addClient,
     updateClient,
     deleteClient,
-    moveClientConfig,
-    newConfig,
-    loadConfig,
-    saveConfig,
-    restoreConfigFromLog,
-    unwrapConfig
+    moveClientConfig
   };
 }
