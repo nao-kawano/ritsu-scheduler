@@ -290,7 +290,7 @@ const startDrag = (event: MouseEvent, exec: PlannedExecution, mode: DragMode) =>
   dragState.value = {
     mode,
     startX: event.clientX,
-    initialValue: mode === 'offset' ? clientWrap.data.offset : (clientWrap.data.expected_duration_ms ?? 0),
+    initialValue: mode === 'offset' ? clientWrap.data.offset : clientWrap.data.expected_duration_ms,
     clientWrap
   };
 

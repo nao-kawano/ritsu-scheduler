@@ -17,13 +17,23 @@
  * Based on rt-config-rs structure.
  */
 
+/**
+ * Default log level for console output.
+ */
+export const DEFAULT_LOG_LEVEL = 'info';
+
+/**
+ * Default log level for file output.
+ */
+export const DEFAULT_LOG_FILE_LEVEL = 'debug';
+
 export interface ServerConfig {
   port: number;
   cycle_time_ms: number;
-  stats_interval_cycle?: number;
-  log_level?: string;
-  log_file_dir?: string;
-  log_file_level?: string;
+  stats_interval_cycle: number;
+  log_level: string;
+  log_file_dir: string;
+  log_file_level: string;
 }
 
 export interface ClientConfig {
@@ -33,8 +43,33 @@ export interface ClientConfig {
   offset: number;
   depends: number[];
   display_name: string;
-  expected_duration_ms?: number;
+  expected_duration_ms: number;
 }
+
+/**
+ * Default baseline configuration for server settings.
+ */
+export const DEFAULT_SERVER_CONFIG: Readonly<ServerConfig> = Object.freeze({
+  port: 7878,
+  cycle_time_ms: 50,
+  stats_interval_cycle: 0,
+  log_level: DEFAULT_LOG_LEVEL,
+  log_file_dir: '',
+  log_file_level: DEFAULT_LOG_FILE_LEVEL,
+});
+
+/**
+ * Default baseline template for client process configuration.
+ */
+export const DEFAULT_CLIENT_CONFIG: Readonly<ClientConfig> = Object.freeze({
+  client_id: 0,
+  start_cycle: 0,
+  interval: 1,
+  offset: 0,
+  depends: [],
+  display_name: '',
+  expected_duration_ms: 10,
+});
 
 export interface SchedulerConfig {
   server_config: ServerConfig;

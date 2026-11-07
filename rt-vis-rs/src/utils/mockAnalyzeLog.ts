@@ -13,6 +13,7 @@
 // limitations under the License.
 // =============================================================================
 import type { SchedulerConfig } from '../types/config';
+import { DEFAULT_SERVER_CONFIG } from '../types/config';
 import type {
   LogSummary,
   LogRangeData,
@@ -28,8 +29,7 @@ import type {
 
 const mockConfig: SchedulerConfig = {
   server_config: {
-    port: 7878,
-    cycle_time_ms: 50,
+    ...DEFAULT_SERVER_CONFIG,
     stats_interval_cycle: 200
   },
   client_configs: [

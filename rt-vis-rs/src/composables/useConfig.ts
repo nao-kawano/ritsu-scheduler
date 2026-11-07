@@ -21,6 +21,7 @@ import { ref, reactive, computed, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import type { SchedulerConfig, ClientConfig, SchedulerConfigUI, ClientConfigUI } from '../types/config';
+import { DEFAULT_SERVER_CONFIG, DEFAULT_CLIENT_CONFIG } from '../types/config';
 import { useApp } from './useApp';
 
 // =============================================================================
@@ -30,8 +31,7 @@ import { useApp } from './useApp';
 const sampleConfigCreateMode: SchedulerConfigUI = {
   sessionId: 1,
   server_config: {
-    port: 7878,
-    cycle_time_ms: 50,
+    ...DEFAULT_SERVER_CONFIG,
     stats_interval_cycle: 200
   },
   client_configs: [
@@ -129,13 +129,8 @@ export function useConfig() {
     targetConfig.client_configs.push({
       configId: nextConfigId++,
       data: {
+        ...DEFAULT_CLIENT_CONFIG,
         client_id: newId,
-        start_cycle: 0,
-        interval: 1,
-        offset: 0,
-        depends: [],
-        display_name: "",
-        expected_duration_ms: 10
       }
     });
   };
@@ -196,11 +191,7 @@ export function useConfig() {
 
   const newConfig = () => {
     const blankConfig: SchedulerConfig = {
-      server_config: {
-        port: 7878,
-        cycle_time_ms: 50,
-        stats_interval_cycle: 0 // Disabled by default
-      },
+      server_config: { ...DEFAULT_SERVER_CONFIG },
       client_configs: [] // Start with an empty list
     };
 

@@ -112,7 +112,7 @@ watch(localServerConfig, (newVal) => {
     activeConfig.value.server_config.cycle_time_ms = newVal.cycle_time_ms;
   }
   // 3. Stats Interval Validation (>= 0 cycles)
-  const stats = newVal.stats_interval_cycle ?? 0;
+  const stats = newVal.stats_interval_cycle;
   if (typeof stats === 'number' && stats >= 0) {
     activeConfig.value.server_config.stats_interval_cycle = stats;
   }
@@ -173,7 +173,7 @@ watch(() => activeConfig.value.server_config, (newVal) => {
             (= Disabled)
           </span>
           <span class="rt-input-hint"
-            v-else-if="localServerConfig.stats_interval_cycle && localServerConfig.cycle_time_ms">
+            v-else-if="localServerConfig.stats_interval_cycle > 0 && localServerConfig.cycle_time_ms > 0">
             (= {{ formatDuration(localServerConfig.stats_interval_cycle * localServerConfig.cycle_time_ms) }})
           </span>
         </div>
