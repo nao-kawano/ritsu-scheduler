@@ -75,13 +75,11 @@ struct Args {
 fn resolve_log_config(args: &Args, config: &SchedulerConfig) -> LogConfig {
     let server_cfg = &config.server_config;
 
-    // Resolve console log level (CLI > config file > default "info")
+    // Resolve console log level (CLI > config file)
     let console_level_str = if !args.log_level.is_empty() {
         &args.log_level
-    } else if !server_cfg.log_level.is_empty() {
-        &server_cfg.log_level
     } else {
-        "info"
+        &server_cfg.log_level
     };
     let console_level = logging::parse_level(console_level_str).unwrap_or_else(|e| {
         eprintln!("Invalid console log level: {}", e);
@@ -111,10 +109,8 @@ fn resolve_log_config(args: &Args, config: &SchedulerConfig) -> LogConfig {
     let file_level = if file_dir.is_some() {
         let file_level_str = if !args.log_file_level.is_empty() {
             &args.log_file_level
-        } else if !server_cfg.log_file_level.is_empty() {
-            &server_cfg.log_file_level
         } else {
-            "debug"
+            &server_cfg.log_file_level
         };
         logging::parse_level(file_level_str).unwrap_or_else(|e| {
             eprintln!("Invalid file log level: {}", e);

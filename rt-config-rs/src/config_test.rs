@@ -369,9 +369,20 @@ fn test_server_config_logging_defaults() {
     assert_eq!(config.port, 8080);
     assert_eq!(config.cycle_time_ms, 50);
     assert_eq!(config.stats_interval_cycle, 0);
-    assert_eq!(config.log_level, "");
+    assert_eq!(config.log_level, "info");
     assert_eq!(config.log_file_dir, "");
-    assert_eq!(config.log_file_level, "");
+    assert_eq!(config.log_file_level, "debug");
+}
+
+#[test]
+fn test_server_config_default_trait() {
+    let config = ServerConfig::default();
+    assert_eq!(config.port, 7878);
+    assert_eq!(config.cycle_time_ms, 50);
+    assert_eq!(config.stats_interval_cycle, 0);
+    assert_eq!(config.log_level, "info");
+    assert_eq!(config.log_file_dir, "");
+    assert_eq!(config.log_file_level, "debug");
 }
 
 #[test]

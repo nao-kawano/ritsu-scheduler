@@ -26,23 +26,44 @@ mod config_test;
 
 /* -------------------------------------------------------------------------- */
 
+fn default_log_level() -> String {
+    "info".to_string()
+}
+
+fn default_log_file_level() -> String {
+    "debug".to_string()
+}
+
 /// Configuration for the server.
-#[derive(Clone, Debug, Default, serde::Deserialize, serde::Serialize)]
+#[derive(Clone, Debug, serde::Deserialize, serde::Serialize)]
 pub struct ServerConfig {
     pub port: u16,
     pub cycle_time_ms: u32,
     #[serde(default)]
     pub stats_interval_cycle: u32,
 
-    /// Console log level filter (e.g. "info", "debug"). Empty string falls back to default ("info").
-    #[serde(default)]
+    /// Console log level filter (e.g. "info", "debug"). Defaults to "info".
+    #[serde(default = "default_log_level")]
     pub log_level: String,
     /// Directory path for log files. Empty string disables file logging.
     #[serde(default)]
     pub log_file_dir: String,
-    /// File log level filter (e.g. "debug", "info"). Empty string falls back to default ("debug").
-    #[serde(default)]
+    /// File log level filter (e.g. "debug", "info"). Defaults to "debug".
+    #[serde(default = "default_log_file_level")]
     pub log_file_level: String,
+}
+
+impl Default for ServerConfig {
+    fn default() -> Self {
+        Self {
+            port: 7878,
+            cycle_time_ms: 50,
+            stats_interval_cycle: 0,
+            log_level: default_log_level(),
+            log_file_dir: String::new(),
+            log_file_level: default_log_file_level(),
+        }
+    }
 }
 
 /// Dedicated error type for client configuration validation.

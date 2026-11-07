@@ -58,7 +58,7 @@ By default, the server reads `config.toml` from the current working directory, b
 - **Requirement**: Optional (Default: `"info"`) | **Type**: String
 - **Allowed Values**: `"off"`, `"error"`, `"warn"`, `"info"`, `"debug"`, `"trace"` (case-insensitive)
 - Specifies the log level for the console (stderr).
-  - An empty string `""` falls back to the default `"info"`.
+  - If omitted, defaults to `"info"`.
 
 #### Log File Directory (Key: `log_file_dir`)
 
@@ -72,7 +72,7 @@ By default, the server reads `config.toml` from the current working directory, b
 - **Requirement**: Optional (Default: `"debug"`) | **Type**: String
 - **Allowed Values**: `"off"`, `"error"`, `"warn"`, `"info"`, `"debug"`, `"trace"` (case-insensitive)
 - Specifies the log level written to the log file.
-  - An empty string `""` falls back to the default `"debug"`.
+  - If omitted, defaults to `"debug"`.
   - Recommended to keep at `"debug"` to ensure detailed `<STAT>` transition events are captured for visualization and post-mortem analysis.
 
 ### Client Configuration (Section: `[[client_configs]]`)
