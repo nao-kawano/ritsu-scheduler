@@ -48,7 +48,7 @@ import type { Ref } from 'vue';
  * while allowing pixel-perfect native scrolling and momentum.
  */
 export function useScrollSync(
-  processListScroll: Ref<HTMLElement | null>,
+  clientListScroll: Ref<HTMLElement | null>,
   timelineHeaderScroll: Ref<HTMLElement | null>,
   timelineScroll: Ref<HTMLElement | null>,
   metricsHeaderScroll: Ref<HTMLElement | null>,
@@ -91,11 +91,11 @@ export function useScrollSync(
     }, 50);
 
     window.requestAnimationFrame(() => {
-      if (target === processListScroll.value) {
+      if (target === clientListScroll.value) {
         if (timelineScroll.value) timelineScroll.value.scrollTop = target.scrollTop;
       }
       else if (target === timelineScroll.value) {
-        if (processListScroll.value) processListScroll.value.scrollTop = target.scrollTop;
+        if (clientListScroll.value) clientListScroll.value.scrollTop = target.scrollTop;
         if (timelineHeaderScroll.value) timelineHeaderScroll.value.scrollLeft = target.scrollLeft;
         if (metricsHeaderScroll.value) metricsHeaderScroll.value.scrollLeft = target.scrollLeft;
         if (metricsChartScroll.value) metricsChartScroll.value.scrollLeft = target.scrollLeft;
@@ -122,7 +122,7 @@ export function useScrollSync(
   // Public API (Return)
 
   return {
-    onProcessListScroll: onScroll,
+    onClientListScroll: onScroll,
     onTimelineScroll: onScroll,
     onMetricsScroll: onScroll
   };

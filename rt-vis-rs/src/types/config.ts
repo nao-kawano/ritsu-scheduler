@@ -59,7 +59,7 @@ export const DEFAULT_SERVER_CONFIG: Readonly<ServerConfig> = Object.freeze({
 });
 
 /**
- * Default baseline template for client process configuration.
+ * Default baseline template for client configuration.
  */
 export const DEFAULT_CLIENT_CONFIG: Readonly<ClientConfig> = Object.freeze({
   client_id: 0,

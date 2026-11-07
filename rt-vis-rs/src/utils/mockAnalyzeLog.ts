@@ -206,7 +206,7 @@ function generateFullLogDataset(): FullLogDataset {
     rawMetricEvents.push({ time_ms: roundedStart, change: 1 });
     rawMetricEvents.push({ time_ms: endMs, change: -1 });
 
-    // Ready event sent shortly after process completion
+    // Ready event sent shortly after client completion
     const readyTime = endMs + getRandom(MOCK_PARAMS.ready_delay.min, MOCK_PARAMS.ready_delay.max);
     actualInstantEventsByCid.get(cid)?.push({
       log_line_no: nextLogLineNo++,

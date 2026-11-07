@@ -27,11 +27,11 @@ import { useConfig } from "./composables/useConfig";
 import { useSimulation } from "./composables/useSimulation";
 
 import TopControl from "./components/TopControl.vue";
-import ProcessList from "./components/ProcessList.vue";
+import ClientList from "./components/ClientList.vue";
 import MetricsLabels from "./components/MetricsLabels.vue";
 import ZoomControl from "./components/ZoomControl.vue";
 import GlobalError from "./components/GlobalError.vue";
-import EditPopup from "./components/EditPopup.vue";
+import ClientEditPopup from "./components/ClientEditPopup.vue";
 
 // Mode-specific components
 import TimelineViewCreate from "./components/TimelineViewCreate.vue";
@@ -81,20 +81,20 @@ const currentErrorMessage = computed(() => {
 // --- Component Refs & Scroll Sync State ---
 
 // Component Refs to extract actual elements
-const processListRef = ref<InstanceType<typeof ProcessList> | null>(null);
+const clientListRef = ref<InstanceType<typeof ClientList> | null>(null);
 const timelineViewRef = ref<any>(null);
 const metricsChartRef = ref<any>(null);
 
 // Computed Refs for Scroll Sync (extracting the exposed HTML elements)
-const processListScroll = computed(() => processListRef.value?.scrollEl || null);
+const clientListScroll = computed(() => clientListRef.value?.scrollEl || null);
 const timelineHeaderScroll = computed(() => timelineViewRef.value?.headerScrollEl || null);
 const timelineScroll = computed(() => timelineViewRef.value?.contentScrollEl || null);
 const metricsHeaderScroll = computed(() => metricsChartRef.value?.headerScrollEl || null);
 const metricsChartScroll = computed(() => metricsChartRef.value?.contentScrollEl || null);
 
 // Initialize Scroll Sync
-const { onProcessListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync(
-  processListScroll,
+const { onClientListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync(
+  clientListScroll,
   timelineHeaderScroll,
   timelineScroll,
   metricsHeaderScroll,
@@ -138,12 +138,12 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
     <!-- Top Pane -->
     <TopControl />
 
-    <div class="process-section">
+    <div class="timeline-section">
       <!-- Global Floating Error Display -->
       <GlobalError :message="currentErrorMessage" class="floating-error" />
 
       <!-- Left Pane -->
-      <ProcessList :key="mode" ref="processListRef" @scroll="onProcessListScroll" />
+      <ClientList :key="mode" ref="clientListRef" @scroll="onClientListScroll" />
 
       <!-- Right Pane -->
       <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewAnalyze" ref="timelineViewRef"
@@ -161,7 +161,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
     </footer>
 
     <!-- Edit Popup (Conditional) -->
-    <EditPopup v-if="selectedClientWrap" />
+    <ClientEditPopup v-if="selectedClientWrap" />
   </div>
 </template>
 
@@ -661,7 +661,7 @@ body.is-dragging-resize * {
   background-color: var(--rt-color-bg);
 }
 
-.process-section {
+.timeline-section {
   position: relative;
   display: grid;
   grid-template-columns: var(--left-width) 1fr;

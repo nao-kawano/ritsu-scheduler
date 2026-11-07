@@ -27,7 +27,7 @@ import type { ClientConfig } from "../types/config";
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
-const { selectedClientWrap, updateClient, deleteClient, closeEdit } = useConfig();
+const { selectedClientWrap, updateClient, deleteClient, closeClientEdit } = useConfig();
 
 // -----------------------------------------------------------------------------
 // Props & Emits
@@ -89,7 +89,7 @@ if (selectedClientWrap.value) {
  * This simply resets the global selection state.
  */
 const onCancel = () => {
-  closeEdit();
+  closeClientEdit();
 };
 
 /**
@@ -118,7 +118,7 @@ const onApply = () => {
    */
   const success = updateClient(selectedClientWrap.value.configId, updatedData);
   if (success) {
-    closeEdit();
+    closeClientEdit();
   }
 };
 
@@ -135,7 +135,7 @@ const onDelete = () => {
   }
 
   deleteClient(selectedClientWrap.value.configId);
-  closeEdit();
+  closeClientEdit();
 };
 
 const resetDeleteConfirm = () => {
@@ -171,7 +171,7 @@ onMounted(() => {
   <!-- Standard dialog with @click.self for background clicking and @close for native ESC key support -->
   <dialog ref="dialogRef" class="popup-dialog" @click.self="onCancel" @close="onCancel">
     <div v-if="draft" class="dialog-content">
-      <h3>Edit Process: CID {{ String(draft.client_id).padStart(3, '0') }}</h3>
+      <h3>Edit Client: CID {{ String(draft.client_id).padStart(3, '0') }}</h3>
       <form @submit.prevent="onApply">
         <div class="dialog-body">
           <label class="rt-input-label">Name</label>

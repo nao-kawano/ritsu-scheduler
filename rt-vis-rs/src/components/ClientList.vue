@@ -27,7 +27,7 @@ import { useSimulation } from '../composables/useSimulation';
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
-const { activeConfig, openEdit, addClient, moveClientConfig } = useConfig();
+const { activeConfig, openClientEdit, addClient, moveClientConfig } = useConfig();
 const { configErrors } = useSimulation();
 
 // -----------------------------------------------------------------------------
@@ -78,7 +78,7 @@ const updateTargetIndex = (clientY: number) => {
   const rect = container.getBoundingClientRect();
   const relativeY = clientY - rect.top + container.scrollTop;
 
-  const rows = container.querySelectorAll('.process-row-wrapper:not(.add-btn-row)');
+  const rows = container.querySelectorAll('.client-row-wrapper:not(.add-btn-row)');
   let computedIndex = 0;
 
   for (let i = 0; i < rows.length; i++) {
@@ -94,7 +94,7 @@ const updateTargetIndex = (clientY: number) => {
     }
   }
 
-  // Boundary Guard: prevent inserting below the add process button
+  // Boundary Guard: prevent inserting below the add client button
   const boundedIndex = Math.min(activeConfig.value.client_configs.length, Math.max(0, computedIndex));
 
   if (targetIndex.value !== boundedIndex) {
@@ -171,7 +171,7 @@ const onScroll = (e: Event) => {
 // --- Drag and Drop Handlers ---
 
 /**
- * Handle the start of dragging a process card.
+ * Handle the start of dragging a client card.
  */
 const startDrag = (event: MouseEvent, index: number) => {
   draggingIndex.value = index;
@@ -236,13 +236,13 @@ defineExpose({ scrollEl });
 <!-- Template Section                                                           -->
 <!-- ========================================================================== -->
 <template>
-  <aside class="process-list-pane" :key="activeConfig.sessionId">
-    <div class="pane-header">Processes</div>
-    <div class="scroll-area process-list-scroll sb-hide-all" ref="scrollEl" @scroll="onScroll">
-      <div class="process-list-content" style="position: relative;">
+  <aside class="client-list-pane" :key="activeConfig.sessionId">
+    <div class="pane-header">Clients</div>
+    <div class="scroll-area client-list-scroll sb-hide-all" ref="scrollEl" @scroll="onScroll">
+      <div class="client-list-content" style="position: relative;">
         <template v-for="(clientWrap, index) in activeConfig.client_configs" :key="clientWrap.configId">
           <div class="drop-indicator" :class="{ 'is-active': targetIndex === index }"></div>
-          <div class="process-row-wrapper" :class="{ 'is-dragging': draggingIndex === index }">
+          <div class="client-row-wrapper" :class="{ 'is-dragging': draggingIndex === index }">
             <div class="drag-handle" @mousedown.prevent.stop="startDrag($event, index)">
               <svg viewBox="0 0 14 24" width="14" height="20" fill="currentColor">
                 <circle cx="4" cy="6" r="1.5" />
@@ -253,8 +253,8 @@ defineExpose({ scrollEl });
                 <circle cx="10" cy="18" r="1.5" />
               </svg>
             </div>
-            <div class="process-card" :class="{ 'has-error': getErrors(clientWrap.data.client_id).length > 0 }"
-              @click="openEdit(clientWrap)" :title="getErrors(clientWrap.data.client_id).join('\n')">
+            <div class="client-card" :class="{ 'has-error': getErrors(clientWrap.data.client_id).length > 0 }"
+              @click="openClientEdit(clientWrap)" :title="getErrors(clientWrap.data.client_id).join('\n')">
               <div class="card-header">
                 <div class="cid">
                   CID: {{ String(clientWrap.data.client_id).padStart(3, '0') }}
@@ -264,8 +264,9 @@ defineExpose({ scrollEl });
                 </div>
               </div>
               <div class="card-meta">
-                <div class="details">S: {{ clientWrap.data.start_cycle }}, I: {{ clientWrap.data.interval }}, O: {{ clientWrap.data.offset }}, D: {{
-                  clientWrap.data.expected_duration_ms }}ms</div>
+                <div class="details">S: {{ clientWrap.data.start_cycle }}, I: {{ clientWrap.data.interval }}, O: {{
+                  clientWrap.data.offset }}, D: {{
+                    clientWrap.data.expected_duration_ms }}ms</div>
                 <div class="depends" :class="{ 'no-deps': clientWrap.data.depends.length === 0 }">Deps: {{
                   clientWrap.data.depends.length > 0 ? clientWrap.data.depends.join(', ') : '-' }}</div>
               </div>
@@ -273,8 +274,8 @@ defineExpose({ scrollEl });
           </div>
         </template>
         <div class="drop-indicator" :class="{ 'is-active': targetIndex === activeConfig.client_configs.length }"></div>
-        <div class="process-row-wrapper add-btn-row">
-          <button class="add-btn" @click="addClient">+ Add Process</button>
+        <div class="client-row-wrapper add-btn-row">
+          <button class="add-btn" @click="addClient">+ Add Client</button>
         </div>
       </div>
     </div>
@@ -289,7 +290,7 @@ defineExpose({ scrollEl });
  * Layout & Containers
  * ----------------------------------------------------------------------------- */
 
-.process-list-pane {
+.client-list-pane {
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -323,12 +324,12 @@ defineExpose({ scrollEl });
   min-height: 0;
 }
 
-.process-list-scroll {
+.client-list-scroll {
   overflow-x: hidden;
   overflow-y: scroll;
 }
 
-.process-row-wrapper {
+.client-row-wrapper {
   /* Box Model */
   display: flex;
   align-items: center;
@@ -340,9 +341,9 @@ defineExpose({ scrollEl });
   border-bottom: var(--rt-border-main);
 }
 
-/* --- Process Card Layout --- */
+/* --- Client Card Layout --- */
 
-.process-card {
+.client-card {
   display: flex;
   flex-direction: column;
   justify-content: center;
@@ -462,28 +463,28 @@ defineExpose({ scrollEl });
  * States & Modifiers
  * ----------------------------------------------------------------------------- */
 
-/* --- Process Card States --- */
+/* --- Client Card States --- */
 
-.process-card:hover {
+.client-card:hover {
   border-color: var(--rt-color-primary);
   box-shadow: var(--rt-bshadow-pop);
 }
 
-.process-card.has-error {
+.client-card.has-error {
   background-color: var(--rt-color-error-container);
   border-color: var(--rt-color-error);
   color: var(--rt-color-on-error-container);
 }
 
-.process-card.has-error:hover {
+.client-card.has-error:hover {
   box-shadow: var(--rt-bshadow-pop-error);
 }
 
-.process-card.has-error .cid,
-.process-card.has-error .display-name,
-.process-card.has-error .details,
-.process-card.has-error .depends,
-.process-card.has-error .depends.no-deps {
+.client-card.has-error .cid,
+.client-card.has-error .display-name,
+.client-card.has-error .details,
+.client-card.has-error .depends,
+.client-card.has-error .depends.no-deps {
   color: var(--rt-color-on-error-container);
 }
 
@@ -503,7 +504,7 @@ defineExpose({ scrollEl });
   color: var(--rt-color-primary);
 }
 
-.process-row-wrapper.is-dragging {
+.client-row-wrapper.is-dragging {
   opacity: 0.5;
 }
 

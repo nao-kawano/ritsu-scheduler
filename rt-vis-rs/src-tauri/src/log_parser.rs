@@ -40,7 +40,7 @@ const TAG_STAT: &str = "<STAT>";
 
 /* -------------------------------------------------------------------------- */
 
-/// Intermediate tracking state for an in-progress process execution.
+/// Intermediate tracking state for an in-progress execution.
 struct InProgressExecution {
     instance_id: u64,
     cycle: u64,
@@ -246,7 +246,7 @@ impl LogParserContext {
             // Client transmitted READY to announce readiness or recover from late state; record Ready event.
             self.record_instant_event(cid, current_ms, InstantEventType::Ready);
         } else if stat_body.contains("EXIT") {
-            // Client process disconnected or terminated; record Exit event.
+            // Client disconnected or terminated; record Exit event.
             self.record_instant_event(cid, current_ms, InstantEventType::Exit);
         }
     }

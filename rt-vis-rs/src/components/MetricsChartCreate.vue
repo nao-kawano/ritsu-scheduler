@@ -64,7 +64,7 @@ const contentScrollEl = ref<HTMLElement | null>(null);
 // --- Path Generation ---
 
 /**
- * Calculate the SVG path for the "Concurrent Processes" Area Fill.
+ * Calculate the SVG path for the "Concurrent Clients" Area Fill.
  * Generates a closed staircase polygon for background area fill.
  */
 const areaPath = computed(() => {
@@ -106,8 +106,8 @@ const areaPath = computed(() => {
 });
 
 /**
- * Calculate the SVG path for the "Concurrent Processes" Top Edge Line.
- * Generates an open staircase polyline tracing the upper contour of running processes.
+ * Calculate the SVG path for the "Concurrent Clients" Top Edge Line.
+ * Generates an open staircase polyline tracing the upper contour of running clients.
  * Clamps bottom Y coordinate by half stroke width to keep the line fully within the row boundary.
  */
 const linePath = computed(() => {
@@ -194,12 +194,12 @@ defineExpose({
         width: totalWidth + 'px',
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
       }">
-        <!-- Row 1: Concurrent Processes Area Chart -->
+        <!-- Row 1: Concurrent Clients Area Chart -->
         <div class="metrics-row" :class="{ 'info-row': plannedMetricsCreateMode.length === 0 }">
           <svg v-if="plannedMetricsCreateMode.length > 0" class="metrics-svg" :width="totalWidth"
             :height="METRICS_HEIGHT">
-            <path :d="areaPath" class="planned-processes-area" />
-            <path :d="linePath" class="planned-processes-line" />
+            <path :d="areaPath" class="planned-clients-area" />
+            <path :d="linePath" class="planned-clients-line" />
           </svg>
           <div v-else class="placeholder-text">No simulation data available</div>
         </div>
@@ -320,8 +320,8 @@ defineExpose({
   pointer-events: none;
 }
 
-/* Concurrent processes count area fill (translucent filled step polygon) */
-.planned-processes-area {
+/* Concurrent clients count area fill (translucent filled step polygon) */
+.planned-clients-area {
   fill: var(--rt-color-primary);
   fill-opacity: 0.4;
   stroke: none;
@@ -329,8 +329,8 @@ defineExpose({
   transition: d 0.3s ease;
 }
 
-/* Concurrent processes count step line (solid top contour) */
-.planned-processes-line {
+/* Concurrent clients count step line (solid top contour) */
+.planned-clients-line {
   stroke: var(--rt-color-primary);
   stroke-width: v-bind('CHART_STROKE_WIDTH + "px"');
   fill: none;

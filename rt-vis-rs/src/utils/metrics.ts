@@ -79,7 +79,7 @@ export function computePlannedConcurrencySteps(
 }
 
 /**
- * Find the actual running process count at timeMs using binary search.
+ * Find the actual running client count at timeMs using binary search.
  */
 export function findActualConcurrencyForTime(actuals: ActualMetricPoint[], timeMs: number): number {
   if (!actuals || actuals.length === 0) return 0;
@@ -99,7 +99,7 @@ export function findActualConcurrencyForTime(actuals: ActualMetricPoint[], timeM
 }
 
 /**
- * Find the planned running process count at timeMs using binary search on cached steps.
+ * Find the planned running client count at timeMs using binary search on cached steps.
  */
 export function findPlannedConcurrencyForTime(steps: ConcurrencyStep[], timeMs: number): number | null {
   if (!steps || steps.length === 0) return null;

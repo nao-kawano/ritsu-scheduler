@@ -133,7 +133,7 @@ export function useConfig() {
     targetConfig.server_config = wrapped.server_config;
     targetConfig.client_configs = wrapped.client_configs;
 
-    closeEdit();
+    closeClientEdit();
     console.log("New config initialized.");
   };
 
@@ -154,7 +154,7 @@ export function useConfig() {
         currentConfigPathAnalyzeMode.value = selectedPath as string;
       }
 
-      closeEdit();
+      closeClientEdit();
 
       const loaded = await invoke<SchedulerConfig>("load_config", { path: selectedPath as string });
 
@@ -212,11 +212,11 @@ export function useConfig() {
     configAnalyzeMode.client_configs = wrapped.client_configs;
   };
 
-  const openEdit = (clientWrap: ClientConfigUI) => {
+  const openClientEdit = (clientWrap: ClientConfigUI) => {
     selectedClientWrap.value = clientWrap;
   };
 
-  const closeEdit = () => {
+  const closeClientEdit = () => {
     selectedClientWrap.value = null;
   };
 
@@ -260,10 +260,10 @@ export function useConfig() {
 
     const targetCid = targetConfig.client_configs[idx].data.client_id;
 
-    // 1. Remove the target process itself
+    // 1. Remove the target client itself
     targetConfig.client_configs.splice(idx, 1);
 
-    // 2. Cleanup stale dependencies: Remove the deleted CID from all other processes' depends lists
+    // 2. Cleanup stale dependencies: Remove the deleted CID from all other clients' depends lists
     targetConfig.client_configs.forEach(c => {
       c.data.depends = c.data.depends.filter(depId => depId !== targetCid);
     });
@@ -291,7 +291,7 @@ export function useConfig() {
 
   // Reset edit dialog when switching modes
   watch(mode, () => {
-    closeEdit();
+    closeClientEdit();
   });
 
   // ---------------------------------------------------------------------------
@@ -313,8 +313,8 @@ export function useConfig() {
     saveConfig,
     restoreConfigFromLog,
     unwrapConfig,
-    openEdit,
-    closeEdit,
+    openClientEdit,
+    closeClientEdit,
     addClient,
     updateClient,
     deleteClient,

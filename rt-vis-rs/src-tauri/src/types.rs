@@ -120,7 +120,7 @@ pub struct ActualInstantEvent {
     pub event_type: InstantEventType,
 }
 
-/// Actual execution bar data for a client process.
+/// Actual execution bar data for a client.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ActualExecution {

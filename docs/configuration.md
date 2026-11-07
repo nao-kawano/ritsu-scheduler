@@ -136,14 +136,14 @@ Per-client configuration options:
 #### Display Name (Key: `display_name`)
 
 - **Requirement**: Optional (Default: `""`) | **Type**: String | **Constraint**: Max 20 characters
-- Specifies a human-readable name for this process.
-  - Used by visualization tools (like Ritsu Vis) to identify processes on charts.
+- Specifies a human-readable name for this client.
+  - Used by visualization tools (like Ritsu Vis) to identify clients on charts.
   - Does not affect the actual execution of the process in the scheduler.
 
 #### Expected Execution Duration (Key: `expected_duration_ms`)
 
 - **Requirement**: Optional (Default: `0`) | **Type**: Integer (`u32`) | **Unit**: milliseconds
-- Specifies the expected execution time for this process in milliseconds.
+- Specifies the expected execution time for this client in milliseconds.
   - Used by visualization tools (like Ritsu Vis) to display the "planned" execution time on charts.
   - Does not affect the actual execution of the process in the scheduler.
 

@@ -72,7 +72,7 @@ interface MetricHoverData {
 // Constants & Layout
 
 const ROW_HEIGHT = 70; // Height of each metric chart row in pixels (matching Create Mode)
-const METRIC_ROWS = 2; // Total metric chart rows (1: Concurrent Processes, 2: Cycle Jitter)
+const METRIC_ROWS = 2; // Total metric chart rows (1: Concurrent Clients, 2: Cycle Jitter)
 const CHART_TOP_MARGIN = 10; // Top margin to prevent charts from touching top row border (px)
 const CHART_BOTTOM_MARGIN = 10; // Bottom margin to prevent charts and baselines from touching bottom row border (px)
 const CHART_STROKE_WIDTH = 2; // Stroke line width for metrics chart lines (px)
@@ -327,7 +327,7 @@ const renderMetricsRow1Actual = (
 };
 
 /**
- * Render Row 1: Concurrent process count metrics (Planned translucent area + Actual error-colored step chart).
+ * Render Row 1: Concurrent client count metrics (Planned translucent area + Actual error-colored step chart).
  * Uses dynamic scaling based on log max_concurrency metadata and planned metrics.
  */
 const renderMetricsRow1 = (

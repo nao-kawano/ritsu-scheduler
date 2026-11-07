@@ -52,7 +52,7 @@ type DragMode = 'offset' | 'duration';
 // -----------------------------------------------------------------------------
 // Constants & Layout
 
-const ROW_HEIGHT = 70;   // Fixed height of each process row (px)
+const ROW_HEIGHT = 70;   // Fixed height of each client row (px)
 const RECT_HEIGHT = 36;  // Height of the execution bar (px)
 
 // -----------------------------------------------------------------------------
@@ -79,9 +79,9 @@ const hoveredInstanceId = ref<number | null>(null);
 // --- Data Filtering & Selection ---
 
 /**
- * Filter planned executions to only those whose processes still exist in the configuration.
+ * Filter planned executions to only those whose clients still exist in the configuration.
  * This prevents "ghost bars" from jumping to the top of the chart during the
- * debounce period after a process deletion or CID change.
+ * debounce period after a client deletion or CID change.
  */
 const activeExecutions = computed(() => {
   const existingCids = new Set(configCreateMode.client_configs.map((c: ClientConfigUI) => c.data.client_id));
@@ -96,7 +96,7 @@ const executionsByInstanceId = computed(() => {
 });
 
 /**
- * Identify the first execution instance for each process (CID).
+ * Identify the first execution instance for each client (CID).
  * These instances are the primary targets for interactive editing (D&D).
  */
 const firstInstances = computed(() => {
@@ -162,7 +162,7 @@ const guideRegion = computed(() => {
 
   const { mode, clientWrap } = dragState.value;
   const cycleMs = cycleTimeMs.value;
-  const processInterval = clientWrap.data.interval;
+  const clientInterval = clientWrap.data.interval;
   const startCycle = clientWrap.data.start_cycle;
 
   let startMs = 0;
@@ -171,11 +171,11 @@ const guideRegion = computed(() => {
   if (mode === 'duration') {
     // For Duration: Shows the valid duration range within the current scheduled cycle.
     startMs = (startCycle + clientWrap.data.offset) * cycleMs;
-    durationMs = processInterval * cycleMs;
+    durationMs = clientInterval * cycleMs;
   } else if (mode === 'offset') {
     // For Offset: Shows all valid offset slots.
     startMs = startCycle * cycleMs;
-    durationMs = processInterval * cycleMs;
+    durationMs = clientInterval * cycleMs;
   }
 
   return {
@@ -262,7 +262,7 @@ const getDisplayErrors = (cid: number) => {
  */
 const getBarY = (cid: number) => {
   const index = configCreateMode.client_configs.findIndex((c: ClientConfigUI) => c.data.client_id === cid);
-  if (index === -1) return -1000; // Position off-screen if process is not found
+  if (index === -1) return -1000; // Position off-screen if client is not found
   return (index * ROW_HEIGHT) + (ROW_HEIGHT / 2) - (RECT_HEIGHT / 2);
 };
 

@@ -31,7 +31,7 @@ export interface ActualInstantEvent {
 }
 
 /**
- * Actual execution bar data for a client process.
+ * Actual execution bar data for a client.
  */
 export interface ActualExecution {
   log_line_no_start: number;

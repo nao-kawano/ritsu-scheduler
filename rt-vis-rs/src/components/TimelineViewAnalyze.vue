@@ -83,7 +83,7 @@ interface HitEventItem {
 // -----------------------------------------------------------------------------
 // Constants & Layout
 
-const ROW_HEIGHT = 70;         // Fixed height of each process row in pixels (matching Create Mode)
+const ROW_HEIGHT = 70;         // Fixed height of each client row in pixels (matching Create Mode)
 const PLAN_RECT_HEIGHT = 46;  // Outer planned execution box height (matching Create Mode bar height)
 const ACTUAL_RECT_HEIGHT = 28; // Inner solid actual execution bar height
 const EVENT_DIAMOND_RADIUS_PX = 8; // Radius of instant event diamond marker in pixels
@@ -126,7 +126,7 @@ const hasHoverTarget = computed(() => {
 // --- Data Mapping & Computed Lookups ---
 
 /**
- * Map Client ID to process row index for alignment.
+ * Map Client ID to client row index for alignment.
  */
 const cidToRowIndex = computed(() => {
   const map = new Map<number, number>();
@@ -135,7 +135,7 @@ const cidToRowIndex = computed(() => {
 });
 
 /**
- * Map Client ID to process display name.
+ * Map Client ID to client display name.
  */
 const cidToClientName = computed(() => {
   const map = new Map<number, string>();
@@ -284,7 +284,7 @@ const updateThemeStyles = () => {
 // --- Canvas Sub-Renderers ---
 
 /**
- * Render horizontal process row separator borders.
+ * Render horizontal client row separator borders.
  */
 const renderRowBorders = (
   ctx: CanvasRenderingContext2D,
@@ -561,7 +561,7 @@ const renderInstantEvents = (
 
     const clientName = cidToClientName.value.get(cid) || `Client ${cid}`;
     const yCenter = Math.floor(r * ROW_HEIGHT - scrollTop + ROW_HEIGHT / 2);
-    // Early vertical viewport culling for the process row
+    // Early vertical viewport culling for the client row
     if (yCenter + EVENT_DIAMOND_RADIUS_PX < 0 || yCenter - EVENT_DIAMOND_RADIUS_PX > height) return;
 
     events.forEach(event => {
@@ -658,7 +658,7 @@ const renderHeader = (styles: ThemeStyles) => {
 };
 
 /**
- * Render timeline content background grid, process row borders, plan boxes, and actual bars.
+ * Render timeline content background grid, client row borders, plan boxes, and actual bars.
  */
 const renderContent = (styles: ThemeStyles) => {
   if (!contentCanvasEl.value || !contentScrollEl.value) return;
@@ -937,7 +937,7 @@ defineExpose({
       </div>
     </div>
 
-    <!-- Scrollable Content Section (Background Grid & Process Timeline) -->
+    <!-- Scrollable Content Section (Background Grid & Client Timeline) -->
     <div class="scroll-area timeline-scroll sb-hide-h" :class="{ 'has-hover': hasHoverTarget }" ref="contentScrollEl"
       @scroll="onScroll" @mousemove="onMouseMove" @mouseleave="onMouseLeave">
       <div class="timeline-content" :style="{ width: totalWidth + 'px', height: totalContentHeight + 'px' }">
@@ -950,7 +950,7 @@ defineExpose({
           <div v-if="hoveredBar" class="tooltip-card">
             <div class="tooltip-header">
               <div class="tooltip-title">
-                <span class="tooltip-process-name">{{ hoveredBar.clientName }}</span>
+                <span class="tooltip-client-name">{{ hoveredBar.clientName }}</span>
                 <span class="tooltip-cid-badge">CID: {{ hoveredBar.cid }}</span>
               </div>
               <span class="tooltip-bar-badge"
@@ -1023,7 +1023,7 @@ defineExpose({
           <div v-else-if="hoveredEvents && hoveredEvents.length > 0" class="tooltip-card">
             <div class="tooltip-header">
               <div class="tooltip-title">
-                <span class="tooltip-process-name">{{ hoveredEvents[0].clientName }}</span>
+                <span class="tooltip-client-name">{{ hoveredEvents[0].clientName }}</span>
                 <span class="tooltip-cid-badge">CID: {{ hoveredEvents[0].cid }}</span>
               </div>
             </div>
@@ -1169,7 +1169,7 @@ defineExpose({
   gap: 6px;
 }
 
-.tooltip-process-name {
+.tooltip-client-name {
   color: var(--rt-color-text);
   font-size: var(--rt-font-s, 12px);
   font-weight: 600;

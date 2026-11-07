@@ -80,7 +80,7 @@ const { activeConfig } = useConfig();
   <div class="metrics-labels-pane" :key="activeConfig.sessionId">
     <div class="pane-header">Metrics Labels</div>
     <div class="metrics-labels">
-      <div class="metric-label">Concurrent Processes</div>
+      <div class="metric-label">Concurrent Clients</div>
       <div class="metric-label">Cycle Jitter</div>
     </div>
   </div>
