@@ -152,12 +152,6 @@ export function useConfig() {
         return; // User cancelled
       }
 
-      if (mode.value === 'Create') {
-        currentConfigPathCreateMode.value = selectedPath as string;
-      } else {
-        currentConfigPathAnalyzeMode.value = selectedPath as string;
-      }
-
       closeServerAdvanced();
       closeClientEdit();
 
@@ -168,6 +162,13 @@ export function useConfig() {
       targetConfig.sessionId = wrapped.sessionId;
       targetConfig.server_config = wrapped.server_config;
       targetConfig.client_configs = wrapped.client_configs;
+
+      // Update path only after successful load and commit to state
+      if (mode.value === 'Create') {
+        currentConfigPathCreateMode.value = selectedPath as string;
+      } else {
+        currentConfigPathAnalyzeMode.value = selectedPath as string;
+      }
 
       console.log("Config loaded successfully.");
       alert(`Config loaded successfully!\nPath: ${selectedPath}`);
@@ -189,16 +190,18 @@ export function useConfig() {
         return; // User cancelled
       }
 
+      const targetConfig = mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
+      const rawConfig = unwrapConfig(targetConfig);
+      console.log("Saving config...", JSON.stringify(rawConfig, null, 2));
+      await invoke("save_config", { path: selectedPath as string, config: rawConfig });
+
+      // Update path only after successful save
       if (mode.value === 'Create') {
         currentConfigPathCreateMode.value = selectedPath as string;
       } else {
         currentConfigPathAnalyzeMode.value = selectedPath as string;
       }
 
-      const targetConfig = mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
-      const rawConfig = unwrapConfig(targetConfig);
-      console.log("Saving config...", JSON.stringify(rawConfig, null, 2));
-      await invoke("save_config", { path: selectedPath as string, config: rawConfig });
       console.log("Config saved successfully.");
       alert(`Config saved successfully!\nPath: ${selectedPath}`);
     } catch (e) {

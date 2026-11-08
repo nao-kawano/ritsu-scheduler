@@ -20,7 +20,7 @@
 // -----------------------------------------------------------------------------
 // Imports
 
-import { ref, reactive, watch } from 'vue';
+import { ref, reactive, computed, watch } from 'vue';
 import { useApp } from '../composables/useApp';
 import { useConfig } from '../composables/useConfig';
 import { useExecutionLog } from '../composables/useExecutionLog';
@@ -29,8 +29,8 @@ import { useExecutionLog } from '../composables/useExecutionLog';
 // Global State & Composables
 
 const { appVersion, mode } = useApp();
-const { activeConfig, newConfig, loadConfig, saveConfig, openServerAdvanced } = useConfig();
-const { loadLog, isLogLoading } = useExecutionLog();
+const { activeConfig, currentConfigPathCreateMode, newConfig, loadConfig, saveConfig, openServerAdvanced } = useConfig();
+const { currentLogPathAnalyzeMode, loadLog, isLogLoading } = useExecutionLog();
 
 // -----------------------------------------------------------------------------
 // Props & Emits
@@ -49,6 +49,24 @@ const { loadLog, isLogLoading } = useExecutionLog();
 
 // -----------------------------------------------------------------------------
 // Local State & Computed
+
+/**
+ * Active file path currently displayed or edited.
+ * Resolves to the config path in Create mode, or the log path in Analyze mode.
+ */
+const activeFilePath = computed<string>(() => {
+  return mode.value === 'Create' ? currentConfigPathCreateMode.value : currentLogPathAnalyzeMode.value;
+});
+
+/**
+ * Basename extracted from activeFilePath.
+ * Returns an empty string if no file is loaded or saved yet.
+ */
+const activeFileName = computed<string>(() => {
+  if (!activeFilePath.value) return '';
+  const parts = activeFilePath.value.split(/[/\\]/);
+  return parts[parts.length - 1] || '';
+});
 
 /**
  * Local drafting buffer for server configuration.
@@ -125,8 +143,21 @@ watch(() => activeConfig.value.server_config, (newVal) => {
 <template>
   <header class="global-control-pane">
     <div class="top-row">
-      <div class="brand">
-        Ritsu Vis <span class="version-label" v-if="appVersion">v{{ appVersion }}</span>
+      <div class="brand-container">
+        <div class="brand">
+          Ritsu Vis <span class="version-label" v-if="appVersion">v{{ appVersion }}</span>
+        </div>
+        <div class="brand-divider" />
+        <div class="active-file-indicator">
+          <span class="indicator-label">Active File:</span>
+          <span
+            class="indicator-value"
+            :class="{ 'none-value': !activeFileName }"
+            :title="activeFilePath || 'No active file'"
+          >
+            {{ activeFileName || '(None)' }}
+          </span>
+        </div>
       </div>
       <div class="rt-toggle-container">
         <button :class="{ active: mode === 'Create' }" class="rt-toggle-item" @click="mode = 'Create'">Create</button>
@@ -207,6 +238,12 @@ watch(() => activeConfig.value.server_config, (newVal) => {
 
 /* --- Section Groups --- */
 
+.brand-container {
+  display: flex;
+  align-items: baseline;
+  min-width: 0;
+}
+
 .server-info-inputs {
   display: flex;
   gap: 24px;
@@ -244,6 +281,44 @@ watch(() => activeConfig.value.server_config, (newVal) => {
 .version-label {
   margin-left: 8px;
   font-size: var(--rt-font-m);
+  font-weight: normal;
+  color: var(--rt-color-text-dim);
+}
+
+.brand-divider {
+  align-self: center;
+  flex-shrink: 0;
+  width: 1px;
+  height: 16px;
+  margin: 0 16px;
+  background-color: var(--rt-color-border);
+}
+
+.active-file-indicator {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.indicator-label {
+  font-size: var(--rt-font-m);
+  color: var(--rt-color-text-dim);
+  white-space: nowrap;
+  user-select: none;
+}
+
+.indicator-value {
+  max-width: 380px;
+  overflow: hidden;
+  font-size: var(--rt-font-m);
+  font-weight: 600;
+  color: var(--rt-color-text);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.indicator-value.none-value {
   font-weight: normal;
   color: var(--rt-color-text-dim);
 }
