@@ -20,7 +20,7 @@
 import { ref, reactive, computed, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
-import type { SchedulerConfig, ClientConfig, SchedulerConfigUI, ClientConfigUI } from '../types/config';
+import type { SchedulerConfig, ServerConfig, ClientConfig, SchedulerConfigUI, ClientConfigUI } from '../types/config';
 import { DEFAULT_SERVER_CONFIG, DEFAULT_CLIENT_CONFIG } from '../types/config';
 import { useApp } from './useApp';
 
@@ -56,6 +56,9 @@ const configCreateMode = reactive<SchedulerConfigUI>(JSON.parse(JSON.stringify(s
 const configAnalyzeMode = reactive<SchedulerConfigUI>(JSON.parse(JSON.stringify(sampleConfigCreateMode)));
 const currentConfigPathCreateMode = ref<string>('');
 const currentConfigPathAnalyzeMode = ref<string>('');
+
+// Server State
+const isOpenServerAdvanced = ref<boolean>(false);
 
 // Client State
 const selectedClientWrap = ref<ClientConfigUI | null>(null);
@@ -133,6 +136,7 @@ export function useConfig() {
     targetConfig.server_config = wrapped.server_config;
     targetConfig.client_configs = wrapped.client_configs;
 
+    closeServerAdvanced();
     closeClientEdit();
     console.log("New config initialized.");
   };
@@ -154,6 +158,7 @@ export function useConfig() {
         currentConfigPathAnalyzeMode.value = selectedPath as string;
       }
 
+      closeServerAdvanced();
       closeClientEdit();
 
       const loaded = await invoke<SchedulerConfig>("load_config", { path: selectedPath as string });
@@ -210,6 +215,22 @@ export function useConfig() {
     configAnalyzeMode.sessionId = wrapped.sessionId;
     configAnalyzeMode.server_config = wrapped.server_config;
     configAnalyzeMode.client_configs = wrapped.client_configs;
+  };
+
+  const openServerAdvanced = () => {
+    isOpenServerAdvanced.value = true;
+  };
+
+  const closeServerAdvanced = () => {
+    isOpenServerAdvanced.value = false;
+  };
+
+  const updateServerConfig = (updates: Partial<ServerConfig>) => {
+    const targetConfig = mode.value === 'Create' ? configCreateMode : configAnalyzeMode;
+    targetConfig.server_config = {
+      ...targetConfig.server_config,
+      ...updates
+    };
   };
 
   const openClientEdit = (clientWrap: ClientConfigUI) => {
@@ -289,8 +310,9 @@ export function useConfig() {
   // ---------------------------------------------------------------------------
   // Watchers & Reactive Triggers
 
-  // Reset edit dialog when switching modes
+  // Reset dialogs when switching modes
   watch(mode, () => {
+    closeServerAdvanced();
     closeClientEdit();
   });
 
@@ -307,12 +329,16 @@ export function useConfig() {
     configCreateMode,
     configAnalyzeMode,
     currentConfigPathCreateMode,
+    isOpenServerAdvanced,
     selectedClientWrap,
     newConfig,
     loadConfig,
     saveConfig,
     restoreConfigFromLog,
     unwrapConfig,
+    openServerAdvanced,
+    closeServerAdvanced,
+    updateServerConfig,
     openClientEdit,
     closeClientEdit,
     addClient,

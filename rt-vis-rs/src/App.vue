@@ -31,6 +31,7 @@ import ClientList from "./components/ClientList.vue";
 import MetricsLabels from "./components/MetricsLabels.vue";
 import ZoomControl from "./components/ZoomControl.vue";
 import GlobalError from "./components/GlobalError.vue";
+import ServerAdvancedPopup from "./components/ServerAdvancedPopup.vue";
 import ClientEditPopup from "./components/ClientEditPopup.vue";
 
 // Mode-specific components
@@ -43,7 +44,7 @@ import MetricsChartAnalyze from "./components/MetricsChartAnalyze.vue";
 // Global State & Composables
 
 const { mode } = useApp();
-const { selectedClientWrap } = useConfig();
+const { isOpenServerAdvanced, selectedClientWrap } = useConfig();
 const { simulationError } = useSimulation();
 
 // -----------------------------------------------------------------------------
@@ -160,7 +161,8 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
         @scroll="onMetricsScroll" />
     </footer>
 
-    <!-- Edit Popup (Conditional) -->
+    <!-- Edit Popups (Conditional) -->
+    <ServerAdvancedPopup v-if="isOpenServerAdvanced" />
     <ClientEditPopup v-if="selectedClientWrap" />
   </div>
 </template>
@@ -473,6 +475,11 @@ body.is-dragging-resize * {
   box-shadow: var(--rt-bshadow-invalid);
 }
 
+.rt-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .rt-input-group {
   display: flex;
   gap: var(--rt-spacing-s);
@@ -635,7 +642,42 @@ body.is-dragging-resize * {
  * Overlays & Tooltips
  * ----------------------------------------------------------------------------- */
 
-/* (none) */
+/* --- Modal Dialogs --- */
+
+.popup-dialog {
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--rt-radius-l);
+  box-shadow: var(--rt-bshadow-pop);
+}
+
+.popup-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.5);
+}
+
+.dialog-content {
+  box-sizing: border-box;
+  padding: 32px;
+  background: var(--rt-color-surface);
+  color: var(--rt-color-text);
+  border-radius: var(--rt-radius-l);
+}
+
+.dialog-content h3 {
+  margin-top: 0;
+  margin-bottom: 24px;
+  font-size: var(--rt-font-l);
+  color: var(--rt-color-primary);
+}
+
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 16px;
+  margin-top: 32px;
+}
 
 /* -----------------------------------------------------------------------------
  * States & Modifiers

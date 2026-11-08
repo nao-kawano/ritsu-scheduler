@@ -29,7 +29,7 @@ import { useExecutionLog } from '../composables/useExecutionLog';
 // Global State & Composables
 
 const { appVersion, mode } = useApp();
-const { activeConfig, newConfig, loadConfig, saveConfig } = useConfig();
+const { activeConfig, newConfig, loadConfig, saveConfig, openServerAdvanced } = useConfig();
 const { loadLog, isLogLoading } = useExecutionLog();
 
 // -----------------------------------------------------------------------------
@@ -63,21 +63,7 @@ const isConfirmingNew = ref(false);
 // -----------------------------------------------------------------------------
 // Methods & Logic
 
-/**
- * Formats a duration in milliseconds to a human-readable string.
- * Automatically scales to 'sec' or 'min' for larger durations.
- */
-const formatDuration = (totalMs: number): string => {
-  if (totalMs < 1000) {
-    return `${totalMs} ms`;
-  } else if (totalMs < 60000) {
-    const sec = (totalMs / 1000).toFixed(1);
-    return `${sec} sec`;
-  } else {
-    const min = (totalMs / 60000).toFixed(1);
-    return `${min} min`;
-  }
-};
+// (none)
 
 // -----------------------------------------------------------------------------
 // Event Handlers
@@ -110,11 +96,6 @@ watch(localServerConfig, (newVal) => {
   // 2. Cycle Validation (>= 1ms)
   if (typeof newVal.cycle_time_ms === 'number' && newVal.cycle_time_ms >= 1) {
     activeConfig.value.server_config.cycle_time_ms = newVal.cycle_time_ms;
-  }
-  // 3. Stats Interval Validation (>= 0 cycles)
-  const stats = newVal.stats_interval_cycle;
-  if (typeof stats === 'number' && stats >= 0) {
-    activeConfig.value.server_config.stats_interval_cycle = stats;
   }
 }, { deep: true });
 
@@ -166,16 +147,9 @@ watch(() => activeConfig.value.server_config, (newVal) => {
             class="rt-input server-input" />
         </div>
         <div class="rt-input-group">
-          <label class="rt-input-label">Stats cycle</label>
-          <input type="number" v-model.number="localServerConfig.stats_interval_cycle" min="0" required
-            class="rt-input server-input" />
-          <span class="rt-input-hint" v-if="localServerConfig.stats_interval_cycle === 0">
-            (= Disabled)
-          </span>
-          <span class="rt-input-hint"
-            v-else-if="localServerConfig.stats_interval_cycle > 0 && localServerConfig.cycle_time_ms > 0">
-            (= {{ formatDuration(localServerConfig.stats_interval_cycle * localServerConfig.cycle_time_ms) }})
-          </span>
+          <label class="rt-input-label">Advanced</label>
+          <button type="button" class="rt-btn rt-btn-secondary server-btn"
+            @click="openServerAdvanced">Settings...</button>
         </div>
       </div>
       <div class="actions">
@@ -259,6 +233,12 @@ watch(() => activeConfig.value.server_config, (newVal) => {
 
 .server-input {
   width: 80px;
+}
+
+.server-btn {
+  height: 34px;
+  padding: 0 14px;
+  font-size: var(--rt-font-s);
 }
 
 .version-label {

@@ -18,22 +18,36 @@
  */
 
 /**
+ * Permitted log levels in ascending order of verbosity.
+ */
+export const LOG_LEVELS = ['off', 'error', 'warn', 'info', 'debug', 'trace'] as const;
+export type LogLevel = (typeof LOG_LEVELS)[number];
+
+/**
  * Default log level for console output.
  */
-export const DEFAULT_LOG_LEVEL = 'info';
+export const DEFAULT_LOG_LEVEL: LogLevel = 'info';
 
 /**
  * Default log level for file output.
  */
-export const DEFAULT_LOG_FILE_LEVEL = 'debug';
+export const DEFAULT_LOG_FILE_LEVEL: LogLevel = 'debug';
+
+/**
+ * Returns the numeric verbosity priority for a log level (higher number = more verbose).
+ * Returns -1 if the level is unknown.
+ */
+export const getLogLevelPriority = (level: string): number => {
+  return LOG_LEVELS.indexOf(level.toLowerCase() as LogLevel);
+};
 
 export interface ServerConfig {
   port: number;
   cycle_time_ms: number;
   stats_interval_cycle: number;
-  log_level: string;
+  log_level: LogLevel;
   log_file_dir: string;
-  log_file_level: string;
+  log_file_level: LogLevel;
 }
 
 export interface ClientConfig {

@@ -220,48 +220,15 @@ onMounted(() => {
  * Layout & Containers
  * ----------------------------------------------------------------------------- */
 
-/**
- * Standard <dialog> reset.
- */
-.popup-dialog {
-  padding: 0;
-  background: transparent;
-  border: none;
-  border-radius: var(--rt-radius-l);
-  box-shadow: var(--rt-bshadow-pop);
-}
-
 .dialog-content {
   width: 440px;
-  padding: 32px;
-  background: var(--rt-color-surface);
-  color: var(--rt-color-text);
 }
-
-.dialog-content h3 {
-  margin-top: 0;
-  margin-bottom: 24px;
-  font-size: var(--rt-font-l);
-  color: var(--rt-color-primary);
-}
-
-/* --- Form and Inputs --- */
 
 .dialog-body {
   display: grid;
   grid-template-columns: 100px 1fr;
   align-items: center;
   gap: 16px;
-}
-
-/* --- Action Footer --- */
-
-.dialog-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 16px;
-  margin-top: 32px;
 }
 
 /* -----------------------------------------------------------------------------
@@ -274,12 +241,7 @@ onMounted(() => {
  * Overlays & Tooltips
  * ----------------------------------------------------------------------------- */
 
-/**
- * The ::backdrop provides the Dim/Overlay effect.
- */
-.popup-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.5);
-}
+/* (none) */
 
 /* -----------------------------------------------------------------------------
  * States & Modifiers
