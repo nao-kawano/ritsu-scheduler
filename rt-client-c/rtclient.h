@@ -16,9 +16,9 @@
 #define RTCLIENT_H
 
 #define RTCLIENT_VERSION_MAJOR 0
-#define RTCLIENT_VERSION_MINOR 3
+#define RTCLIENT_VERSION_MINOR 4
 #define RTCLIENT_VERSION_PATCH 0
-#define RTCLIENT_VERSION       "0.3.0"
+#define RTCLIENT_VERSION       "0.4.0"
 
 #include <stdbool.h>
 #include <stdint.h>
