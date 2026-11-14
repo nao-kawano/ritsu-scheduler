@@ -4,7 +4,7 @@
 
 [server_config]
 # UDP port bound by rt-server for Control Plane signaling
-port = 10000
+port = 7878
 # Deterministic pipeline period in milliseconds (200 ms = 5 Hz)
 cycle_time_ms = 200
 # Interval (in cycles) for printing periodic scheduling statistics
@@ -24,7 +24,7 @@ start_cycle = 0
 interval = 1
 offset = 0
 depends = []
-display_name = "Sensor (C++)"
+display_name = "Sensor (C)"
 expected_duration_ms = 10
 
 # 2. AI vision inference (parallel fork after sensor)
@@ -46,7 +46,7 @@ start_cycle = 0
 interval = 1
 offset = 0
 depends = [10]
-display_name = "Odometry (C++)"
+display_name = "Odometry (C)"
 expected_duration_ms = 20
 
 # 4. Motion planning (join barrier after AI and Odometry)
@@ -68,5 +68,5 @@ start_cycle = 0
 interval = 1
 offset = 0
 depends = [40]
-display_name = "Motor (C++)"
+display_name = "Motor (C)"
 expected_duration_ms = 20

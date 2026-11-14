@@ -79,23 +79,23 @@ launch_node "[Ritsu Server]" "$SERVER_EXE --config '$SCRIPT_DIR/config.toml'"
 sleep 1
 
 # Launch 5 Client Nodes
-launch_node "[sensor_node (C++)]" "$SENSOR_EXE --port 10000 --client-id 10"
+launch_node "[sensor_node (C)]" "$SENSOR_EXE --port 7878 --client-id 10"
 sleep 0.2
 
 PYTHON_CMD="python3"
 if ! command -v python3 >/dev/null 2>&1; then
     PYTHON_CMD="python"
 fi
-launch_node "[ai_vision_node (Python)]" "$PYTHON_CMD '$SCRIPT_DIR/ai_vision_node/ai_vision_node.py' --port 10000 --client-id 20"
+launch_node "[ai_vision_node (Python)]" "$PYTHON_CMD '$SCRIPT_DIR/ai_vision_node/ai_vision_node.py' --port 7878 --client-id 20"
 sleep 0.2
 
-launch_node "[odometry_node (C++)]" "$ODOMETRY_EXE --port 10000 --client-id 30"
+launch_node "[odometry_node (C)]" "$ODOMETRY_EXE --port 7878 --client-id 30"
 sleep 0.2
 
-launch_node "[planner_node (Rust)]" "$PLANNER_EXE --port 10000 --client-id 40"
+launch_node "[planner_node (Rust)]" "$PLANNER_EXE --port 7878 --client-id 40"
 sleep 0.2
 
-launch_node "[motor_node (C++)]" "$MOTOR_EXE --port 10000 --client-id 50"
+launch_node "[motor_node (C)]" "$MOTOR_EXE --port 7878 --client-id 50"
 
 echo "--------------------------------------------------------------------------------"
 echo "  Pipeline running! Check each node window to observe the 25-cycle sequence."

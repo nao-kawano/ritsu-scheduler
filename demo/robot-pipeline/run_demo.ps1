@@ -70,20 +70,20 @@ function Start-NodeWindow($title, $command) {
 }
 
 # Launch Client Nodes
-Start-NodeWindow "[sensor_node (C++)]" "& '$sensorExe' --port 10000 --client-id 10"
+Start-NodeWindow "[sensor_node (C)]" "& '$sensorExe' --port 7878 --client-id 10"
 Start-Sleep -Milliseconds 200
 
 $pythonCmd = if (Get-Command py -ErrorAction SilentlyContinue) { "py" } else { "python" }
-Start-NodeWindow "[ai_vision_node (Python)]" "$pythonCmd '$scriptDir/ai_vision_node/ai_vision_node.py' --port 10000 --client-id 20"
+Start-NodeWindow "[ai_vision_node (Python)]" "$pythonCmd '$scriptDir/ai_vision_node/ai_vision_node.py' --port 7878 --client-id 20"
 Start-Sleep -Milliseconds 200
 
-Start-NodeWindow "[odometry_node (C++)]" "& '$odometryExe' --port 10000 --client-id 30"
+Start-NodeWindow "[odometry_node (C)]" "& '$odometryExe' --port 7878 --client-id 30"
 Start-Sleep -Milliseconds 200
 
-Start-NodeWindow "[planner_node (Rust)]" "& '$plannerExe' --port 10000 --client-id 40"
+Start-NodeWindow "[planner_node (Rust)]" "& '$plannerExe' --port 7878 --client-id 40"
 Start-Sleep -Milliseconds 200
 
-Start-NodeWindow "[motor_node (C++)]" "& '$motorExe' --port 10000 --client-id 50"
+Start-NodeWindow "[motor_node (C)]" "& '$motorExe' --port 7878 --client-id 50"
 
 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Cyan
 Write-Host "  Pipeline running! Check each node window to observe the 25-cycle sequence." -ForegroundColor Green
