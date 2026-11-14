@@ -32,12 +32,15 @@
 #endif /* defined(_WIN32) */
 
 // Node identity and cycle configuration constants.
-#define NODE_NAME       "sensor_node"
-#define DEFAULT_CID     10
-#define DEFAULT_PORT    10000
-#define MAX_CYCLES      25
-#define MIN_DURATION_MS 8.0
-#define MAX_DURATION_MS 12.0
+#define NODE_NAME        "sensor_node"
+#define HOST             "127.0.0.1"
+#define PORT             7878
+#define CLIENT_ID        10
+#define INTERVAL_SEC     0.2
+#define STARTUP_WAIT_SEC 60.0
+#define MAX_CYCLES       25
+#define MIN_DURATION_MS  8.0
+#define MAX_DURATION_MS  12.0
 
 // Helper function to sleep for a specified duration in milliseconds.
 static void sleep_ms(double ms) {
@@ -78,27 +81,11 @@ static double random_range(double min_val, double max_val) {
     return min_val + r * (max_val - min_val);
 }
 
-int main(int argc, char* argv[]) {
-    const char* host        = "127.0.0.1";
-    uint16_t port           = DEFAULT_PORT;
-    uint16_t client_id      = DEFAULT_CID;
-    double interval_sec     = 0.2;
-    double startup_wait_sec = 60.0;
-
-    for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "--host") == 0 && i + 1 < argc) {
-            host = argv[++i];
-        } else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) {
-            port = (uint16_t)atoi(argv[++i]);
-        } else if (strcmp(argv[i], "--client-id") == 0 && i + 1 < argc) {
-            client_id = (uint16_t)atoi(argv[++i]);
-        }
-    }
-
-    srand((unsigned int)time(NULL) ^ (unsigned int)client_id);
+int main(void) {
+    srand((unsigned int)time(NULL) ^ (unsigned int)CLIENT_ID);
 
     RtClient client;
-    if (!rtclient_init(&client, host, port, client_id, interval_sec, startup_wait_sec)) {
+    if (!rtclient_init(&client, HOST, PORT, CLIENT_ID, INTERVAL_SEC, STARTUP_WAIT_SEC)) {
         fprintf(stderr, "[%s] Failed to initialize client\n", NODE_NAME);
         return 1;
     }
@@ -108,7 +95,7 @@ int main(int argc, char* argv[]) {
         rtclient_cleanup(&client);
         return 1;
     }
-    printf("[%s] Joined server at %s:%u (CID: %u)\n", NODE_NAME, host, port, client_id);
+    printf("[%s] Joined server at %s:%u (CID: %u)\n", NODE_NAME, HOST, PORT, CLIENT_ID);
 
     int proc_count = 0;
     RtMessage msg;

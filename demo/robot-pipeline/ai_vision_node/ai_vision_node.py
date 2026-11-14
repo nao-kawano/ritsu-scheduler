@@ -14,7 +14,6 @@
 # limitations under the License.
 # =============================================================================
 
-import argparse
 from pathlib import Path
 import random
 import sys
@@ -28,8 +27,11 @@ sys.path.insert(0, str(repo_root / "rt-client-py"))
 from rtclient import RtClient, ResponseType
 
 NODE_NAME = "ai_vision_node"
-DEFAULT_CID = 20
-DEFAULT_PORT = 10000
+HOST = "127.0.0.1"
+PORT = 7878
+CLIENT_ID = 20
+INTERVAL_SEC = 0.2
+STARTUP_WAIT_SEC = 60.0
 MAX_CYCLES = 25
 MIN_DURATION_MS = 55.0
 MAX_DURATION_MS = 85.0
@@ -48,27 +50,18 @@ def get_scenario_message(cycle: int) -> str:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description="AI Vision Node (Python)")
-    parser.add_argument("--host", default="127.0.0.1", help="Server host")
-    parser.add_argument("--port", type=int, default=DEFAULT_PORT, help="Server port")
-    parser.add_argument("--client-id", type=int, default=DEFAULT_CID, help="Client ID")
-    parser.add_argument("--interval-sec", type=float, default=0.2,
-                        help="Execution interval in seconds")
-    parser.add_argument("--startup-wait-sec", type=float, default=60.0, help="Startup timeout")
-    args = parser.parse_args()
-
     client = RtClient(
-        args.host,
-        args.port,
-        args.client_id,
-        args.interval_sec,
-        args.startup_wait_sec
+        HOST,
+        PORT,
+        CLIENT_ID,
+        INTERVAL_SEC,
+        STARTUP_WAIT_SEC,
     )
 
     if not client.join():
         print(f"[{NODE_NAME}] Failed to join server", file=sys.stderr)
         return 1
-    print(f"[{NODE_NAME}] Joined server at {args.host}:{args.port} (CID: {args.client_id})")
+    print(f"[{NODE_NAME}] Joined server at {HOST}:{PORT} (CID: {CLIENT_ID})")
 
     proc_count = 0
     try:

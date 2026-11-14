@@ -14,14 +14,16 @@
 // =============================================================================
 
 use rt_client::{MessageType, RtClient};
-use std::env;
 use std::io::{self, Write};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const NODE_NAME: &str = "planner_node";
-const DEFAULT_CID: u16 = 40;
-const DEFAULT_PORT: u16 = 10000;
+const HOST: &str = "127.0.0.1";
+const PORT: u16 = 7878;
+const CLIENT_ID: u16 = 40;
+const INTERVAL_SEC: f64 = 0.2;
+const STARTUP_WAIT_SEC: f64 = 60.0;
 const MAX_CYCLES: usize = 25;
 const MIN_DURATION_MS: f64 = 35.0;
 const MAX_DURATION_MS: f64 = 45.0;
@@ -66,44 +68,21 @@ fn get_scenario_message(cycle: usize) -> &'static str {
 }
 
 fn main() {
-    let mut host = "127.0.0.1".to_string();
-    let mut port = DEFAULT_PORT;
-    let mut client_id = DEFAULT_CID;
-    let interval_sec = 0.2;
-    let startup_wait_sec = 60.0;
-
-    let args: Vec<String> = env::args().collect();
-    let mut i = 1;
-    while i < args.len() {
-        if args[i] == "--host" && i + 1 < args.len() {
-            host = args[i + 1].clone();
-            i += 2;
-        } else if args[i] == "--port" && i + 1 < args.len() {
-            port = args[i + 1].parse().unwrap_or(DEFAULT_PORT);
-            i += 2;
-        } else if args[i] == "--client-id" && i + 1 < args.len() {
-            client_id = args[i + 1].parse().unwrap_or(DEFAULT_CID);
-            i += 2;
-        } else {
-            i += 1;
-        }
-    }
-
     let seed = (SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
         .as_nanos() as u64)
-        ^ (client_id as u64);
+        ^ (CLIENT_ID as u64);
     let mut rng = SimpleRng::new(seed);
 
-    let mut client = RtClient::new(&host, port, client_id, interval_sec, startup_wait_sec);
+    let mut client = RtClient::new(HOST, PORT, CLIENT_ID, INTERVAL_SEC, STARTUP_WAIT_SEC);
 
     if !client.join() {
         eprintln!("[{NODE_NAME}] Failed to join server");
         return;
     }
 
-    println!("[{NODE_NAME}] Joined server at {host}:{port} (CID: {client_id})");
+    println!("[{NODE_NAME}] Joined server at {HOST}:{PORT} (CID: {CLIENT_ID})");
 
     let mut proc_count = 0;
 
