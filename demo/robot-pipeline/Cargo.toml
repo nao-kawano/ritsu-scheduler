@@ -1,0 +1,12 @@
+[workspace]
+resolver = "3"
+members = [
+    "planner_node",
+]
+
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+rt-client = { path = "../../rt-client-rs" }

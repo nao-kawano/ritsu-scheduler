@@ -1,9 +1,8 @@
 [package]
-name = "planner-node"
+name = "planner_node"
 version = "0.1.0"
-edition = "2024"
+edition.workspace = true
+license.workspace = true
 
 [dependencies]
-rt-client = { path = "../../../rt-client-rs" }
-
-[workspace]
+rt-client.workspace = true

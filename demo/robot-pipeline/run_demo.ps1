@@ -11,7 +11,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# =============================================================================
+# ==============================================================================
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
@@ -31,12 +31,15 @@ Write-Host "====================================================================
 # 1. Build rt-server (always ensure latest release binary)
 Write-Host "[1/3] Building rt-server (release)..." -ForegroundColor Yellow
 cargo build --manifest-path "$repoRoot/Cargo.toml" -p rt-server --release
+if ($LASTEXITCODE -ne 0) { throw "Failed to build rt-server" }
 $serverExe = "$repoRoot/target/release/rt-server.exe"
 
 # 2. Build C mock nodes via CMake (with --clean-first for clean build safety)
 Write-Host "[2/3] Building C mock nodes (sensor, odometry, motor)..." -ForegroundColor Yellow
 cmake -B "$scriptDir/build" -S "$scriptDir"
+if ($LASTEXITCODE -ne 0) { throw "Failed to configure CMake project" }
 cmake --build "$scriptDir/build" --config Release --clean-first
+if ($LASTEXITCODE -ne 0) { throw "Failed to build C mock nodes" }
 
 $sensorExe = "$scriptDir/build/Release/sensor_node.exe"
 if (-not (Test-Path $sensorExe)) { $sensorExe = "$scriptDir/build/sensor_node.exe" }
@@ -47,8 +50,9 @@ if (-not (Test-Path $motorExe)) { $motorExe = "$scriptDir/build/motor_node.exe" 
 
 # 3. Build Rust mock node (planner_node)
 Write-Host "[3/3] Building Rust mock node (planner_node)..." -ForegroundColor Yellow
-cargo build --manifest-path "$scriptDir/planner_node/Cargo.toml" --release
-$plannerExe = "$scriptDir/planner_node/target/release/planner-node.exe"
+cargo build --manifest-path "$scriptDir/Cargo.toml" --release
+if ($LASTEXITCODE -ne 0) { throw "Failed to build robot-pipeline Rust workspace" }
+$plannerExe = "$scriptDir/target/release/planner_node.exe"
 
 Write-Host "`nAll components built successfully!" -ForegroundColor Green
 Write-Host "Launching server and 5 client nodes in separate windows...`n" -ForegroundColor Cyan
@@ -70,20 +74,20 @@ function Start-NodeWindow($title, $command) {
 }
 
 # Launch Client Nodes
-Start-NodeWindow "[sensor_node (C++)]" "& '$sensorExe' --port 10000 --client-id 10"
+Start-NodeWindow "[sensor_node (C)]" "& '$sensorExe'"
 Start-Sleep -Milliseconds 200
 
 $pythonCmd = if (Get-Command py -ErrorAction SilentlyContinue) { "py" } else { "python" }
-Start-NodeWindow "[ai_vision_node (Python)]" "$pythonCmd '$scriptDir/ai_vision_node/ai_vision_node.py' --port 10000 --client-id 20"
+Start-NodeWindow "[ai_vision_node (Python)]" "$pythonCmd '$scriptDir/ai_vision_node/ai_vision_node.py'"
 Start-Sleep -Milliseconds 200
 
-Start-NodeWindow "[odometry_node (C++)]" "& '$odometryExe' --port 10000 --client-id 30"
+Start-NodeWindow "[odometry_node (C)]" "& '$odometryExe'"
 Start-Sleep -Milliseconds 200
 
-Start-NodeWindow "[planner_node (Rust)]" "& '$plannerExe' --port 10000 --client-id 40"
+Start-NodeWindow "[planner_node (Rust)]" "& '$plannerExe'"
 Start-Sleep -Milliseconds 200
 
-Start-NodeWindow "[motor_node (C++)]" "& '$motorExe' --port 10000 --client-id 50"
+Start-NodeWindow "[motor_node (C)]" "& '$motorExe'"
 
 Write-Host "--------------------------------------------------------------------------------" -ForegroundColor Cyan
 Write-Host "  Pipeline running! Check each node window to observe the 25-cycle sequence." -ForegroundColor Green

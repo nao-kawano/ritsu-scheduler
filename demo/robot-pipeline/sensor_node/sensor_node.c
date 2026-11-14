@@ -14,12 +14,12 @@
 // =============================================================================
 
 #define RTCLIENT_IMPLEMENTATION
+#include "rtclient.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-#include "rtclient.h"
 
 #if defined(_WIN32)
 #include <timeapi.h>
@@ -31,15 +31,25 @@
 #include <unistd.h>
 #endif /* defined(_WIN32) */
 
-// Node identity and cycle configuration constants.
-#define NODE_NAME       "sensor_node"
-#define DEFAULT_CID     10
-#define DEFAULT_PORT    10000
-#define MAX_CYCLES      25
+// -----------------------------------------------------------------------------
+// Node Identity & Scheduler Constants
+// -----------------------------------------------------------------------------
+#define NODE_NAME        "sensor_node"
+#define HOST             "127.0.0.1"
+#define PORT             7878
+#define CLIENT_ID        10
+#define INTERVAL_SEC     0.2
+#define STARTUP_WAIT_SEC 60.0
+
+// Simulated sensor capture duration range in milliseconds.
 #define MIN_DURATION_MS 8.0
 #define MAX_DURATION_MS 12.0
 
-// Helper function to sleep for a specified duration in milliseconds.
+// -----------------------------------------------------------------------------
+// Timing & Terminal Helpers
+// -----------------------------------------------------------------------------
+
+// Sleep for the specified duration in milliseconds.
 static void sleep_ms(double ms) {
 #if defined(_WIN32)
     timeBeginPeriod(1);
@@ -53,7 +63,7 @@ static void sleep_ms(double ms) {
 #endif
 }
 
-// Helper function to query high-resolution timestamp in milliseconds.
+// Return a high-resolution monotonic timestamp in milliseconds.
 static double get_time_ms(void) {
 #if defined(_WIN32)
     static LARGE_INTEGER freq;
@@ -72,91 +82,92 @@ static double get_time_ms(void) {
 #endif
 }
 
-// Generate pseudo-random float between min_val and max_val.
+// Return a pseudo-random value within [min_val, max_val].
 static double random_range(double min_val, double max_val) {
     double r = (double)rand() / (double)RAND_MAX;
     return min_val + r * (max_val - min_val);
 }
 
-int main(int argc, char* argv[]) {
-    const char* host        = "127.0.0.1";
-    uint16_t port           = DEFAULT_PORT;
-    uint16_t client_id      = DEFAULT_CID;
-    double interval_sec     = 0.2;
-    double startup_wait_sec = 60.0;
+// Block until the user presses Enter so terminal logs remain visible.
+static void wait_for_enter(void) {
+    printf("\n[Process completed] Press Enter key to close...\n");
+    fflush(stdout);
+    (void)getchar();
+}
 
-    for (int i = 1; i < argc; ++i) {
-        if (strcmp(argv[i], "--host") == 0 && i + 1 < argc) {
-            host = argv[++i];
-        } else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) {
-            port = (uint16_t)atoi(argv[++i]);
-        } else if (strcmp(argv[i], "--client-id") == 0 && i + 1 < argc) {
-            client_id = (uint16_t)atoi(argv[++i]);
-        }
-    }
+// -----------------------------------------------------------------------------
+// Main Control Loop
+// -----------------------------------------------------------------------------
+int main(void) {
+    srand((unsigned int)time(NULL) ^ (unsigned int)CLIENT_ID);
 
-    srand((unsigned int)time(NULL) ^ (unsigned int)client_id);
-
+    // Initialize and join Ritsu scheduler as client 10 (200 ms periodic slot).
     RtClient client;
-    if (!rtclient_init(&client, host, port, client_id, interval_sec, startup_wait_sec)) {
-        fprintf(stderr, "[%s] Failed to initialize client\n", NODE_NAME);
+    if (!rtclient_init(&client, HOST, PORT, CLIENT_ID, INTERVAL_SEC, STARTUP_WAIT_SEC)) {
+        printf("[%s] Failed to initialize client\n", NODE_NAME);
+        wait_for_enter();
         return 1;
     }
 
     if (!rtclient_join(&client)) {
-        fprintf(stderr, "[%s] Failed to join server\n", NODE_NAME);
+        printf("[%s] Failed to join server at %s:%u\n", NODE_NAME, HOST, PORT);
         rtclient_cleanup(&client);
+        wait_for_enter();
         return 1;
     }
-    printf("[%s] Joined server at %s:%u (CID: %u)\n", NODE_NAME, host, port, client_id);
+    printf("[%s] Joined server at %s:%u (CID: %u, interval: %.3fs)\n",
+           NODE_NAME, HOST, PORT, CLIENT_ID, INTERVAL_SEC);
 
     int proc_count = 0;
     RtMessage msg;
-
     while (true) {
+        fflush(stdout);
         rtclient_wait_next(&client, &msg);
 
         if (msg.mtype == RT_MSG_START) {
-            // Gracefully stop on the next START after completing MAX_CYCLES.
-            if (proc_count >= MAX_CYCLES) {
-                break;
-            }
             const char* cycle_str = rtclient_get_extra(&msg, "cycle");
-            int cycle             = cycle_str ? (atoi(cycle_str) + 1) : (proc_count + 1);
+            int running_cycle     = cycle_str ? atoi(cycle_str) : proc_count;
+            proc_count++;
 
             double target_duration = random_range(MIN_DURATION_MS, MAX_DURATION_MS);
             double start_time      = get_time_ms();
             sleep_ms(target_duration);
-            double elapsed_ms = get_time_ms() - start_time;
+            double proc_ms = get_time_ms() - start_time;
 
-            // Scenario message: LiDAR point cloud and camera frame acquisition
-            printf("[Cycle %02d/%d] [%-14s] LiDAR scan (360 pts), Camera frame #%d captured (elapsed: %.1fms)\n",
-                   cycle, MAX_CYCLES, NODE_NAME, cycle, elapsed_ms);
-            fflush(stdout);
+            printf("[Cyc %02d] [%s] LiDAR scan (360 pts), Camera frame #%d captured proc_ms=%.2f\n",
+                   running_cycle, NODE_NAME, running_cycle, proc_ms);
 
             rtclient_notify_done(&client, &msg);
             if (msg.mtype == RT_MSG_ERROR) {
-                fprintf(stderr, "[%s] Received ERROR on notify_done\n", NODE_NAME);
+                printf("[%s] Received ERROR on notify_done, exiting\n", NODE_NAME);
                 break;
             }
-            proc_count++;
+
         } else if (msg.mtype == RT_MSG_SKIP || msg.mtype == RT_MSG_LATE) {
-            // Keep waiting on SKIP or LATE
+            proc_count++;
+            const char* msg_label = (msg.mtype == RT_MSG_SKIP) ? "SKIP" : "LATE";
+            printf("[%s] Received %s, skipping execution for this cycle\n", NODE_NAME, msg_label);
             continue;
+
+        } else if (msg.mtype == RT_MSG_ERROR) {
+            const char* reason = rtclient_get_extra(&msg, "reason");
+            const char* cid    = rtclient_get_extra(&msg, "cid");
+            printf("[%s] Exiting on ERROR (reason=%s, cid=%s)\n",
+                   NODE_NAME,
+                   reason ? reason : "N/A",
+                   cid ? cid : "N/A");
+            break;
+
         } else {
-            if (proc_count < MAX_CYCLES) {
-                fprintf(stderr, "[%s] Exiting due to unexpected message type: %d\n", NODE_NAME, msg.mtype);
-            }
+            printf("[%s] Exiting due to unexpected message type: %d\n", NODE_NAME, (int)msg.mtype);
             break;
         }
     }
+    fflush(stdout);
 
     rtclient_exit(&client);
     rtclient_cleanup(&client);
 
-    printf("\n[Process completed] Press Enter key to close...\n");
-    fflush(stdout);
-    getchar();
-
+    wait_for_enter();
     return 0;
 }
