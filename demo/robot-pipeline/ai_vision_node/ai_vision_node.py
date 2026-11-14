@@ -98,6 +98,7 @@ def main() -> int:
 
             if resp_type == ResponseType.START:
                 running_cycle: int = int(extras.get("cycle", proc_count))
+                proc_count += 1
 
                 target_duration_ms: float = random.uniform(MIN_DURATION_MS, MAX_DURATION_MS)
                 start_time: float = time.perf_counter()
@@ -110,11 +111,9 @@ def main() -> int:
                     flush=True,
                 )
 
-                resp_type = client.notify_done()
-                if resp_type == ResponseType.ERROR:
+                if client.notify_done() == ResponseType.ERROR:
                     print(f"[{NODE_NAME}] Received ERROR on notify_done, exiting", flush=True)
                     break
-                proc_count += 1
 
             elif resp_type in (ResponseType.SKIP, ResponseType.LATE):
                 proc_count += 1

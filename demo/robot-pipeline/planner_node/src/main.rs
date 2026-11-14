@@ -122,6 +122,7 @@ fn main() {
                     .get_extra("cycle")
                     .and_then(|s| s.parse::<usize>().ok())
                     .unwrap_or(proc_count);
+                proc_count += 1;
 
                 let target_ms = rng.range_f64(MIN_DURATION_MS, MAX_DURATION_MS);
                 let start_time = Instant::now();
@@ -138,7 +139,6 @@ fn main() {
                     println!("[{NODE_NAME}] Received ERROR on notify_done, exiting");
                     break;
                 }
-                proc_count += 1;
             }
 
             MessageType::Skip | MessageType::Late => {

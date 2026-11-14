@@ -175,6 +175,7 @@ int main(void) {
         if (msg.mtype == RT_MSG_START) {
             const char* cycle_str = rtclient_get_extra(&msg, "cycle");
             int running_cycle     = cycle_str ? atoi(cycle_str) : proc_count;
+            proc_count++;
 
             double target_duration = random_range(MIN_DURATION_MS, MAX_DURATION_MS);
             double start_time      = get_time_ms();
@@ -191,7 +192,6 @@ int main(void) {
                 printf("[%s] Received ERROR on notify_done, exiting\n", NODE_NAME);
                 break;
             }
-            proc_count++;
 
         } else if (msg.mtype == RT_MSG_SKIP || msg.mtype == RT_MSG_LATE) {
             proc_count++;
