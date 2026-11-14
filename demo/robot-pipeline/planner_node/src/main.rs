@@ -24,7 +24,6 @@ const PORT: u16 = 7878;
 const CLIENT_ID: u16 = 40;
 const INTERVAL_SEC: f64 = 0.2;
 const STARTUP_WAIT_SEC: f64 = 60.0;
-const MAX_CYCLES: usize = 25;
 const MIN_DURATION_MS: f64 = 35.0;
 const MAX_DURATION_MS: f64 = 45.0;
 
@@ -55,12 +54,12 @@ impl SimpleRng {
     }
 }
 
-fn get_scenario_message(cycle: usize) -> &'static str {
-    if (1..=7).contains(&cycle) {
+fn get_scenario_message(running_cycle: usize) -> &'static str {
+    if (0..=6).contains(&running_cycle) {
         "Cmd: target v=0.50m/s, w=0.00rad/s"
-    } else if (8..=14).contains(&cycle) {
+    } else if (7..=13).contains(&running_cycle) {
         "Obstacle detected! Shift left: v=0.35m/s, w=+0.25rad/s"
-    } else if (15..=20).contains(&cycle) {
+    } else if (14..=19).contains(&running_cycle) {
         "Returning to original path: v=0.40m/s, w=-0.15rad/s"
     } else {
         "Cmd: target v=0.50m/s, w=0.00rad/s"
@@ -86,12 +85,14 @@ fn main() {
     let mut client = RtClient::new(HOST, PORT, CLIENT_ID, INTERVAL_SEC, STARTUP_WAIT_SEC);
 
     if !client.join() {
-        println!("[{NODE_NAME}] Failed to join server");
+        println!("[{NODE_NAME}] Failed to join server at {HOST}:{PORT}");
         wait_for_enter();
         return;
     }
 
-    println!("[{NODE_NAME}] Joined server at {HOST}:{PORT} (CID: {CLIENT_ID})");
+    println!(
+        "[{NODE_NAME}] Joined server at {HOST}:{PORT} (CID: {CLIENT_ID}, interval: {INTERVAL_SEC:.3}s)"
+    );
 
     let mut proc_count = 0;
 
@@ -101,21 +102,19 @@ fn main() {
 
         match msg.mtype {
             MessageType::Start => {
-                let cycle = msg
+                let running_cycle = msg
                     .get_extra("cycle")
                     .and_then(|s| s.parse::<usize>().ok())
-                    .map(|c| c + 1)
-                    .unwrap_or(proc_count + 1);
+                    .unwrap_or(proc_count);
 
                 let target_ms = rng.range_f64(MIN_DURATION_MS, MAX_DURATION_MS);
                 let start_time = Instant::now();
                 thread::sleep(Duration::from_secs_f64(target_ms / 1000.0));
-                let elapsed_ms = start_time.elapsed().as_secs_f64() * 1000.0;
+                let proc_ms = start_time.elapsed().as_secs_f64() * 1000.0;
 
-                let scenario_msg = get_scenario_message(cycle);
+                let scenario_msg = get_scenario_message(running_cycle);
                 println!(
-                    "[Cycle {:02}/{}] [{:<14}] {} (elapsed: {:.1}ms)",
-                    cycle, MAX_CYCLES, NODE_NAME, scenario_msg, elapsed_ms
+                    "[Cyc {running_cycle:02}] [{NODE_NAME}] {scenario_msg} proc_ms={proc_ms:.2}"
                 );
 
                 let resp = client.notify_done();
@@ -128,10 +127,12 @@ fn main() {
             }
             MessageType::Skip | MessageType::Late => {
                 proc_count += 1;
-                println!(
-                    "[{NODE_NAME}] Received {:?}, skipping execution for this cycle",
-                    msg.mtype
-                );
+                let msg_label = if msg.mtype == MessageType::Skip {
+                    "SKIP"
+                } else {
+                    "LATE"
+                };
+                println!("[{NODE_NAME}] Received {msg_label}, skipping execution for this cycle");
                 continue;
             }
             MessageType::Error => {

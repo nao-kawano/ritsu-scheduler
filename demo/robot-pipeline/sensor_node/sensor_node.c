@@ -38,7 +38,6 @@
 #define CLIENT_ID        10
 #define INTERVAL_SEC     0.2
 #define STARTUP_WAIT_SEC 60.0
-#define MAX_CYCLES       25
 #define MIN_DURATION_MS  8.0
 #define MAX_DURATION_MS  12.0
 
@@ -99,12 +98,13 @@ int main(void) {
     }
 
     if (!rtclient_join(&client)) {
-        printf("[%s] Failed to join server\n", NODE_NAME);
+        printf("[%s] Failed to join server at %s:%u\n", NODE_NAME, HOST, PORT);
         rtclient_cleanup(&client);
         wait_for_enter();
         return 1;
     }
-    printf("[%s] Joined server at %s:%u (CID: %u)\n", NODE_NAME, HOST, PORT, CLIENT_ID);
+    printf("[%s] Joined server at %s:%u (CID: %u, interval: %.3fs)\n",
+           NODE_NAME, HOST, PORT, CLIENT_ID, INTERVAL_SEC);
 
     int proc_count = 0;
     RtMessage msg;
@@ -115,16 +115,16 @@ int main(void) {
 
         if (msg.mtype == RT_MSG_START) {
             const char* cycle_str = rtclient_get_extra(&msg, "cycle");
-            int cycle             = cycle_str ? (atoi(cycle_str) + 1) : (proc_count + 1);
+            int running_cycle     = cycle_str ? atoi(cycle_str) : proc_count;
 
             double target_duration = random_range(MIN_DURATION_MS, MAX_DURATION_MS);
             double start_time      = get_time_ms();
             sleep_ms(target_duration);
-            double elapsed_ms = get_time_ms() - start_time;
+            double proc_ms = get_time_ms() - start_time;
 
             // Scenario message: LiDAR point cloud and camera frame acquisition
-            printf("[Cycle %02d/%d] [%-14s] LiDAR scan (360 pts), Camera frame #%d captured (elapsed: %.1fms)\n",
-                   cycle, MAX_CYCLES, NODE_NAME, cycle, elapsed_ms);
+            printf("[Cyc %02d] [%s] LiDAR scan (360 pts), Camera frame #%d captured proc_ms=%.2f\n",
+                   running_cycle, NODE_NAME, running_cycle, proc_ms);
 
             rtclient_notify_done(&client, &msg);
             if (msg.mtype == RT_MSG_ERROR) {

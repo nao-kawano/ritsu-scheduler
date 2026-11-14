@@ -38,7 +38,6 @@
 #define CLIENT_ID           50
 #define INTERVAL_SEC        0.2
 #define STARTUP_WAIT_SEC    60.0
-#define MAX_CYCLES          25
 #define FINAL_RUNNING_CYCLE 24
 #define MIN_DURATION_MS     18.0
 #define MAX_DURATION_MS     22.0
@@ -83,12 +82,12 @@ static double random_range(double min_val, double max_val) {
 }
 
 // Get wheel servos scenario status message.
-static const char* get_scenario_message(int cycle) {
-    if (cycle <= 7) {
+static const char* get_scenario_message(int running_cycle) {
+    if (running_cycle <= 6) {
         return "Wheel servos: FL:300rpm, FR:300rpm, RL:300rpm, RR:300rpm";
-    } else if (cycle <= 14) {
+    } else if (running_cycle <= 13) {
         return "Wheel servos: FL:240rpm, FR:340rpm, RL:240rpm, RR:340rpm";
-    } else if (cycle <= 20) {
+    } else if (running_cycle <= 19) {
         return "Wheel servos: FL:330rpm, FR:270rpm, RL:330rpm, RR:270rpm";
     } else {
         return "Wheel servos: FL:300rpm, FR:300rpm, RL:300rpm, RR:300rpm";
@@ -113,12 +112,13 @@ int main(void) {
     }
 
     if (!rtclient_join(&client)) {
-        printf("[%s] Failed to join server\n", NODE_NAME);
+        printf("[%s] Failed to join server at %s:%u\n", NODE_NAME, HOST, PORT);
         rtclient_cleanup(&client);
         wait_for_enter();
         return 1;
     }
-    printf("[%s] Joined server at %s:%u (CID: %u)\n", NODE_NAME, HOST, PORT, CLIENT_ID);
+    printf("[%s] Joined server at %s:%u (CID: %u, interval: %.3fs)\n",
+           NODE_NAME, HOST, PORT, CLIENT_ID, INTERVAL_SEC);
 
     int proc_count = 0;
     RtMessage msg;
@@ -130,16 +130,15 @@ int main(void) {
         if (msg.mtype == RT_MSG_START) {
             const char* cycle_str = rtclient_get_extra(&msg, "cycle");
             int running_cycle     = cycle_str ? atoi(cycle_str) : proc_count;
-            int cycle             = running_cycle + 1;
 
             double target_duration = random_range(MIN_DURATION_MS, MAX_DURATION_MS);
             double start_time      = get_time_ms();
             sleep_ms(target_duration);
-            double elapsed_ms = get_time_ms() - start_time;
+            double proc_ms = get_time_ms() - start_time;
 
-            const char* scenario_msg = get_scenario_message(cycle);
-            printf("[Cycle %02d/%d] [%-14s] %s (elapsed: %.1fms)\n",
-                   cycle, MAX_CYCLES, NODE_NAME, scenario_msg, elapsed_ms);
+            const char* scenario_msg = get_scenario_message(running_cycle);
+            printf("[Cyc %02d] [%s] %s proc_ms=%.2f\n",
+                   running_cycle, NODE_NAME, scenario_msg, proc_ms);
 
             rtclient_notify_done(&client, &msg);
             if (msg.mtype == RT_MSG_ERROR) {

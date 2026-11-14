@@ -32,18 +32,17 @@ PORT = 7878
 CLIENT_ID = 20
 INTERVAL_SEC = 0.2
 STARTUP_WAIT_SEC = 60.0
-MAX_CYCLES = 25
 MIN_DURATION_MS = 55.0
 MAX_DURATION_MS = 85.0
 
 
-def get_scenario_message(cycle: int) -> str:
+def get_scenario_message(running_cycle: int) -> str:
     """Return scenario message based on the execution phase."""
-    if 1 <= cycle <= 7:
+    if 0 <= running_cycle <= 6:
         return "Status: Clear (no obstacles in ROI)"
-    elif 8 <= cycle <= 14:
+    elif 7 <= running_cycle <= 13:
         return "Detected: Person at (x=2.1m, y=0.1m, conf=0.92)"
-    elif 15 <= cycle <= 20:
+    elif 14 <= running_cycle <= 19:
         return "Tracking: Person passing at (x=1.1m, y=-0.8m, conf=0.85)"
     else:
         return "Status: Clear (obstacle cleared)"
@@ -67,10 +66,14 @@ def main() -> int:
     )
 
     if not client.join():
-        print(f"[{NODE_NAME}] Failed to join server", flush=True)
+        print(f"[{NODE_NAME}] Failed to join server at {HOST}:{PORT}", flush=True)
         wait_for_enter()
         return 1
-    print(f"[{NODE_NAME}] Joined server at {HOST}:{PORT} (CID: {CLIENT_ID})", flush=True)
+    print(
+        f"[{NODE_NAME}] Joined server at {HOST}:{PORT} "
+        f"(CID: {CLIENT_ID}, interval: {INTERVAL_SEC:.3f}s)",
+        flush=True,
+    )
 
     proc_count = 0
     try:
@@ -78,16 +81,16 @@ def main() -> int:
             sys.stdout.flush()
             resp_type, extras = client.wait_next()
             if resp_type == ResponseType.START:
-                cycle = int(extras.get("cycle", proc_count)) + 1
+                running_cycle = int(extras.get("cycle", proc_count))
 
                 target_duration_ms = random.uniform(MIN_DURATION_MS, MAX_DURATION_MS)
                 start_time = time.perf_counter()
                 time.sleep(target_duration_ms / 1000.0)
-                elapsed_ms = (time.perf_counter() - start_time) * 1000.0
+                proc_ms = (time.perf_counter() - start_time) * 1000.0
 
-                scenario_msg = get_scenario_message(cycle)
+                scenario_msg = get_scenario_message(running_cycle)
                 print(
-                    f"[Cycle {cycle:02d}/{MAX_CYCLES}] [{NODE_NAME:<14s}] {scenario_msg} (elapsed: {elapsed_ms:.1f}ms)",
+                    f"[Cyc {running_cycle:02d}] [{NODE_NAME}] {scenario_msg} proc_ms={proc_ms:.2f}",
                     flush=True,
                 )
 
