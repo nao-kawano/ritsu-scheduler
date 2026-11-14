@@ -53,6 +53,7 @@ PLANNER_EXE="$SCRIPT_DIR/target/release/planner_node"
 echo ""
 echo "All components built successfully!"
 echo "Launching server and 5 client nodes..."
+echo ""
 
 mkdir -p "$SCRIPT_DIR/logs"
 
@@ -67,7 +68,7 @@ launch_node() {
     elif command -v gnome-terminal >/dev/null 2>&1; then
         gnome-terminal --title="$title" -- bash -c "cd '$SCRIPT_DIR' && $cmd; exec bash"
     elif command -v xterm >/dev/null 2>&1; then
-        xterm -T "$title" -e "cd '$SCRIPT_DIR' && $cmd" &
+        xterm -T "$title" -e bash -c "cd '$SCRIPT_DIR' && $cmd; exec bash" &
     else
         echo "Starting [$title] in background..."
         (cd "$SCRIPT_DIR" && eval "$cmd") &

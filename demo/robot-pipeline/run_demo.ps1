@@ -31,12 +31,15 @@ Write-Host "====================================================================
 # 1. Build rt-server (always ensure latest release binary)
 Write-Host "[1/3] Building rt-server (release)..." -ForegroundColor Yellow
 cargo build --manifest-path "$repoRoot/Cargo.toml" -p rt-server --release
+if ($LASTEXITCODE -ne 0) { throw "Failed to build rt-server" }
 $serverExe = "$repoRoot/target/release/rt-server.exe"
 
 # 2. Build C mock nodes via CMake (with --clean-first for clean build safety)
 Write-Host "[2/3] Building C mock nodes (sensor, odometry, motor)..." -ForegroundColor Yellow
 cmake -B "$scriptDir/build" -S "$scriptDir"
+if ($LASTEXITCODE -ne 0) { throw "Failed to configure CMake project" }
 cmake --build "$scriptDir/build" --config Release --clean-first
+if ($LASTEXITCODE -ne 0) { throw "Failed to build C mock nodes" }
 
 $sensorExe = "$scriptDir/build/Release/sensor_node.exe"
 if (-not (Test-Path $sensorExe)) { $sensorExe = "$scriptDir/build/sensor_node.exe" }
@@ -48,6 +51,7 @@ if (-not (Test-Path $motorExe)) { $motorExe = "$scriptDir/build/motor_node.exe" 
 # 3. Build Rust mock node (planner_node)
 Write-Host "[3/3] Building Rust mock node (planner_node)..." -ForegroundColor Yellow
 cargo build --manifest-path "$scriptDir/Cargo.toml" --release
+if ($LASTEXITCODE -ne 0) { throw "Failed to build robot-pipeline Rust workspace" }
 $plannerExe = "$scriptDir/target/release/planner_node.exe"
 
 Write-Host "`nAll components built successfully!" -ForegroundColor Green
