@@ -49,6 +49,14 @@ def get_scenario_message(cycle: int) -> str:
         return "Status: Clear (obstacle cleared)"
 
 
+def wait_for_enter() -> None:
+    """Block until the user presses Enter so terminal logs remain visible."""
+    try:
+        input("\n[Process completed] Press Enter key to close...\n")
+    except (EOFError, KeyboardInterrupt):
+        pass
+
+
 def main() -> int:
     client = RtClient(
         HOST,
@@ -60,6 +68,7 @@ def main() -> int:
 
     if not client.join():
         print(f"[{NODE_NAME}] Failed to join server", file=sys.stderr)
+        wait_for_enter()
         return 1
     print(f"[{NODE_NAME}] Joined server at {HOST}:{PORT} (CID: {CLIENT_ID})")
 
@@ -107,10 +116,7 @@ def main() -> int:
     finally:
         client.exit()
 
-    try:
-        input("\n[Process completed] Press Enter key to close...\n")
-    except (EOFError, KeyboardInterrupt):
-        pass
+    wait_for_enter()
 
     return 0
 

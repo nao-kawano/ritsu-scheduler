@@ -67,6 +67,14 @@ fn get_scenario_message(cycle: usize) -> &'static str {
     }
 }
 
+/// Blocks until the user presses Enter so terminal logs remain visible.
+fn wait_for_enter() {
+    println!("\n[Process completed] Press Enter key to close...");
+    let _ = io::stdout().flush();
+    let mut dummy = String::new();
+    let _ = io::stdin().read_line(&mut dummy);
+}
+
 fn main() {
     let seed = (SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -79,6 +87,7 @@ fn main() {
 
     if !client.join() {
         eprintln!("[{NODE_NAME}] Failed to join server");
+        wait_for_enter();
         return;
     }
 
@@ -140,8 +149,5 @@ fn main() {
 
     client.exit();
 
-    println!("\n[Process completed] Press Enter key to close...");
-    let _ = io::stdout().flush();
-    let mut dummy = String::new();
-    let _ = io::stdin().read_line(&mut dummy);
+    wait_for_enter();
 }

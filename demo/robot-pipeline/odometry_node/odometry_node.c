@@ -128,18 +128,27 @@ static void format_odometry_msg(int cycle, char* buf, size_t buf_size) {
     }
 }
 
+// Block until the user presses Enter so terminal logs remain visible.
+static void wait_for_enter(void) {
+    printf("\n[Process completed] Press Enter key to close...\n");
+    fflush(stdout);
+    (void)getchar();
+}
+
 int main(void) {
     srand((unsigned int)time(NULL) ^ (unsigned int)CLIENT_ID);
 
     RtClient client;
     if (!rtclient_init(&client, HOST, PORT, CLIENT_ID, INTERVAL_SEC, STARTUP_WAIT_SEC)) {
         fprintf(stderr, "[%s] Failed to initialize client\n", NODE_NAME);
+        wait_for_enter();
         return 1;
     }
 
     if (!rtclient_join(&client)) {
         fprintf(stderr, "[%s] Failed to join server\n", NODE_NAME);
         rtclient_cleanup(&client);
+        wait_for_enter();
         return 1;
     }
     printf("[%s] Joined server at %s:%u (CID: %u)\n", NODE_NAME, HOST, PORT, CLIENT_ID);
@@ -194,9 +203,7 @@ int main(void) {
     rtclient_exit(&client);
     rtclient_cleanup(&client);
 
-    printf("\n[Process completed] Press Enter key to close...\n");
-    fflush(stdout);
-    getchar();
+    wait_for_enter();
 
     return 0;
 }
