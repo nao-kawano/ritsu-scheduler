@@ -136,15 +136,26 @@ int main(void) {
 
             rtclient_notify_done(&client, &msg);
             if (msg.mtype == RT_MSG_ERROR) {
-                fprintf(stderr, "[%s] Received ERROR on notify_done\n", NODE_NAME);
+                fprintf(stderr, "[%s] Received ERROR on notify_done, exiting\n", NODE_NAME);
                 break;
             }
             proc_count++;
         } else if (msg.mtype == RT_MSG_SKIP || msg.mtype == RT_MSG_LATE) {
+            proc_count++;
+            const char* msg_label = (msg.mtype == RT_MSG_SKIP) ? "SKIP" : "LATE";
+            printf("[%s] Received %s, skipping execution for this cycle\n", NODE_NAME, msg_label);
             continue;
+        } else if (msg.mtype == RT_MSG_ERROR) {
+            const char* reason = rtclient_get_extra(&msg, "reason");
+            const char* cid    = rtclient_get_extra(&msg, "cid");
+            printf("[%s] Exiting on ERROR (reason=%s, cid=%s)\n",
+                   NODE_NAME,
+                   reason ? reason : "N/A",
+                   cid ? cid : "N/A");
+            break;
         } else {
             if (proc_count < MAX_CYCLES) {
-                fprintf(stderr, "[%s] Exiting due to unexpected message type: %d\n", NODE_NAME, msg.mtype);
+                fprintf(stderr, "[%s] Exiting due to unexpected message type: %d\n", NODE_NAME, (int)msg.mtype);
             }
             break;
         }

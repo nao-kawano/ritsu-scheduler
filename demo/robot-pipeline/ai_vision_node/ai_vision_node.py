@@ -83,14 +83,27 @@ def main() -> int:
 
                 resp_type = client.notify_done()
                 if resp_type == ResponseType.ERROR:
-                    print(f"[{NODE_NAME}] Received ERROR on notify_done", file=sys.stderr)
+                    print(f"[{NODE_NAME}] Received ERROR on notify_done, exiting", file=sys.stderr)
                     break
                 proc_count += 1
             elif resp_type in (ResponseType.SKIP, ResponseType.LATE):
+                proc_count += 1
+                print(
+                    f"[{NODE_NAME}] Received {resp_type.value}, skipping execution for this cycle",
+                    flush=True,
+                )
                 continue
+            elif resp_type == ResponseType.ERROR:
+                reason = extras.get("reason", "N/A")
+                cid = extras.get("cid", "N/A")
+                print(f"[{NODE_NAME}] Exiting on ERROR (reason={reason}, cid={cid})", flush=True)
+                break
             else:
                 if proc_count < MAX_CYCLES:
-                    print(f"[{NODE_NAME}] Exiting due to unexpected response: {resp_type}", file=sys.stderr)
+                    print(
+                        f"[{NODE_NAME}] Exiting due to unexpected message type: {resp_type.value}",
+                        file=sys.stderr,
+                    )
                 break
     except KeyboardInterrupt:
         pass

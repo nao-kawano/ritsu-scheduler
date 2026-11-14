@@ -88,44 +88,60 @@ fn main() {
 
     loop {
         let msg = client.wait_next();
-        if msg.mtype == MessageType::Start {
-            // Gracefully stop on the next START after completing MAX_CYCLES.
-            if proc_count >= MAX_CYCLES {
+
+        match msg.mtype {
+            MessageType::Start => {
+                // Gracefully stop on the next START after completing MAX_CYCLES.
+                if proc_count >= MAX_CYCLES {
+                    break;
+                }
+
+                let cycle = msg
+                    .get_extra("cycle")
+                    .and_then(|s| s.parse::<usize>().ok())
+                    .map(|c| c + 1)
+                    .unwrap_or(proc_count + 1);
+
+                let target_ms = rng.range_f64(MIN_DURATION_MS, MAX_DURATION_MS);
+                let start_time = Instant::now();
+                thread::sleep(Duration::from_secs_f64(target_ms / 1000.0));
+                let elapsed_ms = start_time.elapsed().as_secs_f64() * 1000.0;
+
+                let scenario_msg = get_scenario_message(cycle);
+                println!(
+                    "[Cycle {:02}/{}] [{:<14}] {} (elapsed: {:.1}ms)",
+                    cycle, MAX_CYCLES, NODE_NAME, scenario_msg, elapsed_ms
+                );
+                let _ = io::stdout().flush();
+
+                let resp = client.notify_done();
+                if resp.mtype == MessageType::Error {
+                    eprintln!("[{NODE_NAME}] Received ERROR on notify_done, exiting");
+                    break;
+                }
+
+                proc_count += 1;
+            }
+            MessageType::Skip | MessageType::Late => {
+                proc_count += 1;
+                println!(
+                    "[{NODE_NAME}] Received {:?}, skipping execution for this cycle",
+                    msg.mtype
+                );
+                continue;
+            }
+            MessageType::Error => {
+                let reason = msg.get_extra("reason").map(String::as_str).unwrap_or("N/A");
+                let cid = msg.get_extra("cid").map(String::as_str).unwrap_or("N/A");
+                println!("[{NODE_NAME}] Exiting on ERROR (reason={reason}, cid={cid})");
                 break;
             }
-
-            let cycle = msg
-                .get_extra("cycle")
-                .and_then(|s| s.parse::<usize>().ok())
-                .map(|c| c + 1)
-                .unwrap_or(proc_count + 1);
-
-            let target_ms = rng.range_f64(MIN_DURATION_MS, MAX_DURATION_MS);
-            let start_time = Instant::now();
-            thread::sleep(Duration::from_secs_f64(target_ms / 1000.0));
-            let elapsed_ms = start_time.elapsed().as_secs_f64() * 1000.0;
-
-            let scenario_msg = get_scenario_message(cycle);
-            println!(
-                "[Cycle {:02}/{}] [{:<14}] {} (elapsed: {:.1}ms)",
-                cycle, MAX_CYCLES, NODE_NAME, scenario_msg, elapsed_ms
-            );
-            let _ = io::stdout().flush();
-
-            let resp = client.notify_done();
-            if resp.mtype == MessageType::Error {
-                eprintln!("[{NODE_NAME}] Received ERROR on notify_done");
+            other => {
+                if proc_count < MAX_CYCLES {
+                    eprintln!("[{NODE_NAME}] Exiting due to unexpected message type: {other:?}");
+                }
                 break;
             }
-
-            proc_count += 1;
-        } else if msg.mtype == MessageType::Skip || msg.mtype == MessageType::Late {
-            continue;
-        } else {
-            if proc_count < MAX_CYCLES {
-                eprintln!("[{NODE_NAME}] Exiting due to message type: {:?}", msg.mtype);
-            }
-            break;
         }
     }
 
