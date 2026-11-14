@@ -140,13 +140,13 @@ int main(void) {
 
     RtClient client;
     if (!rtclient_init(&client, HOST, PORT, CLIENT_ID, INTERVAL_SEC, STARTUP_WAIT_SEC)) {
-        fprintf(stderr, "[%s] Failed to initialize client\n", NODE_NAME);
+        printf("[%s] Failed to initialize client\n", NODE_NAME);
         wait_for_enter();
         return 1;
     }
 
     if (!rtclient_join(&client)) {
-        fprintf(stderr, "[%s] Failed to join server\n", NODE_NAME);
+        printf("[%s] Failed to join server\n", NODE_NAME);
         rtclient_cleanup(&client);
         wait_for_enter();
         return 1;
@@ -157,6 +157,7 @@ int main(void) {
     RtMessage msg;
 
     while (true) {
+        fflush(stdout);
         rtclient_wait_next(&client, &msg);
 
         if (msg.mtype == RT_MSG_START) {
@@ -173,11 +174,10 @@ int main(void) {
 
             printf("[Cycle %02d/%d] [%-14s] %s (elapsed: %.1fms)\n",
                    cycle, MAX_CYCLES, NODE_NAME, status_buf, elapsed_ms);
-            fflush(stdout);
 
             rtclient_notify_done(&client, &msg);
             if (msg.mtype == RT_MSG_ERROR) {
-                fprintf(stderr, "[%s] Received ERROR on notify_done, exiting\n", NODE_NAME);
+                printf("[%s] Received ERROR on notify_done, exiting\n", NODE_NAME);
                 break;
             }
             proc_count++;
@@ -195,10 +195,11 @@ int main(void) {
                    cid ? cid : "N/A");
             break;
         } else {
-            fprintf(stderr, "[%s] Exiting due to unexpected message type: %d\n", NODE_NAME, (int)msg.mtype);
+            printf("[%s] Exiting due to unexpected message type: %d\n", NODE_NAME, (int)msg.mtype);
             break;
         }
     }
+    fflush(stdout);
 
     rtclient_exit(&client);
     rtclient_cleanup(&client);

@@ -67,14 +67,15 @@ def main() -> int:
     )
 
     if not client.join():
-        print(f"[{NODE_NAME}] Failed to join server", file=sys.stderr)
+        print(f"[{NODE_NAME}] Failed to join server", flush=True)
         wait_for_enter()
         return 1
-    print(f"[{NODE_NAME}] Joined server at {HOST}:{PORT} (CID: {CLIENT_ID})")
+    print(f"[{NODE_NAME}] Joined server at {HOST}:{PORT} (CID: {CLIENT_ID})", flush=True)
 
     proc_count = 0
     try:
         while True:
+            sys.stdout.flush()
             resp_type, extras = client.wait_next()
             if resp_type == ResponseType.START:
                 cycle = int(extras.get("cycle", proc_count)) + 1
@@ -86,11 +87,13 @@ def main() -> int:
 
                 scenario_msg = get_scenario_message(cycle)
                 print(
-                    f"[Cycle {cycle:02d}/{MAX_CYCLES}] [{NODE_NAME:<14s}] {scenario_msg} (elapsed: {elapsed_ms:.1f}ms)", flush=True)
+                    f"[Cycle {cycle:02d}/{MAX_CYCLES}] [{NODE_NAME:<14s}] {scenario_msg} (elapsed: {elapsed_ms:.1f}ms)",
+                    flush=True,
+                )
 
                 resp_type = client.notify_done()
                 if resp_type == ResponseType.ERROR:
-                    print(f"[{NODE_NAME}] Received ERROR on notify_done, exiting", file=sys.stderr)
+                    print(f"[{NODE_NAME}] Received ERROR on notify_done, exiting", flush=True)
                     break
                 proc_count += 1
             elif resp_type in (ResponseType.SKIP, ResponseType.LATE):
@@ -108,12 +111,13 @@ def main() -> int:
             else:
                 print(
                     f"[{NODE_NAME}] Exiting due to unexpected message type: {resp_type.value}",
-                    file=sys.stderr,
+                    flush=True,
                 )
                 break
     except KeyboardInterrupt:
-        pass
+        print(f"[{NODE_NAME}] Interrupted, exiting", flush=True)
     finally:
+        sys.stdout.flush()
         client.exit()
 
     wait_for_enter()

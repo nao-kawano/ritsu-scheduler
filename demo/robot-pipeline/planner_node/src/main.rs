@@ -86,7 +86,7 @@ fn main() {
     let mut client = RtClient::new(HOST, PORT, CLIENT_ID, INTERVAL_SEC, STARTUP_WAIT_SEC);
 
     if !client.join() {
-        eprintln!("[{NODE_NAME}] Failed to join server");
+        println!("[{NODE_NAME}] Failed to join server");
         wait_for_enter();
         return;
     }
@@ -96,6 +96,7 @@ fn main() {
     let mut proc_count = 0;
 
     loop {
+        let _ = io::stdout().flush();
         let msg = client.wait_next();
 
         match msg.mtype {
@@ -116,11 +117,10 @@ fn main() {
                     "[Cycle {:02}/{}] [{:<14}] {} (elapsed: {:.1}ms)",
                     cycle, MAX_CYCLES, NODE_NAME, scenario_msg, elapsed_ms
                 );
-                let _ = io::stdout().flush();
 
                 let resp = client.notify_done();
                 if resp.mtype == MessageType::Error {
-                    eprintln!("[{NODE_NAME}] Received ERROR on notify_done, exiting");
+                    println!("[{NODE_NAME}] Received ERROR on notify_done, exiting");
                     break;
                 }
 
@@ -141,11 +141,12 @@ fn main() {
                 break;
             }
             other => {
-                eprintln!("[{NODE_NAME}] Exiting due to unexpected message type: {other:?}");
+                println!("[{NODE_NAME}] Exiting due to unexpected message type: {other:?}");
                 break;
             }
         }
     }
+    let _ = io::stdout().flush();
 
     client.exit();
 
