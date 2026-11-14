@@ -14,31 +14,32 @@
 # limitations under the License.
 # ==============================================================================
 
+"""AI Vision node for the Ritsu multi-language robot pipeline demonstration."""
+
 from pathlib import Path
 import random
 import sys
 import time
 
 # Add path to rt-client-py directory in the repository root.
-script_dir = Path(__file__).resolve().parent
-repo_root = script_dir.parents[2]
-sys.path.insert(0, str(repo_root / "rt-client-py"))
+_REPO_ROOT: Path = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(_REPO_ROOT / "rt-client-py"))
 
 from rtclient import ResponseType, RtClient  # noqa: E402
 
 # ------------------------------------------------------------------------------
 # Ritsu Scheduler Constants
 # ------------------------------------------------------------------------------
-NODE_NAME = "ai_vision_node"
-HOST = "127.0.0.1"
-PORT = 7878
-CLIENT_ID = 20
-INTERVAL_SEC = 0.2
-STARTUP_WAIT_SEC = 60.0
+NODE_NAME: str = "ai_vision_node"
+HOST: str = "127.0.0.1"
+PORT: int = 7878
+CLIENT_ID: int = 20
+INTERVAL_SEC: float = 0.2
+STARTUP_WAIT_SEC: float = 60.0
 
 # Simulated inference latency range in milliseconds.
-MIN_DURATION_MS = 55.0
-MAX_DURATION_MS = 85.0
+MIN_DURATION_MS: float = 55.0
+MAX_DURATION_MS: float = 85.0
 
 
 # ------------------------------------------------------------------------------
@@ -69,7 +70,7 @@ def wait_for_enter() -> None:
 # ------------------------------------------------------------------------------
 def main() -> int:
     """Initialize RtClient and execute the AI vision control loop."""
-    client = RtClient(
+    client: RtClient = RtClient(
         HOST,
         PORT,
         CLIENT_ID,
@@ -87,21 +88,23 @@ def main() -> int:
         flush=True,
     )
 
-    proc_count = 0
+    proc_count: int = 0
     try:
         while True:
             sys.stdout.flush()
+            resp_type: ResponseType
+            extras: dict[str, str]
             resp_type, extras = client.wait_next()
 
             if resp_type == ResponseType.START:
-                running_cycle = int(extras.get("cycle", proc_count))
+                running_cycle: int = int(extras.get("cycle", proc_count))
 
-                target_duration_ms = random.uniform(MIN_DURATION_MS, MAX_DURATION_MS)
-                start_time = time.perf_counter()
+                target_duration_ms: float = random.uniform(MIN_DURATION_MS, MAX_DURATION_MS)
+                start_time: float = time.perf_counter()
                 time.sleep(target_duration_ms / 1000.0)
-                proc_ms = (time.perf_counter() - start_time) * 1000.0
+                proc_ms: float = (time.perf_counter() - start_time) * 1000.0
 
-                scenario_msg = get_scenario_message(running_cycle)
+                scenario_msg: str = get_scenario_message(running_cycle)
                 print(
                     f"[Cyc {running_cycle:02d}] [{NODE_NAME}] {scenario_msg} proc_ms={proc_ms:.2f}",
                     flush=True,
@@ -122,8 +125,8 @@ def main() -> int:
                 continue
 
             elif resp_type == ResponseType.ERROR:
-                reason = extras.get("reason", "N/A")
-                cid = extras.get("cid", "N/A")
+                reason: str = extras.get("reason", "N/A")
+                cid: str = extras.get("cid", "N/A")
                 print(f"[{NODE_NAME}] Exiting on ERROR (reason={reason}, cid={cid})", flush=True)
                 break
 
