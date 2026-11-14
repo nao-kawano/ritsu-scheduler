@@ -17,7 +17,7 @@ use rt_client::{MessageType, RtClient};
 use std::env;
 use std::io::{self, Write};
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
 const NODE_NAME: &str = "planner_node";
 const DEFAULT_CID: u16 = 40;
@@ -89,7 +89,11 @@ fn main() {
         }
     }
 
-    let seed = Instant::now().elapsed().as_nanos() as u64 ^ (client_id as u64);
+    let seed = (SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_nanos() as u64)
+        ^ (client_id as u64);
     let mut rng = SimpleRng::new(seed);
 
     let mut client = RtClient::new(&host, port, client_id, interval_sec, startup_wait_sec);
