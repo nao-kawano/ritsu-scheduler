@@ -91,11 +91,6 @@ fn main() {
 
         match msg.mtype {
             MessageType::Start => {
-                // Gracefully stop on the next START after completing MAX_CYCLES.
-                if proc_count >= MAX_CYCLES {
-                    break;
-                }
-
                 let cycle = msg
                     .get_extra("cycle")
                     .and_then(|s| s.parse::<usize>().ok())
@@ -137,9 +132,7 @@ fn main() {
                 break;
             }
             other => {
-                if proc_count < MAX_CYCLES {
-                    eprintln!("[{NODE_NAME}] Exiting due to unexpected message type: {other:?}");
-                }
+                eprintln!("[{NODE_NAME}] Exiting due to unexpected message type: {other:?}");
                 break;
             }
         }

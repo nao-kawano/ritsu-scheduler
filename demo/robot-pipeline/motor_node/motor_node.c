@@ -32,15 +32,16 @@
 #endif /* defined(_WIN32) */
 
 // Node identity and cycle configuration constants.
-#define NODE_NAME        "motor_node"
-#define HOST             "127.0.0.1"
-#define PORT             7878
-#define CLIENT_ID        50
-#define INTERVAL_SEC     0.2
-#define STARTUP_WAIT_SEC 60.0
-#define MAX_CYCLES       25
-#define MIN_DURATION_MS  18.0
-#define MAX_DURATION_MS  22.0
+#define NODE_NAME           "motor_node"
+#define HOST                "127.0.0.1"
+#define PORT                7878
+#define CLIENT_ID           50
+#define INTERVAL_SEC        0.2
+#define STARTUP_WAIT_SEC    60.0
+#define MAX_CYCLES          25
+#define FINAL_RUNNING_CYCLE 24
+#define MIN_DURATION_MS     18.0
+#define MAX_DURATION_MS     22.0
 
 // Helper function to sleep for a specified duration in milliseconds.
 static void sleep_ms(double ms) {
@@ -117,12 +118,9 @@ int main(void) {
         rtclient_wait_next(&client, &msg);
 
         if (msg.mtype == RT_MSG_START) {
-            // Gracefully stop on the next START after completing MAX_CYCLES.
-            if (proc_count >= MAX_CYCLES) {
-                break;
-            }
             const char* cycle_str = rtclient_get_extra(&msg, "cycle");
-            int cycle             = cycle_str ? (atoi(cycle_str) + 1) : (proc_count + 1);
+            int running_cycle     = cycle_str ? atoi(cycle_str) : proc_count;
+            int cycle             = running_cycle + 1;
 
             double target_duration = random_range(MIN_DURATION_MS, MAX_DURATION_MS);
             double start_time      = get_time_ms();
@@ -140,6 +138,10 @@ int main(void) {
                 break;
             }
             proc_count++;
+
+            if (running_cycle >= FINAL_RUNNING_CYCLE) {
+                break;
+            }
         } else if (msg.mtype == RT_MSG_SKIP || msg.mtype == RT_MSG_LATE) {
             proc_count++;
             const char* msg_label = (msg.mtype == RT_MSG_SKIP) ? "SKIP" : "LATE";
@@ -154,9 +156,7 @@ int main(void) {
                    cid ? cid : "N/A");
             break;
         } else {
-            if (proc_count < MAX_CYCLES) {
-                fprintf(stderr, "[%s] Exiting due to unexpected message type: %d\n", NODE_NAME, (int)msg.mtype);
-            }
+            fprintf(stderr, "[%s] Exiting due to unexpected message type: %d\n", NODE_NAME, (int)msg.mtype);
             break;
         }
     }

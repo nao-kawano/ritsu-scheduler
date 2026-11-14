@@ -104,10 +104,6 @@ int main(void) {
         rtclient_wait_next(&client, &msg);
 
         if (msg.mtype == RT_MSG_START) {
-            // Gracefully stop on the next START after completing MAX_CYCLES.
-            if (proc_count >= MAX_CYCLES) {
-                break;
-            }
             const char* cycle_str = rtclient_get_extra(&msg, "cycle");
             int cycle             = cycle_str ? (atoi(cycle_str) + 1) : (proc_count + 1);
 
@@ -141,9 +137,7 @@ int main(void) {
                    cid ? cid : "N/A");
             break;
         } else {
-            if (proc_count < MAX_CYCLES) {
-                fprintf(stderr, "[%s] Exiting due to unexpected message type: %d\n", NODE_NAME, (int)msg.mtype);
-            }
+            fprintf(stderr, "[%s] Exiting due to unexpected message type: %d\n", NODE_NAME, (int)msg.mtype);
             break;
         }
     }

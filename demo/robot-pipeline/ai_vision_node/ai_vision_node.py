@@ -68,8 +68,6 @@ def main() -> int:
         while True:
             resp_type, extras = client.wait_next()
             if resp_type == ResponseType.START:
-                if proc_count >= MAX_CYCLES:
-                    break
                 cycle = int(extras.get("cycle", proc_count)) + 1
 
                 target_duration_ms = random.uniform(MIN_DURATION_MS, MAX_DURATION_MS)
@@ -99,11 +97,10 @@ def main() -> int:
                 print(f"[{NODE_NAME}] Exiting on ERROR (reason={reason}, cid={cid})", flush=True)
                 break
             else:
-                if proc_count < MAX_CYCLES:
-                    print(
-                        f"[{NODE_NAME}] Exiting due to unexpected message type: {resp_type.value}",
-                        file=sys.stderr,
-                    )
+                print(
+                    f"[{NODE_NAME}] Exiting due to unexpected message type: {resp_type.value}",
+                    file=sys.stderr,
+                )
                 break
     except KeyboardInterrupt:
         pass
