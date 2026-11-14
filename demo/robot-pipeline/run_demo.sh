@@ -47,8 +47,8 @@ MOTOR_EXE="$SCRIPT_DIR/build/motor_node"
 
 # 3. Build Rust mock node (planner_node)
 echo "[3/3] Building Rust mock node (planner_node)..."
-cargo build --manifest-path "$SCRIPT_DIR/planner_node/Cargo.toml" --release
-PLANNER_EXE="$SCRIPT_DIR/planner_node/target/release/planner-node"
+cargo build --manifest-path "$SCRIPT_DIR/Cargo.toml" --release
+PLANNER_EXE="$SCRIPT_DIR/target/release/planner_node"
 
 echo ""
 echo "All components built successfully!"

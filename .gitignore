@@ -40,8 +40,6 @@ Thumbs.db
 **/test_logs/
 *.log
 !**/fixtures/**
-/demo/robot-pipeline/build/
-/demo/robot-pipeline/planner_node/target/
 /rt-client-c/examples/build/
 /rt-client-py/build/
 /rt-client-py/dist/

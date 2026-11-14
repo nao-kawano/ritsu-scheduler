@@ -1,0 +1,9 @@
+# C/C++ CMake build artifacts
+build/
+
+# Rust build artifacts
+target/
+
+# Runtime logs
+logs/
+*.log

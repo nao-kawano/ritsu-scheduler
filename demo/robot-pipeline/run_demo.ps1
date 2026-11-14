@@ -47,8 +47,8 @@ if (-not (Test-Path $motorExe)) { $motorExe = "$scriptDir/build/motor_node.exe" 
 
 # 3. Build Rust mock node (planner_node)
 Write-Host "[3/3] Building Rust mock node (planner_node)..." -ForegroundColor Yellow
-cargo build --manifest-path "$scriptDir/planner_node/Cargo.toml" --release
-$plannerExe = "$scriptDir/planner_node/target/release/planner-node.exe"
+cargo build --manifest-path "$scriptDir/Cargo.toml" --release
+$plannerExe = "$scriptDir/target/release/planner_node.exe"
 
 Write-Host "`nAll components built successfully!" -ForegroundColor Green
 Write-Host "Launching server and 5 client nodes in separate windows...`n" -ForegroundColor Cyan
