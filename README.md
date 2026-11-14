@@ -15,7 +15,7 @@ Note: Ritsu targets predictable, soft real-time coordination and reproducible ex
 
 ## Features
 
-- **Periodic Execution**: Predictable execution based on pre-defined timing and cycles.
+- **Periodic Execution**: Predictable execution based on predefined timing and cycles.
 - **Dependency Management**: Flexible scheduling based on process dependencies (sequential and parallel).
   - Example: Image processing pipelines using camera frames.
 - **Multi-Language Support**: A simple messaging protocol supporting multiple programming languages.
@@ -27,8 +27,8 @@ Note: Ritsu targets predictable, soft real-time coordination and reproducible ex
 
 | Create Mode | Analyze Mode |
 | :---: | :---: |
-| <img src="docs/assets/rt-vis_create-process-edit.png" width="350" /><br />Configure process periods, execution times, and dependencies interactively. | <img src="docs/assets/rt-vis_analyze-actual-overlay.png" width="350" /><br />Overlay actual execution logs onto scheduled plans to inspect timing deltas and execution lines. |
-| <img src="docs/assets/rt-vis_create-realtime-validation.png" width="350" /><br />Interactive drag-and-drop editing immediately highlights deadline overruns and cascading delays. | <img src="docs/assets/rt-vis_analyze-concurrency.png" width="350" /><br />Track planned vs actual concurrency to identify system load peaks and execution bottlenecks. |
+| <img src="docs/assets/rt-vis_create-process-edit.png" width="350" /><br />Configure process periods, execution times, and dependencies interactively. | <img src="docs/assets/rt-vis_analyze-actual-overlay.png" width="350" /><br />Overlay actual execution logs onto scheduled plans to inspect timing deltas. |
+| <img src="docs/assets/rt-vis_create-realtime-validation.png" width="350" /><br />Interactive drag-and-drop editing immediately highlights deadline overruns and cascading delays. | <img src="docs/assets/rt-vis_analyze-concurrency.png" width="350" /><br />Track planned vs. actual concurrency to identify system load peaks and execution bottlenecks. |
 
 ## Why Ritsu?
 
@@ -37,53 +37,57 @@ Coordinating multi-language pipelines (such as C sensor drivers, Python ML infer
 Ritsu complements existing systems with a focused, lightweight approach:
 
 - **Minimal Footprint & Easy Integration**: Pure standard-library coordination over modular transports (UDP by default). Works cleanly alongside existing communication middleware, shared memory, or IPC, without imposing heavy dependencies or complex build systems on client processes.
-- **Control-Plane Focus**: Ritsu strictly manages process execution timing, DAG dependencies, and lifecycle states—leaving payload data transfer (such as ROS topics, shared memory, or IPC) decoupled and flexible.
+- **Control-Plane Focus**: Ritsu strictly manages process execution timing, DAG dependencies, and lifecycle states—leaving payload data transfer (such as shared memory via [Eclipse iceoryx2](demo/iceoryx2-pipeline/README.md), ROS topics, or custom IPC) decoupled and flexible.
 - **Deterministic & Fail-Safe**: Built-in state management handles deadline overruns and cycle skips predictably, allowing clients to transition safely into fail-safe states.
 - **Simulation & Verification First**: Design and inspect schedules visually using `rt-vis` before deploying to real hardware, and verify actual execution logs against your planned timeline.
 
 ## Quickstart
 
-Experience Ritsu's multi-language coordination and deterministic DAG execution with our reference demo.
+Experience Ritsu's deterministic scheduling through self-contained reference demos. Each demo isolates its own build artifacts and dependencies, and runs with a single script.
 
-### Robot Pipeline Demo
+### Available Demos
 
-Simulates an Autonomous Mobile Robot (AMR) obstacle-avoidance pipeline where five heterogeneous processes execute cooperatively at 5 Hz across C, Python, and Rust. This demo is fully self-contained using standard libraries with zero external dependencies.
+| Demo | Focus | Stack |
+| :--- | :--- | :--- |
+| **[robot-pipeline](demo/robot-pipeline/README.md)** | 5 Hz **Fork-Join DAG** coordination (zero external dependencies) | C, Python, Rust |
+| **[iceoryx2-pipeline](demo/iceoryx2-pipeline/README.md)** | 10 Hz **Control + Data Plane** integration with fallback, `SKIP` recovery, and `E-STOP` | Rust, Python, [Eclipse iceoryx2](https://iceoryx.io/) ([GitHub](https://github.com/eclipse-iceoryx/iceoryx2)) |
 
-```text
-[Sensor (C)] ──┬──> [AI-Vision (Python)] ──┬──> [Planner (Rust)] ──> [Motor (C)]
-               └──> [Odometry (C)]       ──┘
-```
+**Prerequisites:** Rust (>= 1.85) and Python (>= 3.12) for all demos, plus a C/C++ compiler with CMake (>= 3.14) for C-based demos (`robot-pipeline`). See each demo's README for OS-specific setup (e.g., `venv` on Linux).
 
-Prerequisites: Rust (>= 1.85), Python (>= 3.12), C/C++ Compiler with CMake (>= 3.14), Node.js (>= 18)
+### Run & Inspect
 
-1. **Run the demo** (builds and launches all 5 nodes in dedicated console windows automatically):
+1. **Run a demo** (automatically builds and launches `rt-server` and all client nodes in dedicated console windows):
    - **Windows (PowerShell):**
      ```powershell
+     # e.g., demo/robot-pipeline or demo/iceoryx2-pipeline
      cd demo/robot-pipeline
      .\run_demo.ps1
      ```
    - **Linux / macOS (Bash):**
      ```bash
+     # e.g., demo/robot-pipeline or demo/iceoryx2-pipeline
      cd demo/robot-pipeline
      ./run_demo.sh
      ```
 
-2. **Inspect with the visualizer**:  
-   Launch `rt-vis` and open `demo/robot-pipeline/logs/rt-server.log` in **Analyze** mode to inspect scheduled vs. actual timelines and safety slack margins:
-   ```bash
-   # Install frontend dependencies (first time only)
-   npm --prefix rt-vis-rs install
+2. **Inspect with the visualizer (`rt-vis`)**:  
+   Launch `rt-vis` and open `demo/<demo-name>/logs/rt-server.log` in **Analyze** mode to inspect scheduled vs. actual timelines, safety slack margins, and `SKIP` behavior:
+   - **Pre-built binary (Windows):** Download the latest release from [GitHub Releases](https://github.com/nao-kawano/ritsu-scheduler/releases) and run `rt-vis.exe`.
+   - **From source (Windows / Linux / macOS, requires Node.js >= 18):**
+     ```bash
+     # Install frontend dependencies (first time only)
+     npm --prefix rt-vis-rs install
 
-   # Launch visualizer in development mode
-   npm --prefix rt-vis-rs run tauri dev
-   ```
+     # Launch visualizer in development mode
+     npm --prefix rt-vis-rs run tauri dev
+     ```
 
-For detailed architecture, prerequisites, and scenario specifications, see the [Robot Pipeline Demo Guide](demo/robot-pipeline/README.md).
+Refer to each demo's guide in the table above for architecture diagrams, OS-specific prerequisites, and cycle-by-cycle scenario details.
 
 ## Process Scheduling
 
-This section describes how Ritsu schedules processes using a sequence diagram.
-For more details, please refer to the [detailed documentation](./docs/README.md).
+The sequence diagram below illustrates how Ritsu schedules processes.
+For more details, see the [documentation](./docs/README.md).
 
 ### Example Scenario: A -> (B, C)
 
@@ -121,17 +125,18 @@ sequenceDiagram
 ## Repository Structure
 
 - **[rt-config-rs](./rt-config-rs)**: Common configuration structures and validation logic shared between the scheduler and visualization tools.
-- **[rt-core-rs](./rt-core-rs)**: The core scheduling logic. Manages process states and dependency resolutions.
+- **[rt-core-rs](./rt-core-rs)**: The core scheduling logic. Manages process states and dependency resolution.
 - **[rt-server-rs](./rt-server-rs)**: The Ritsu scheduler server. Responsible for client management, timing control, and coordinating execution with the core scheduler.
 - **[rt-message-rs](./rt-message-rs)**: Common message types and serialization protocol used for server-client communication.
 - **[rt-client-rs](./rt-client-rs)**: Client library for Rust.
 - **[rt-client-py](./rt-client-py)**: Client library for Python.
 - **[rt-client-c](./rt-client-c)**: Client library for C/C++.
 - **[rt-vis-rs](./rt-vis-rs)**: Tauri-based visualizer application for process scheduling simulation and configuration editing.
+- **[demo](./demo)**: Reference demos showcasing multi-language DAG orchestration and external data-plane integration.
 
 ## Documentation
 
-Detailed specifications and guides can be found in the [docs](./docs/README.md) directory.
+See the [docs](./docs/README.md) directory for detailed specifications and guides.
 
 ## License
 
