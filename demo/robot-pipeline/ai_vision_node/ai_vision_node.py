@@ -12,32 +12,40 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# =============================================================================
+# ==============================================================================
 
 from pathlib import Path
 import random
 import sys
 import time
 
-# Add path to rt-client-py directory
+# Add path to rt-client-py directory in the repository root.
 script_dir = Path(__file__).resolve().parent
 repo_root = script_dir.parents[2]
 sys.path.insert(0, str(repo_root / "rt-client-py"))
 
-from rtclient import RtClient, ResponseType
+from rtclient import ResponseType, RtClient  # noqa: E402
 
+# ------------------------------------------------------------------------------
+# Ritsu Scheduler Constants
+# ------------------------------------------------------------------------------
 NODE_NAME = "ai_vision_node"
 HOST = "127.0.0.1"
 PORT = 7878
 CLIENT_ID = 20
 INTERVAL_SEC = 0.2
 STARTUP_WAIT_SEC = 60.0
+
+# Simulated inference latency range in milliseconds.
 MIN_DURATION_MS = 55.0
 MAX_DURATION_MS = 85.0
 
 
+# ------------------------------------------------------------------------------
+# Scenario & Terminal Helpers
+# ------------------------------------------------------------------------------
 def get_scenario_message(running_cycle: int) -> str:
-    """Return scenario message based on the execution phase."""
+    """Return the vision scenario message for the given 0-indexed cycle."""
     if 0 <= running_cycle <= 6:
         return "Status: Clear (no obstacles in ROI)"
     elif 7 <= running_cycle <= 13:
@@ -56,7 +64,11 @@ def wait_for_enter() -> None:
         pass
 
 
+# ------------------------------------------------------------------------------
+# Main Control Loop
+# ------------------------------------------------------------------------------
 def main() -> int:
+    """Initialize RtClient and execute the AI vision control loop."""
     client = RtClient(
         HOST,
         PORT,
@@ -80,6 +92,7 @@ def main() -> int:
         while True:
             sys.stdout.flush()
             resp_type, extras = client.wait_next()
+
             if resp_type == ResponseType.START:
                 running_cycle = int(extras.get("cycle", proc_count))
 
@@ -99,6 +112,7 @@ def main() -> int:
                     print(f"[{NODE_NAME}] Received ERROR on notify_done, exiting", flush=True)
                     break
                 proc_count += 1
+
             elif resp_type in (ResponseType.SKIP, ResponseType.LATE):
                 proc_count += 1
                 print(
@@ -106,17 +120,20 @@ def main() -> int:
                     flush=True,
                 )
                 continue
+
             elif resp_type == ResponseType.ERROR:
                 reason = extras.get("reason", "N/A")
                 cid = extras.get("cid", "N/A")
                 print(f"[{NODE_NAME}] Exiting on ERROR (reason={reason}, cid={cid})", flush=True)
                 break
+
             else:
                 print(
                     f"[{NODE_NAME}] Exiting due to unexpected message type: {resp_type.value}",
                     flush=True,
                 )
                 break
+
     except KeyboardInterrupt:
         print(f"[{NODE_NAME}] Interrupted, exiting", flush=True)
     finally:
@@ -124,7 +141,6 @@ def main() -> int:
         client.exit()
 
     wait_for_enter()
-
     return 0
 
 

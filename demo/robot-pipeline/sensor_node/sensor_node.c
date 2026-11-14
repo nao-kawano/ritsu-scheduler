@@ -14,12 +14,12 @@
 // =============================================================================
 
 #define RTCLIENT_IMPLEMENTATION
+#include "rtclient.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-
-#include "rtclient.h"
 
 #if defined(_WIN32)
 #include <timeapi.h>
@@ -31,17 +31,25 @@
 #include <unistd.h>
 #endif /* defined(_WIN32) */
 
-// Node identity and cycle configuration constants.
+// -----------------------------------------------------------------------------
+// Node Identity & Scheduler Constants
+// -----------------------------------------------------------------------------
 #define NODE_NAME        "sensor_node"
 #define HOST             "127.0.0.1"
 #define PORT             7878
 #define CLIENT_ID        10
 #define INTERVAL_SEC     0.2
 #define STARTUP_WAIT_SEC 60.0
-#define MIN_DURATION_MS  8.0
-#define MAX_DURATION_MS  12.0
 
-// Helper function to sleep for a specified duration in milliseconds.
+// Simulated sensor capture duration range in milliseconds.
+#define MIN_DURATION_MS 8.0
+#define MAX_DURATION_MS 12.0
+
+// -----------------------------------------------------------------------------
+// Timing & Terminal Helpers
+// -----------------------------------------------------------------------------
+
+// Sleep for the specified duration in milliseconds.
 static void sleep_ms(double ms) {
 #if defined(_WIN32)
     timeBeginPeriod(1);
@@ -55,7 +63,7 @@ static void sleep_ms(double ms) {
 #endif
 }
 
-// Helper function to query high-resolution timestamp in milliseconds.
+// Return a high-resolution monotonic timestamp in milliseconds.
 static double get_time_ms(void) {
 #if defined(_WIN32)
     static LARGE_INTEGER freq;
@@ -74,7 +82,7 @@ static double get_time_ms(void) {
 #endif
 }
 
-// Generate pseudo-random float between min_val and max_val.
+// Return a pseudo-random value within [min_val, max_val].
 static double random_range(double min_val, double max_val) {
     double r = (double)rand() / (double)RAND_MAX;
     return min_val + r * (max_val - min_val);
@@ -87,9 +95,13 @@ static void wait_for_enter(void) {
     (void)getchar();
 }
 
+// -----------------------------------------------------------------------------
+// Main Control Loop
+// -----------------------------------------------------------------------------
 int main(void) {
     srand((unsigned int)time(NULL) ^ (unsigned int)CLIENT_ID);
 
+    // Initialize and join Ritsu scheduler as client 10 (200 ms periodic slot).
     RtClient client;
     if (!rtclient_init(&client, HOST, PORT, CLIENT_ID, INTERVAL_SEC, STARTUP_WAIT_SEC)) {
         printf("[%s] Failed to initialize client\n", NODE_NAME);
@@ -108,7 +120,6 @@ int main(void) {
 
     int proc_count = 0;
     RtMessage msg;
-
     while (true) {
         fflush(stdout);
         rtclient_wait_next(&client, &msg);
@@ -122,7 +133,6 @@ int main(void) {
             sleep_ms(target_duration);
             double proc_ms = get_time_ms() - start_time;
 
-            // Scenario message: LiDAR point cloud and camera frame acquisition
             printf("[Cyc %02d] [%s] LiDAR scan (360 pts), Camera frame #%d captured proc_ms=%.2f\n",
                    running_cycle, NODE_NAME, running_cycle, proc_ms);
 
@@ -132,11 +142,13 @@ int main(void) {
                 break;
             }
             proc_count++;
+
         } else if (msg.mtype == RT_MSG_SKIP || msg.mtype == RT_MSG_LATE) {
             proc_count++;
             const char* msg_label = (msg.mtype == RT_MSG_SKIP) ? "SKIP" : "LATE";
             printf("[%s] Received %s, skipping execution for this cycle\n", NODE_NAME, msg_label);
             continue;
+
         } else if (msg.mtype == RT_MSG_ERROR) {
             const char* reason = rtclient_get_extra(&msg, "reason");
             const char* cid    = rtclient_get_extra(&msg, "cid");
@@ -145,6 +157,7 @@ int main(void) {
                    reason ? reason : "N/A",
                    cid ? cid : "N/A");
             break;
+
         } else {
             printf("[%s] Exiting due to unexpected message type: %d\n", NODE_NAME, (int)msg.mtype);
             break;
@@ -156,6 +169,5 @@ int main(void) {
     rtclient_cleanup(&client);
 
     wait_for_enter();
-
     return 0;
 }

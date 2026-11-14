@@ -13,19 +13,29 @@
 // limitations under the License.
 // =============================================================================
 
-use rt_client::{MessageType, RtClient};
 use std::io::{self, Write};
 use std::thread;
 use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 
+use rt_client::{MessageType, RtClient};
+
+// -----------------------------------------------------------------------------
+// Node Identity & Scheduler Constants
+// -----------------------------------------------------------------------------
 const NODE_NAME: &str = "planner_node";
 const HOST: &str = "127.0.0.1";
 const PORT: u16 = 7878;
 const CLIENT_ID: u16 = 40;
 const INTERVAL_SEC: f64 = 0.2;
 const STARTUP_WAIT_SEC: f64 = 60.0;
+
+/// Simulated motion planning latency range in milliseconds.
 const MIN_DURATION_MS: f64 = 35.0;
 const MAX_DURATION_MS: f64 = 45.0;
+
+// -----------------------------------------------------------------------------
+// RNG, Scenario & Terminal Helpers
+// -----------------------------------------------------------------------------
 
 /// Simple fast Xorshift64 PRNG to avoid external crate dependencies.
 struct SimpleRng {
@@ -33,12 +43,14 @@ struct SimpleRng {
 }
 
 impl SimpleRng {
+    /// Creates a new PRNG instance with a non-zero fallback seed.
     fn new(seed: u64) -> Self {
         Self {
             state: if seed == 0 { 0xdeadbeef } else { seed },
         }
     }
 
+    /// Generates the next pseudo-random 64-bit integer.
     fn next_u64(&mut self) -> u64 {
         let mut x = self.state;
         x ^= x << 13;
@@ -48,12 +60,14 @@ impl SimpleRng {
         x
     }
 
+    /// Generates a pseudo-random floating-point number within `[min, max]`.
     fn range_f64(&mut self, min: f64, max: f64) -> f64 {
         let frac = (self.next_u64() as f64) / (u64::MAX as f64);
         min + frac * (max - min)
     }
 }
 
+/// Returns the planning status message for the given 0-indexed cycle.
 fn get_scenario_message(running_cycle: usize) -> &'static str {
     if (0..=6).contains(&running_cycle) {
         "Cmd: target v=0.50m/s, w=0.00rad/s"
@@ -74,7 +88,11 @@ fn wait_for_enter() {
     let _ = io::stdin().read_line(&mut dummy);
 }
 
+// -----------------------------------------------------------------------------
+// Main Control Loop
+// -----------------------------------------------------------------------------
 fn main() {
+    // Seed PRNG from current wall-clock time to vary simulated latency across runs.
     let seed = (SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .unwrap_or_default()
@@ -82,20 +100,18 @@ fn main() {
         ^ (CLIENT_ID as u64);
     let mut rng = SimpleRng::new(seed);
 
+    // Join Ritsu scheduler as client 40 (join barrier after ai_vision_node and odometry_node).
     let mut client = RtClient::new(HOST, PORT, CLIENT_ID, INTERVAL_SEC, STARTUP_WAIT_SEC);
-
     if !client.join() {
         println!("[{NODE_NAME}] Failed to join server at {HOST}:{PORT}");
         wait_for_enter();
         return;
     }
-
     println!(
         "[{NODE_NAME}] Joined server at {HOST}:{PORT} (CID: {CLIENT_ID}, interval: {INTERVAL_SEC:.3}s)"
     );
 
     let mut proc_count = 0;
-
     loop {
         let _ = io::stdout().flush();
         let msg = client.wait_next();
@@ -122,9 +138,9 @@ fn main() {
                     println!("[{NODE_NAME}] Received ERROR on notify_done, exiting");
                     break;
                 }
-
                 proc_count += 1;
             }
+
             MessageType::Skip | MessageType::Late => {
                 proc_count += 1;
                 let msg_label = if msg.mtype == MessageType::Skip {
@@ -135,12 +151,14 @@ fn main() {
                 println!("[{NODE_NAME}] Received {msg_label}, skipping execution for this cycle");
                 continue;
             }
+
             MessageType::Error => {
                 let reason = msg.get_extra("reason").map(String::as_str).unwrap_or("N/A");
                 let cid = msg.get_extra("cid").map(String::as_str).unwrap_or("N/A");
                 println!("[{NODE_NAME}] Exiting on ERROR (reason={reason}, cid={cid})");
                 break;
             }
+
             other => {
                 println!("[{NODE_NAME}] Exiting due to unexpected message type: {other:?}");
                 break;
@@ -150,6 +168,5 @@ fn main() {
     let _ = io::stdout().flush();
 
     client.exit();
-
     wait_for_enter();
 }
