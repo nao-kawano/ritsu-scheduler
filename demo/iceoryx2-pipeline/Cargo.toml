@@ -1,0 +1,16 @@
+[workspace]
+resolver = "3"
+members = [
+    "shared_types",
+    "sensor_node",
+    "actuator_node",
+]
+
+[workspace.package]
+edition = "2024"
+license = "Apache-2.0"
+
+[workspace.dependencies]
+iceoryx2 = "0.10.0"
+rt-client = { path = "../../rt-client-rs" }
+shared_types = { path = "shared_types" }

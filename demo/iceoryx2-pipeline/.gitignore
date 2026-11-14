@@ -1,0 +1,11 @@
+# Python virtual environment
+.venv/
+__pycache__/
+*.py[cod]
+
+# Rust build artifacts
+target/
+
+# Runtime logs
+logs/
+*.log

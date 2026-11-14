@@ -1,0 +1,50 @@
+# ==============================================================================
+# Ritsu Scheduler Configuration - iceoryx2 Zero-Copy Pipeline Demo
+# ==============================================================================
+
+[server_config]
+# UDP port bound by rt-server for Control Plane signaling
+port = 7878
+# Deterministic pipeline period in milliseconds (100 ms = 10 Hz)
+cycle_time_ms = 100
+# Interval (in cycles) for printing periodic scheduling statistics
+stats_interval_cycle = 10
+# Console log level filter ("error", "warn", "info", "debug", "trace")
+log_level = "info"
+# Directory where rt-server writes structured logs (imported by rt-vis)
+log_file_dir = "./logs"
+# File log level filter (keep "debug" to record full Gantt chart traces)
+log_file_level = "debug"
+
+# 1. Sensor acquisition (Rust publisher -> Pipeline/CameraFrame)
+# Publishes 640x480 grayscale frames (307,232 bytes) via iceoryx2 zero-copy IPC.
+[[client_configs]]
+client_id = 10
+start_cycle = 0
+interval = 1
+offset = 0
+depends = []
+display_name = "Sensor (Rust)"
+expected_duration_ms = 10
+
+# 2. AI vision inference (Python subscriber/publisher)
+# Consumes Pipeline/CameraFrame and publishes VisionResult (40 bytes) to Pipeline/VisionResult.
+[[client_configs]]
+client_id = 20
+start_cycle = 0
+interval = 1
+offset = 0
+depends = [10]
+display_name = "AI-Vision (Py)"
+expected_duration_ms = 40
+
+# 3. Actuator control (Rust subscriber <- Pipeline/VisionResult)
+# Executes motor control and fail-safe skip handling (Braking -> E-STOP).
+[[client_configs]]
+client_id = 30
+start_cycle = 0
+interval = 1
+offset = 0
+depends = [20]
+display_name = "Actuator (Rust)"
+expected_duration_ms = 15
