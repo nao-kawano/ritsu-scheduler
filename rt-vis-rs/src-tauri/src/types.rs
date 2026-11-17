@@ -57,7 +57,7 @@ pub enum InstantEventType {
 pub struct PlannedExecution {
     pub instance_id: u32,
     pub cid: u16,
-    pub anchor_cycle: i64,
+    pub anchor_cycle: u64,
     pub anchor_offset_us: u64,
     pub start_us: u64,
     pub duration_us: u64,

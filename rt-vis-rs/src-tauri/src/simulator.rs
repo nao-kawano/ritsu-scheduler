@@ -37,7 +37,8 @@ const MIN_DURATION_US: u64 = 1_000;
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 enum EventKind {
-    ServerCycle(i64),      // cycle_index (starts from 0).
+    // Live server uses i64 (-1 for pre-start), but simulation starts at cycle 0, so u64 avoids casts.
+    ServerCycle(u64),      // cycle_index (starts from 0).
     ProcessDone(u16, u32), // cid, instance_id.
 }
 
@@ -84,7 +85,7 @@ struct SimulationRecorder {
     instance_counter: u32,
     current_running: HashMap<u16, u32>,   // cid -> instance_id.
     last_instance_ids: HashMap<u16, u32>, // cid -> instance_id.
-    instance_anchors: HashMap<u32, i64>,  // instance_id -> anchor_cycle.
+    instance_anchors: HashMap<u32, u64>,  // instance_id -> anchor_cycle.
     executions: Vec<PlannedExecution>,
     metrics: Vec<PlannedMetricPoint>,
 }
@@ -119,7 +120,7 @@ impl SimulationRecorder {
         &mut self,
         time_us: u64,
         change: &ProcessStateChange,
-        current_cycle: i64,
+        current_cycle: u64,
         ctx: &SimulationContext,
         events: &mut BinaryHeap<SimulationEvent>,
     ) {
@@ -151,7 +152,7 @@ impl SimulationRecorder {
                 };
                 self.instance_anchors.insert(i_id, anchor_cycle);
                 // Determine anchor offset: start from anchor cycle.
-                let anchor_base_us = (anchor_cycle.max(0) as u64).saturating_mul(ctx.cycle_time_us);
+                let anchor_base_us = anchor_cycle.saturating_mul(ctx.cycle_time_us);
                 let anchor_offset_us = time_us.saturating_sub(anchor_base_us);
 
                 // Update current running processes.
@@ -189,8 +190,7 @@ impl SimulationRecorder {
                 self.instance_counter += 1;
 
                 // Insert dummy entry without Done event.
-                let anchor_base_us =
-                    (current_cycle.max(0) as u64).saturating_mul(ctx.cycle_time_us);
+                let anchor_base_us = current_cycle.saturating_mul(ctx.cycle_time_us);
                 let anchor_offset_us = time_us.saturating_sub(anchor_base_us);
                 self.executions.push(PlannedExecution {
                     instance_id: i_id,
@@ -231,7 +231,7 @@ impl SimulationRecorder {
         &mut self,
         time_us: u64,
         changes: &[ProcessStateChange],
-        current_cycle: i64,
+        current_cycle: u64,
         ctx: &SimulationContext,
         events: &mut BinaryHeap<SimulationEvent>,
     ) {
@@ -246,11 +246,12 @@ impl SimulationRecorder {
 
 /* -------------------------------------------------------------------------- */
 
+// Pre-extracted trigger conditions; fields are widened from u8 at setup to avoid per-cycle casts.
 struct CycleTrigger {
     cid: u16,
-    start_cycle: i64,
-    interval: i64,
-    offset: i64,
+    start_cycle: u64,
+    interval: u64,
+    offset: u64,
 }
 
 #[tauri::command]
@@ -280,8 +281,8 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
     let mut is_floating_map = HashMap::new();
     let mut entries = HashMap::new();
     let mut triggers = Vec::new();
-    let mut max_start_cycle: u32 = 0;
-    let mut max_interval: u32 = 1;
+    let mut max_start_cycle: u64 = 0;
+    let mut max_interval: u64 = 1;
 
     for client in &config.client_configs {
         let rule = rules.get(&client.client_id).unwrap();
@@ -294,16 +295,16 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
         if !rule.is_floating {
             triggers.push(CycleTrigger {
                 cid: client.client_id,
-                start_cycle: client.start_cycle as i64,
-                interval: client.interval as i64,
-                offset: client.offset as i64,
+                start_cycle: client.start_cycle as u64,
+                interval: client.interval as u64,
+                offset: client.offset as u64,
             });
         }
-        if client.start_cycle as u32 > max_start_cycle {
-            max_start_cycle = client.start_cycle as u32;
+        if client.start_cycle as u64 > max_start_cycle {
+            max_start_cycle = client.start_cycle as u64;
         }
-        if client.interval as u32 > max_interval {
-            max_interval = client.interval as u32;
+        if client.interval as u64 > max_interval {
+            max_interval = client.interval as u64;
         }
     }
 
@@ -326,10 +327,10 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
         kind: EventKind::ServerCycle(0),
     });
     let mut recorder = SimulationRecorder::new();
-    let mut manager_cycle: i64 = 0;
+    let mut manager_cycle: u64 = 0;
     // Simulate for max_start_cycle + (max_interval * 2) to cover offset scenarios.
     // NOTE: Keep in sync with frontend: cycle.ts -> getSimulationCycles.
-    let max_manager_cycle = (max_start_cycle + max_interval * 2) as i64;
+    let max_manager_cycle = max_start_cycle + (max_interval * 2);
     let mut loop_count = 0;
 
     while let Some(event) = events.pop() {
