@@ -62,9 +62,11 @@ export function useTimeScale() {
 
   // Basic time unit from server config
   const cycleTimeMs = computed(() => activeConfig.value.server_config.cycle_time_ms || 100);
+  const cycleTimeUs = computed(() => cycleTimeMs.value * 1000);
 
-  // Pixels per millisecond (Current zoom level)
+  // Pixels per millisecond / microsecond (Current zoom level)
   const pxPerMs = computed(() => pxPerCycle.value / cycleTimeMs.value);
+  const pxPerUs = computed(() => pxPerMs.value / 1000);
 
   // Current zoom percentage based on default 500px/cycle
   const zoomPercent = computed(() => Math.round((pxPerCycle.value / DEFAULT_PX_PER_CYCLE) * 100));
@@ -88,6 +90,24 @@ export function useTimeScale() {
    */
   const getMs = (x: number, originMs: number = 0) => {
     return originMs + (x / pxPerMs.value);
+  };
+
+  /**
+   * Convert time (us) to horizontal pixel position (x).
+   * @param us Absolute time in microseconds.
+   * @param originUs Viewport origin in microseconds.
+   */
+  const getPosFromUs = (us: number, originUs: number = 0) => {
+    return (us - originUs) * pxPerUs.value;
+  };
+
+  /**
+   * Convert horizontal pixel position (x) to time (us).
+   * @param x Pixel position relative to origin.
+   * @param originUs Viewport origin in microseconds.
+   */
+  const getUs = (x: number, originUs: number = 0) => {
+    return originUs + (x / pxPerUs.value);
   };
 
   /**
@@ -140,12 +160,16 @@ export function useTimeScale() {
   return {
     pxPerCycle,
     cycleTimeMs,
+    cycleTimeUs,
     pxPerMs,
+    pxPerUs,
     zoomPercent,
     minZoom: ZOOM_STEPS[0],
     maxZoom: ZOOM_STEPS[ZOOM_STEPS.length - 1],
     getPos,
     getMs,
+    getPosFromUs,
+    getUs,
     zoom,
     resetZoom,
   };
