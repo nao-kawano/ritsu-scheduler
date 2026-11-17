@@ -23,15 +23,15 @@ export interface PlannedExecution {
   instance_id: number;
   cid: number;
   anchor_cycle: number;
-  anchor_offset_ms: number;
-  start_ms: number;
-  duration_ms: number;
+  anchor_offset_us: number;
+  start_us: number;
+  duration_us: number;
   depends_instance_ids: number[];
   status: ExecutionStatus;
 }
 
 export interface PlannedMetricPoint {
-  time_ms: number;
+  time_us: number;
   running_count: number;
 }
 

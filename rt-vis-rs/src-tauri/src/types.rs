@@ -58,9 +58,9 @@ pub struct PlannedExecution {
     pub instance_id: u32,
     pub cid: u16,
     pub anchor_cycle: i64,
-    pub anchor_offset_ms: u32,
-    pub start_ms: u32,
-    pub duration_ms: u32,
+    pub anchor_offset_us: u64,
+    pub start_us: u64,
+    pub duration_us: u64,
     pub depends_instance_ids: Vec<u32>,
     pub status: ExecutionStatus,
 }
@@ -69,7 +69,7 @@ pub struct PlannedExecution {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct PlannedMetricPoint {
-    pub time_ms: u32,
+    pub time_us: u64,
     pub running_count: u32,
 }
 

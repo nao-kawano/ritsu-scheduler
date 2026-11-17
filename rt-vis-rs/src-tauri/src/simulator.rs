@@ -31,7 +31,7 @@ mod simulator_test;
 /* -------------------------------------------------------------------------- */
 
 const MAX_SIMULATION_LOOPS: u32 = 100_000;
-const MIN_DURATION_MS: u32 = 1;
+const MIN_DURATION_US: u64 = 1_000;
 
 /* -------------------------------------------------------------------------- */
 
@@ -43,14 +43,14 @@ enum EventKind {
 
 #[derive(Debug, Clone, Eq, PartialEq)]
 struct SimulationEvent {
-    time_ms: u32,
+    time_us: u64,
     kind: EventKind,
 }
 
 impl Ord for SimulationEvent {
     fn cmp(&self, other: &Self) -> Ordering {
         // Reverse order for min-heap based on time.
-        match other.time_ms.cmp(&self.time_ms) {
+        match other.time_us.cmp(&self.time_us) {
             Ordering::Equal => {
                 // If time is equal, prioritize ProcessDone over ServerCycle.
                 match (&self.kind, &other.kind) {
@@ -74,7 +74,7 @@ impl PartialOrd for SimulationEvent {
 
 /// Context holding static simulation configurations.
 struct SimulationContext<'a> {
-    cycle_time_ms: u32,
+    cycle_time_us: u64,
     client_configs: HashMap<u16, &'a ClientConfig>,
     is_floating: HashMap<u16, bool>,
 }
@@ -101,23 +101,23 @@ impl SimulationRecorder {
         }
     }
 
-    fn record_metric(&mut self, time_ms: u32) {
+    fn record_metric(&mut self, time_us: u64) {
         let running_count = self.current_running.len() as u32;
         if let Some(last) = self.metrics.last_mut() {
-            if last.time_ms == time_ms {
+            if last.time_us == time_us {
                 last.running_count = running_count;
                 return;
             }
         }
         self.metrics.push(PlannedMetricPoint {
-            time_ms,
+            time_us,
             running_count,
         });
     }
 
     fn record_change(
         &mut self,
-        time_ms: u32,
+        time_us: u64,
         change: &ProcessStateChange,
         current_cycle: i64,
         ctx: &SimulationContext,
@@ -129,7 +129,8 @@ impl SimulationRecorder {
         match change.after {
             ProcessState::Running => {
                 // == Process Started Normally
-                let duration_ms = config_client.expected_duration_ms.max(MIN_DURATION_MS);
+                let duration_us =
+                    (config_client.expected_duration_ms as u64 * 1_000).max(MIN_DURATION_US);
                 let i_id = self.instance_counter;
                 self.instance_counter += 1;
 
@@ -150,8 +151,8 @@ impl SimulationRecorder {
                 };
                 self.instance_anchors.insert(i_id, anchor_cycle);
                 // Determine anchor offset: start from anchor cycle.
-                let anchor_base_ms = (anchor_cycle * ctx.cycle_time_ms as i64) as u32;
-                let anchor_offset_ms = time_ms.saturating_sub(anchor_base_ms);
+                let anchor_base_us = (anchor_cycle.max(0) as u64).saturating_mul(ctx.cycle_time_us);
+                let anchor_offset_us = time_us.saturating_sub(anchor_base_us);
 
                 // Update current running processes.
                 self.current_running.insert(change.cid, i_id);
@@ -160,14 +161,14 @@ impl SimulationRecorder {
                     instance_id: i_id,
                     cid: change.cid,
                     anchor_cycle,
-                    anchor_offset_ms,
-                    start_ms: time_ms,
-                    duration_ms,
+                    anchor_offset_us,
+                    start_us: time_us,
+                    duration_us,
                     depends_instance_ids,
                     status: ExecutionStatus::Normal,
                 });
                 events.push(SimulationEvent {
-                    time_ms: time_ms + duration_ms,
+                    time_us: time_us + duration_us,
                     kind: EventKind::ProcessDone(change.cid, i_id),
                 });
             }
@@ -182,20 +183,22 @@ impl SimulationRecorder {
             }
             ProcessState::Skip => {
                 // == Skip Detected (Dependency unmet)
-                let duration_ms = config_client.expected_duration_ms.max(MIN_DURATION_MS);
+                let duration_us =
+                    (config_client.expected_duration_ms as u64 * 1_000).max(MIN_DURATION_US);
                 let i_id = self.instance_counter;
                 self.instance_counter += 1;
 
                 // Insert dummy entry without Done event.
-                let anchor_base_ms = (current_cycle * ctx.cycle_time_ms as i64) as u32;
-                let anchor_offset_ms = time_ms.saturating_sub(anchor_base_ms);
+                let anchor_base_us =
+                    (current_cycle.max(0) as u64).saturating_mul(ctx.cycle_time_us);
+                let anchor_offset_us = time_us.saturating_sub(anchor_base_us);
                 self.executions.push(PlannedExecution {
                     instance_id: i_id,
                     cid: change.cid,
                     anchor_cycle: current_cycle,
-                    anchor_offset_ms,
-                    start_ms: time_ms,
-                    duration_ms,
+                    anchor_offset_us,
+                    start_us: time_us,
+                    duration_us,
                     depends_instance_ids: vec![],
                     status: ExecutionStatus::Skip,
                 });
@@ -226,7 +229,7 @@ impl SimulationRecorder {
 
     fn record_changes(
         &mut self,
-        time_ms: u32,
+        time_us: u64,
         changes: &[ProcessStateChange],
         current_cycle: i64,
         ctx: &SimulationContext,
@@ -234,10 +237,10 @@ impl SimulationRecorder {
     ) {
         // Record the state changes.
         for change in changes {
-            self.record_change(time_ms, change, current_cycle, ctx, events);
+            self.record_change(time_us, change, current_cycle, ctx, events);
         }
         // Record the count of currently running processes.
-        self.record_metric(time_ms);
+        self.record_metric(time_us);
     }
 }
 
@@ -305,7 +308,7 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
     }
 
     let ctx = SimulationContext {
-        cycle_time_ms: config.server_config.cycle_time_ms as u32,
+        cycle_time_us: (config.server_config.cycle_time_ms as u64) * 1_000,
         client_configs: client_configs_map,
         is_floating: is_floating_map,
     };
@@ -319,7 +322,7 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
     // Set up scheduling event loop.
     let mut events = BinaryHeap::new();
     events.push(SimulationEvent {
-        time_ms: 0,
+        time_us: 0,
         kind: EventKind::ServerCycle(0),
     });
     let mut recorder = SimulationRecorder::new();
@@ -345,12 +348,12 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
                 // Update the manager cycle and check if the simulation limit is reached.
                 manager_cycle = cycle;
                 if manager_cycle >= max_manager_cycle {
-                    recorder.record_metric(event.time_ms);
+                    recorder.record_metric(event.time_us);
                     break;
                 }
                 // Enqueue next cycle.
                 events.push(SimulationEvent {
-                    time_ms: event.time_ms + ctx.cycle_time_ms,
+                    time_us: event.time_us + ctx.cycle_time_us,
                     kind: EventKind::ServerCycle(cycle + 1),
                 });
                 // Trigger processes for this cycle.
@@ -361,7 +364,7 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
                         if let Ok(changes) = scheduler.on_start(t.cid) {
                             // Record process state.
                             recorder.record_changes(
-                                event.time_ms,
+                                event.time_us,
                                 &changes,
                                 manager_cycle,
                                 &ctx,
@@ -390,7 +393,7 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
                     if let Ok(changes) = scheduler.on_done(cid) {
                         // Record process state.
                         recorder.record_changes(
-                            event.time_ms,
+                            event.time_us,
                             &changes,
                             manager_cycle,
                             &ctx,

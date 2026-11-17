@@ -52,8 +52,8 @@ export function computePlannedConcurrencySteps(
     if (!matchingPlans) return;
 
     matchingPlans.forEach(plan => {
-      const execStartMs = ac.start_ms + (plan.anchor_offset_ms || 0);
-      const execEndMs = execStartMs + plan.duration_ms;
+      const execStartMs = ac.start_ms + (plan.anchor_offset_us || 0) / 1000;
+      const execEndMs = execStartMs + plan.duration_us / 1000;
 
       timeDeltaMap.set(execStartMs, (timeDeltaMap.get(execStartMs) || 0) + 1);
       timeDeltaMap.set(execEndMs, (timeDeltaMap.get(execEndMs) || 0) - 1);

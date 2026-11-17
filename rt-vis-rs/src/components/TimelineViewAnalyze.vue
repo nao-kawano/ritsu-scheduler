@@ -356,9 +356,9 @@ const renderPlanBoxes = (
       const r = cidToRowIndex.get(plan.cid);
       if (r === undefined) return;
 
-      const startMs = cycleStartMs + (plan.anchor_offset_ms || 0);
+      const startMs = cycleStartMs + (plan.anchor_offset_us || 0) / 1000;
       const x = Math.floor(startMs * pxPerMs.value - scrollLeft);
-      const barWidth = Math.max(4, Math.floor(plan.duration_ms * pxPerMs.value));
+      const barWidth = Math.max(4, Math.floor((plan.duration_us / 1000) * pxPerMs.value));
       const y = Math.floor(r * ROW_HEIGHT - scrollTop + (ROW_HEIGHT - PLAN_RECT_HEIGHT) / 2);
 
       // Render dependency arrows first (so they are positioned behind the Plan Box)
@@ -377,8 +377,8 @@ const renderPlanBoxes = (
           const parentAc = cycleDiff === 0 ? ac : actualCyclesMap.value.get(ac.cycle - cycleDiff);
           if (!parentAc) return;
 
-          const depStartMs = parentAc.start_ms + (depPlan.anchor_offset_ms || 0);
-          const depWidth = Math.max(4, Math.floor(depPlan.duration_ms * pxPerMs.value));
+          const depStartMs = parentAc.start_ms + (depPlan.anchor_offset_us || 0) / 1000;
+          const depWidth = Math.max(4, Math.floor((depPlan.duration_us / 1000) * pxPerMs.value));
           const fromX = Math.floor(depStartMs * pxPerMs.value - scrollLeft) + depWidth;
           const fromY = Math.floor(depRow * ROW_HEIGHT - scrollTop + ROW_HEIGHT / 2);
 
@@ -485,10 +485,10 @@ const renderActualBars = (
           const matchingPlans = plansByAnchorCycle.value.get(templateCycle);
           const plan = matchingPlans?.find(p => p.cid === cid);
           if (plan) {
-            planDurationMs = plan.duration_ms;
+            planDurationMs = plan.duration_us / 1000;
             const actualCycle = actualCyclesMap.value.get(actual.cycle);
             const cycleStartMs = actualCycle ? actualCycle.start_ms : (actual.cycle * cycleTimeMs.value);
-            planStartMs = cycleStartMs + (plan.anchor_offset_ms || 0);
+            planStartMs = cycleStartMs + (plan.anchor_offset_us || 0) / 1000;
           }
         }
 
