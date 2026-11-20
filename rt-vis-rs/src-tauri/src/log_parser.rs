@@ -44,7 +44,7 @@ const TAG_STAT: &str = "<STAT>";
 struct InProgressExecution {
     instance_id: u64,
     cycle: u64,
-    start_ms: u64,
+    start_us: u64,
     log_line_no_start: u64,
     status: ExecutionStatus,
 }
@@ -57,11 +57,11 @@ struct LogParserContext {
 
     config_lines: Vec<String>,
     parsed_config: Option<SchedulerConfig>,
-    cycle_time_ms: u64,
+    cycle_time_us: u64,
 
     origin_time_us: Option<i64>,
-    prev_cycle_start_ms: Option<u64>,
-    last_log_ms: u64,
+    prev_cycle_start_us: Option<u64>,
+    last_log_us: u64,
     current_running_count: u32,
 
     in_progress: HashMap<u16, InProgressExecution>,
@@ -83,11 +83,11 @@ impl LogParserContext {
 
             config_lines: Vec::new(),
             parsed_config: None,
-            cycle_time_ms: 50,
+            cycle_time_us: 50_000,
 
             origin_time_us: None,
-            prev_cycle_start_ms: None,
-            last_log_ms: 0,
+            prev_cycle_start_us: None,
+            last_log_us: 0,
             current_running_count: 0,
 
             in_progress: HashMap::new(),
@@ -116,32 +116,35 @@ impl LogParserContext {
             if let Some(ts_us) = timestamp_us {
                 self.origin_time_us = Some(ts_us);
             }
-            // Resolve configured cycle_time_ms for accurate cycle jitter calculation
+            // Resolve configured cycle_time_ms into microseconds for accurate cycle jitter calculation
             if self.parsed_config.is_none() {
                 let cfg = parse_embedded_config(&self.config_lines)?;
-                self.cycle_time_ms = cfg.server_config.cycle_time_ms as u64;
+                self.cycle_time_us = (cfg.server_config.cycle_time_ms as u64) * 1_000;
                 self.parsed_config = Some(cfg);
             }
         }
         // Parse cycle number and calculate relative elapsed time from the origin timestamp.
         let cycle_num = extract_field::<u64>(stat_body, "CYC:").unwrap_or(0);
-        let current_ms = calculate_relative_ms(timestamp_us, self.origin_time_us);
-        self.last_log_ms = current_ms;
+        let current_us = calculate_relative_us(timestamp_us, self.origin_time_us);
+        self.last_log_us = current_us;
 
-        // Calculate cycle-to-cycle start jitter relative to the previous cycle start and cycle_time_ms.
-        let start_jitter_ms = match self.prev_cycle_start_ms {
-            None => 0.0,
+        // Calculate cycle-to-cycle start jitter relative to the previous cycle start and cycle_time_us.
+        // Relative timestamps are derived from non-negative i64 diffs and cycle_time_us <= u32::MAX * 1_000,
+        // so all operands fit safely within i64.
+        let start_jitter_us = match self.prev_cycle_start_us {
+            None => 0,
             Some(prev_start) => {
-                (current_ms as f64) - (prev_start as f64 + self.cycle_time_ms as f64)
+                let elapsed_us = (current_us as i64).saturating_sub(prev_start as i64);
+                elapsed_us.saturating_sub(self.cycle_time_us as i64)
             }
         };
-        self.prev_cycle_start_ms = Some(current_ms);
+        self.prev_cycle_start_us = Some(current_us);
 
         // Record parsed actual cycle event.
         self.cycles.push(ActualCycle {
             cycle: cycle_num,
-            start_ms: current_ms,
-            start_jitter_ms,
+            start_us: current_us,
+            start_jitter_us,
         });
 
         // Mark log as truncated when reaching the safety cycle limit to prevent excessive memory usage.
@@ -161,12 +164,12 @@ impl LogParserContext {
 
         // Parse cycle number and calculate relative elapsed time from the origin timestamp.
         let cycle_num = extract_field::<u64>(stat_body, "CYC:").unwrap_or(0);
-        let current_ms = calculate_relative_ms(timestamp_us, self.origin_time_us);
-        self.last_log_ms = current_ms;
+        let current_us = calculate_relative_us(timestamp_us, self.origin_time_us);
+        self.last_log_us = current_us;
 
         // Record retransmission event and skip state updates to prevent duplicate execution tracking.
         if stat_body.contains("(Retransmit)") {
-            self.record_instant_event(cid, current_ms, InstantEventType::Retransmit);
+            self.record_instant_event(cid, current_us, InstantEventType::Retransmit);
             return;
         }
 
@@ -180,18 +183,18 @@ impl LogParserContext {
                 InProgressExecution {
                     instance_id: execution_id,
                     cycle: cycle_num,
-                    start_ms: current_ms,
+                    start_us: current_us,
                     log_line_no_start: self.line_no,
                     status: ExecutionStatus::Normal,
                 },
             );
             self.current_running_count += 1;
-            record_metric_point(&mut self.metrics, current_ms, self.current_running_count);
+            record_metric_point(&mut self.metrics, current_us, self.current_running_count);
         } else if stat_body.contains("Running -> Idle") || stat_body.contains("DONE (Exiting)") {
             // Normal execution completes upon receiving DONE (including server Exiting state);
             // finalize bar and decrement active concurrency.
             if let Some(exec) = self.in_progress.remove(&cid) {
-                let duration_ms = (current_ms.saturating_sub(exec.start_ms)) as u32;
+                let duration_us = current_us.saturating_sub(exec.start_us);
                 self.executions_by_cid
                     .entry(cid)
                     .or_default()
@@ -200,23 +203,23 @@ impl LogParserContext {
                         log_line_no_end: Some(self.line_no),
                         instance_id: exec.instance_id,
                         cycle: exec.cycle,
-                        start_ms: exec.start_ms,
-                        duration_ms,
+                        start_us: exec.start_us,
+                        duration_us,
                         status: exec.status,
                     });
                 self.current_running_count = self.current_running_count.saturating_sub(1);
-                record_metric_point(&mut self.metrics, current_ms, self.current_running_count);
+                record_metric_point(&mut self.metrics, current_us, self.current_running_count);
             }
         } else if stat_body.contains("Running -> Overrun") {
             // Task exceeded cycle boundary; mark execution status as Overrun.
             if let Some(exec) = self.in_progress.get_mut(&cid) {
                 exec.status = ExecutionStatus::Overrun;
             }
-            self.record_instant_event(cid, current_ms, InstantEventType::Overrun);
+            self.record_instant_event(cid, current_us, InstantEventType::Overrun);
         } else if stat_body.contains("Overrun -> Late") {
             // Overrun task completes late upon receiving DONE; finalize bar and record Late event.
             if let Some(exec) = self.in_progress.remove(&cid) {
-                let duration_ms = (current_ms.saturating_sub(exec.start_ms)) as u32;
+                let duration_us = current_us.saturating_sub(exec.start_us);
                 self.executions_by_cid
                     .entry(cid)
                     .or_default()
@@ -225,34 +228,34 @@ impl LogParserContext {
                         log_line_no_end: Some(self.line_no),
                         instance_id: exec.instance_id,
                         cycle: exec.cycle,
-                        start_ms: exec.start_ms,
-                        duration_ms,
+                        start_us: exec.start_us,
+                        duration_us,
                         status: ExecutionStatus::Overrun,
                     });
                 self.current_running_count = self.current_running_count.saturating_sub(1);
-                record_metric_point(&mut self.metrics, current_ms, self.current_running_count);
+                record_metric_point(&mut self.metrics, current_us, self.current_running_count);
             }
-            self.record_instant_event(cid, current_ms, InstantEventType::Late);
+            self.record_instant_event(cid, current_us, InstantEventType::Late);
         } else if stat_body.contains("Ready -> Skip") {
             // Task execution skipped due to dependency delay or prior skip; record Skip event.
-            self.record_instant_event(cid, current_ms, InstantEventType::Skip);
+            self.record_instant_event(cid, current_us, InstantEventType::Skip);
         } else if stat_body.contains("Idle -> Late") {
             // Client missed cycle start without sending READY in time; record Late event.
-            self.record_instant_event(cid, current_ms, InstantEventType::Late);
+            self.record_instant_event(cid, current_us, InstantEventType::Late);
         } else if stat_body.contains("Idle -> Ready")
             || stat_body.contains("Skip -> Ready")
             || stat_body.contains("Late -> Idle")
         {
             // Client transmitted READY to announce readiness or recover from late state; record Ready event.
-            self.record_instant_event(cid, current_ms, InstantEventType::Ready);
+            self.record_instant_event(cid, current_us, InstantEventType::Ready);
         } else if stat_body.contains("EXIT") {
             // Client disconnected or terminated; record Exit event.
-            self.record_instant_event(cid, current_ms, InstantEventType::Exit);
+            self.record_instant_event(cid, current_us, InstantEventType::Exit);
         }
     }
 
     /// Records an instant point event for a client.
-    fn record_instant_event(&mut self, cid: u16, time_ms: u64, event_type: InstantEventType) {
+    fn record_instant_event(&mut self, cid: u16, time_us: u64, event_type: InstantEventType) {
         let event_id = self.next_instant_event_id;
         self.next_instant_event_id += 1;
         self.instant_events_by_cid
@@ -261,7 +264,7 @@ impl LogParserContext {
             .push(ActualInstantEvent {
                 log_line_no: self.line_no,
                 instance_id: event_id,
-                time_ms,
+                time_us,
                 event_type,
             });
     }
@@ -270,7 +273,7 @@ impl LogParserContext {
     fn finish(mut self) -> Result<LogStore, String> {
         // Safely close any unfinished executions (e.g., server aborted or truncated log)
         for (cid, exec) in self.in_progress.into_iter() {
-            let duration_ms = (self.last_log_ms.saturating_sub(exec.start_ms)) as u32;
+            let duration_us = self.last_log_us.saturating_sub(exec.start_us);
             self.executions_by_cid
                 .entry(cid)
                 .or_default()
@@ -279,8 +282,8 @@ impl LogParserContext {
                     log_line_no_end: None,
                     instance_id: exec.instance_id,
                     cycle: exec.cycle,
-                    start_ms: exec.start_ms,
-                    duration_ms,
+                    start_us: exec.start_us,
+                    duration_us,
                     status: exec.status,
                 });
         }
@@ -292,10 +295,10 @@ impl LogParserContext {
 
         // Normalize execution bars and instant events by sorting chronologically and ensuring entries exist for all configured clients.
         for execs in self.executions_by_cid.values_mut() {
-            execs.sort_by_key(|e| e.start_ms);
+            execs.sort_by_key(|e| e.start_us);
         }
         for evts in self.instant_events_by_cid.values_mut() {
-            evts.sort_by_key(|e| e.time_ms);
+            evts.sort_by_key(|e| e.time_us);
         }
         for client in &config.client_configs {
             self.executions_by_cid.entry(client.client_id).or_default();
@@ -313,40 +316,35 @@ impl LogParserContext {
             .unwrap_or(0);
         let total_cycles = self.cycles.len() as u64;
 
-        let min_start_jitter_ms = self
+        let min_start_jitter_us = self
             .cycles
             .iter()
-            .map(|c| c.start_jitter_ms)
-            .fold(f64::INFINITY, f64::min);
-        let max_start_jitter_ms = self
+            .map(|c| c.start_jitter_us)
+            .min()
+            .unwrap_or(0);
+        let max_start_jitter_us = self
             .cycles
             .iter()
-            .map(|c| c.start_jitter_ms)
-            .fold(f64::NEG_INFINITY, f64::max);
+            .map(|c| c.start_jitter_us)
+            .max()
+            .unwrap_or(0);
 
-        let final_cycle_end_ms = self
+        let cycle_time_us = (config.server_config.cycle_time_ms as u64) * 1_000;
+        let final_cycle_end_us = self
             .cycles
             .last()
-            .map(|c| c.start_ms + (config.server_config.cycle_time_ms as u64))
+            .map(|c| c.start_us + cycle_time_us)
             .unwrap_or(0);
-        let total_duration_ms = final_cycle_end_ms.max(self.last_log_ms);
+        let total_duration_us = final_cycle_end_us.max(self.last_log_us);
 
         // Construct log summary metadata.
         let summary = LogSummary {
             config,
             max_concurrency,
-            total_duration_ms,
+            total_duration_us,
             total_cycles,
-            min_start_jitter_ms: if min_start_jitter_ms.is_finite() {
-                min_start_jitter_ms
-            } else {
-                0.0
-            },
-            max_start_jitter_ms: if max_start_jitter_ms.is_finite() {
-                max_start_jitter_ms
-            } else {
-                0.0
-            },
+            min_start_jitter_us,
+            max_start_jitter_us,
             is_truncated: self.is_truncated,
         };
 
@@ -437,15 +435,15 @@ fn is_cycle_start(stat_body: &str) -> bool {
 }
 
 /// Records concurrency metric point with same-timestamp deduplication.
-fn record_metric_point(metrics: &mut Vec<ActualMetricPoint>, time_ms: u64, running_count: u32) {
+fn record_metric_point(metrics: &mut Vec<ActualMetricPoint>, time_us: u64, running_count: u32) {
     if let Some(last) = metrics.last_mut() {
-        if last.time_ms == time_ms {
+        if last.time_us == time_us {
             last.running_count = running_count;
             return;
         }
     }
     metrics.push(ActualMetricPoint {
-        time_ms,
+        time_us,
         running_count,
     });
 }
@@ -459,12 +457,12 @@ fn parse_line_timestamp_micros(line: &str) -> Option<i64> {
         .map(|dt| dt.and_utc().timestamp_micros())
 }
 
-/// Computes relative milliseconds from origin timestamp.
-fn calculate_relative_ms(timestamp_us: Option<i64>, origin_us: Option<i64>) -> u64 {
+/// Computes relative microseconds from origin timestamp.
+fn calculate_relative_us(timestamp_us: Option<i64>, origin_us: Option<i64>) -> u64 {
     match (timestamp_us, origin_us) {
         (Some(ts), Some(orig)) => {
             let diff = ts.saturating_sub(orig);
-            if diff < 0 { 0 } else { (diff / 1000) as u64 }
+            if diff < 0 { 0 } else { diff as u64 }
         }
         _ => 0,
     }

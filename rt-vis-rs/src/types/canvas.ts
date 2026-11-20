@@ -50,11 +50,11 @@ export interface RenderHeaderOptions {
   width: number;
   height: number;
   totalCycles: number;
-  cycleTimeMs: number;
+  cycleTimeUs: number;
   majorPx: number;
   styles: ThemeStyles;
   actualCycles?: ActualCycle[];
-  pxPerMs?: number;
+  pxPerUs?: number;
 }
 
 export interface RenderGridOptions {
@@ -72,6 +72,6 @@ export interface RenderActualCycleLinesOptions {
   width: number;
   height: number;
   actualCycles: ActualCycle[];
-  pxPerMs: number;
+  pxPerUs: number;
   styles: ThemeStyles;
 }

@@ -21,7 +21,7 @@ import { groupPlansByAnchorCycle, filterVisibleActualCycles, mapToTemplateCycle 
  * Discrete time and level step point for concurrency waveform rendering.
  */
 export interface ConcurrencyStep {
-  timeMs: number;
+  timeUs: number;
   count: number;
 }
 
@@ -34,14 +34,14 @@ export function computePlannedConcurrencySteps(
   actualCycles: ActualCycle[],
   maxStartCycle: number,
   steadyPeriod: number,
-  startMs: number,
-  endMs: number
+  startUs: number,
+  endUs: number
 ): ConcurrencyStep[] {
   // Group planned executions by anchor cycle phase (excluding skipped tasks)
   const plansByAnchorCycle = groupPlansByAnchorCycle(plannedExecs, true);
 
   // Filter visible actual cycles within viewport time bounds
-  const visibleCycles = filterVisibleActualCycles(actualCycles, startMs, endMs);
+  const visibleCycles = filterVisibleActualCycles(actualCycles, startUs, endUs);
   if (visibleCycles.length === 0) return [];
 
   // Collect discrete start (+1) and end (-1) time events across visible planned instances
@@ -52,11 +52,11 @@ export function computePlannedConcurrencySteps(
     if (!matchingPlans) return;
 
     matchingPlans.forEach(plan => {
-      const execStartMs = ac.start_ms + (plan.anchor_offset_us || 0) / 1000;
-      const execEndMs = execStartMs + plan.duration_us / 1000;
+      const execStartUs = ac.start_us + (plan.anchor_offset_us || 0);
+      const execEndUs = execStartUs + plan.duration_us;
 
-      timeDeltaMap.set(execStartMs, (timeDeltaMap.get(execStartMs) || 0) + 1);
-      timeDeltaMap.set(execEndMs, (timeDeltaMap.get(execEndMs) || 0) - 1);
+      timeDeltaMap.set(execStartUs, (timeDeltaMap.get(execStartUs) || 0) + 1);
+      timeDeltaMap.set(execEndUs, (timeDeltaMap.get(execEndUs) || 0) - 1);
     });
   });
 
@@ -67,10 +67,10 @@ export function computePlannedConcurrencySteps(
   const steps: ConcurrencyStep[] = [];
   let currentRunning = 0;
 
-  sortedTimes.forEach(timeMs => {
-    currentRunning += timeDeltaMap.get(timeMs)!;
+  sortedTimes.forEach(timeUs => {
+    currentRunning += timeDeltaMap.get(timeUs)!;
     steps.push({
-      timeMs,
+      timeUs,
       count: Math.max(0, currentRunning)
     });
   });
@@ -79,16 +79,16 @@ export function computePlannedConcurrencySteps(
 }
 
 /**
- * Find the actual running client count at timeMs using binary search.
+ * Find the actual running client count at timeUs using binary search.
  */
-export function findActualConcurrencyForTime(actuals: ActualMetricPoint[], timeMs: number): number {
+export function findActualConcurrencyForTime(actuals: ActualMetricPoint[], timeUs: number): number {
   if (!actuals || actuals.length === 0) return 0;
   let low = 0;
   let high = actuals.length - 1;
   let count = 0;
   while (low <= high) {
     const mid = (low + high) >> 1;
-    if (actuals[mid].time_ms <= timeMs) {
+    if (actuals[mid].time_us <= timeUs) {
       count = actuals[mid].running_count;
       low = mid + 1;
     } else {
@@ -99,17 +99,17 @@ export function findActualConcurrencyForTime(actuals: ActualMetricPoint[], timeM
 }
 
 /**
- * Find the planned running client count at timeMs using binary search on cached steps.
+ * Find the planned running client count at timeUs using binary search on cached steps.
  */
-export function findPlannedConcurrencyForTime(steps: ConcurrencyStep[], timeMs: number): number | null {
+export function findPlannedConcurrencyForTime(steps: ConcurrencyStep[], timeUs: number): number | null {
   if (!steps || steps.length === 0) return null;
-  if (timeMs < steps[0].timeMs) return 0;
+  if (timeUs < steps[0].timeUs) return 0;
   let low = 0;
   let high = steps.length - 1;
   let count = 0;
   while (low <= high) {
     const mid = (low + high) >> 1;
-    if (steps[mid].timeMs <= timeMs) {
+    if (steps[mid].timeUs <= timeUs) {
       count = steps[mid].count;
       low = mid + 1;
     } else {

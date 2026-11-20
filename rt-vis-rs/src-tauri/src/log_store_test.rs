@@ -30,9 +30,9 @@ const LOG_NORMAL: &str = include_str!("../fixtures/logs/server_normal.log");
 #[test]
 fn test_get_range_full_span() {
     let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
-    let total_duration_ms = store.summary.total_duration_ms;
+    let total_duration_us = store.summary.total_duration_us;
 
-    let range_data = store.get_range(0, total_duration_ms + 100);
+    let range_data = store.get_range(0, total_duration_us + 100_000);
 
     // Field 1: Verify truncation flag
     assert!(!range_data.is_truncated);
@@ -73,13 +73,13 @@ fn test_get_range_full_span() {
 
     // Field 4: Verify concurrency metrics parity and ordering
     assert_eq!(range_data.actual_metrics.len(), store.metrics.len());
-    assert_eq!(range_data.actual_metrics[0].time_ms, store.metrics[0].time_ms);
+    assert_eq!(range_data.actual_metrics[0].time_us, store.metrics[0].time_us);
     assert_eq!(
-        range_data.actual_metrics.last().unwrap().time_ms,
-        store.metrics.last().unwrap().time_ms
+        range_data.actual_metrics.last().unwrap().time_us,
+        store.metrics.last().unwrap().time_us
     );
     for window in range_data.actual_metrics.windows(2) {
-        assert!(window[0].time_ms <= window[1].time_ms);
+        assert!(window[0].time_us <= window[1].time_us);
     }
 
     // Field 5: Verify total cycles parity and ordering
@@ -90,7 +90,7 @@ fn test_get_range_full_span() {
         store.cycles.last().unwrap().cycle
     );
     for window in range_data.actual_cycles.windows(2) {
-        assert!(window[0].start_ms <= window[1].start_ms);
+        assert!(window[0].start_us <= window[1].start_us);
     }
 }
 
@@ -100,64 +100,64 @@ fn test_get_range_partial_slice() {
     let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
 
     // Target a window around Cycle 1 and Cycle 2 (roughly 50ms to 149ms)
-    let start_ms = 50;
-    let end_ms = 149;
-    let range_data = store.get_range(start_ms, end_ms);
+    let start_us = 50_000;
+    let end_us = 149_000;
+    let range_data = store.get_range(start_us, end_us);
 
     // Field 1: Verify truncation flag
     assert!(!range_data.is_truncated);
 
-    // Field 2: Verify all returned executions strictly overlap with [start_ms, end_ms]
+    // Field 2: Verify all returned executions strictly overlap with [start_us, end_us]
     for (cid, execs) in &range_data.actual_executions_by_cid {
         for exec in execs {
-            let exec_end = exec.start_ms + exec.duration_ms as u64;
+            let exec_end = exec.start_us + exec.duration_us;
             assert!(
-                exec.start_ms <= end_ms && exec_end >= start_ms,
+                exec.start_us <= end_us && exec_end >= start_us,
                 "Execution for CID {} at [{}, {}] does not overlap with requested window [{}, {}]",
                 cid,
-                exec.start_ms,
+                exec.start_us,
                 exec_end,
-                start_ms,
-                end_ms
+                start_us,
+                end_us
             );
         }
     }
 
-    // Field 3: Verify all returned instant events strictly fall within [start_ms, end_ms]
+    // Field 3: Verify all returned instant events strictly fall within [start_us, end_us]
     for (cid, events) in &range_data.actual_instant_events_by_cid {
         for event in events {
             assert!(
-                event.time_ms >= start_ms && event.time_ms <= end_ms,
-                "Instant event for CID {} at {}ms falls outside requested window [{}, {}]",
+                event.time_us >= start_us && event.time_us <= end_us,
+                "Instant event for CID {} at {}us falls outside requested window [{}, {}]",
                 cid,
-                event.time_ms,
-                start_ms,
-                end_ms
+                event.time_us,
+                start_us,
+                end_us
             );
         }
     }
 
     // Field 4: Verify metrics continuity (includes preceding point if available) and sorting
     assert!(!range_data.actual_metrics.is_empty());
-    assert!(range_data.actual_metrics[0].time_ms <= start_ms);
+    assert!(range_data.actual_metrics[0].time_us <= start_us);
     if range_data.actual_metrics.len() > 1 {
         for m in &range_data.actual_metrics[1..] {
-            assert!(m.time_ms >= start_ms && m.time_ms <= end_ms);
+            assert!(m.time_us >= start_us && m.time_us <= end_us);
         }
     }
     for window in range_data.actual_metrics.windows(2) {
-        assert!(window[0].time_ms <= window[1].time_ms);
+        assert!(window[0].time_us <= window[1].time_us);
     }
 
-    // Field 5: Verify cycle margin inclusion (cycle_time_ms * 2 = 100ms margin around [50, 149])
-    // Expected bounds: max(0, 50 - 100) = 0ms to 149 + 100 = 249ms
+    // Field 5: Verify cycle margin inclusion (cycle_time_us * 2 = 100_000us margin around [50_000, 149_000])
+    // Expected bounds: max(0, 50_000 - 100_000) = 0us to 149_000 + 100_000 = 249_000us
     assert!(!range_data.actual_cycles.is_empty());
     for cycle in &range_data.actual_cycles {
         assert!(
-            cycle.start_ms <= end_ms + 100,
-            "Cycle {} start {}ms exceeded upper margin boundary",
+            cycle.start_us <= end_us + 100_000,
+            "Cycle {} start {}us exceeded upper margin boundary",
             cycle.cycle,
-            cycle.start_ms
+            cycle.start_us
         );
     }
 }
@@ -167,7 +167,7 @@ fn test_get_range_partial_slice() {
 fn test_get_range_inverted_bounds() {
     let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
 
-    let range_data = store.get_range(200, 100);
+    let range_data = store.get_range(200_000, 100_000);
 
     assert!(!range_data.is_truncated);
     assert!(range_data.actual_executions_by_cid.is_empty());
@@ -182,7 +182,7 @@ fn test_get_range_out_of_bounds() {
     let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
 
     // Request a window far beyond the end of the log
-    let range_data = store.get_range(50_000, 60_000);
+    let range_data = store.get_range(50_000_000, 60_000_000);
 
     // Field 1: Truncation flag
     assert!(!range_data.is_truncated);
@@ -214,13 +214,13 @@ fn test_get_range_out_of_bounds() {
 #[test]
 fn test_get_range_safety_cap_truncation() {
     let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
-    let total_duration_ms = store.summary.total_duration_ms;
+    let total_duration_us = store.summary.total_duration_us;
 
     // Test execution cap truncation
     let cap_execs = 5;
     let range_exec_capped = store.get_range_with_caps(
         0,
-        total_duration_ms + 100,
+        total_duration_us + 100_000,
         cap_execs,
         MAX_RANGE_INSTANT_EVENTS,
         MAX_RANGE_METRICS,
@@ -238,7 +238,7 @@ fn test_get_range_safety_cap_truncation() {
     let cap_events = 7;
     let range_event_capped = store.get_range_with_caps(
         0,
-        total_duration_ms + 100,
+        total_duration_us + 100_000,
         MAX_RANGE_EXECUTIONS,
         cap_events,
         MAX_RANGE_METRICS,
@@ -256,7 +256,7 @@ fn test_get_range_safety_cap_truncation() {
     let cap_metrics = 3;
     let range_metric_capped = store.get_range_with_caps(
         0,
-        total_duration_ms + 100,
+        total_duration_us + 100_000,
         MAX_RANGE_EXECUTIONS,
         MAX_RANGE_INSTANT_EVENTS,
         cap_metrics,
@@ -269,7 +269,7 @@ fn test_get_range_safety_cap_truncation() {
     let cap_cycles = 4;
     let range_cycle_capped = store.get_range_with_caps(
         0,
-        total_duration_ms + 100,
+        total_duration_us + 100_000,
         MAX_RANGE_EXECUTIONS,
         MAX_RANGE_INSTANT_EVENTS,
         MAX_RANGE_METRICS,

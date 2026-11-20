@@ -25,13 +25,14 @@ import { useConfig } from '../composables/useConfig';
 import { useSimulation } from '../composables/useSimulation';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useCreateModeLayout } from '../composables/useCreateModeLayout';
+import { formatUsAsMsInt } from '../utils/format';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
 const { configCreateMode } = useConfig();
 const { plannedMetricsCreateMode } = useSimulation();
-const { cycleTimeMs, getPosFromUs } = useTimeScale();
+const { cycleTimeUs, getPosFromUs } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
 // -----------------------------------------------------------------------------
@@ -183,7 +184,7 @@ defineExpose({
       <div class="time-axis" :style="{ width: totalWidth + 'px' }">
         <div v-for="n in totalCycles" :key="n" class="time-tick" :style="{ width: gridInfo.majorPx + 'px' }">
           <span class="cycle-label">Cycle {{ n - 1 }}</span>
-          <span class="time-label">{{ (n - 1) * cycleTimeMs }}ms</span>
+          <span class="time-label">{{ formatUsAsMsInt((n - 1) * cycleTimeUs) }}</span>
         </div>
       </div>
     </div>

@@ -49,18 +49,6 @@ export function formatDeltaUsAsMs(deltaUs: number): string {
 }
 
 /**
- * Format delta value with sign and units for tooltip display.
- * Clamps near-zero floating point residuals to clean positive zero (+0.00 ms).
- */
-export function formatDelta(delta: number): string {
-  if (Math.abs(delta) < 0.005) {
-    return '+0.00 ms';
-  }
-  const sign = delta > 0 ? '+' : '';
-  return `${sign}${delta.toFixed(2)} ms`;
-}
-
-/**
  * Format delta count with explicit positive sign for concurrency delta (including "+0").
  */
 export function formatDeltaCount(delta: number): string {

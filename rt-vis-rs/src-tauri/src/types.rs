@@ -116,7 +116,7 @@ impl SimulationResult {
 pub struct ActualInstantEvent {
     pub log_line_no: u64,
     pub instance_id: u64,
-    pub time_ms: u64,
+    pub time_us: u64,
     pub event_type: InstantEventType,
 }
 
@@ -128,8 +128,8 @@ pub struct ActualExecution {
     pub log_line_no_end: Option<u64>,
     pub instance_id: u64,
     pub cycle: u64,
-    pub start_ms: u64,
-    pub duration_ms: u32,
+    pub start_us: u64,
+    pub duration_us: u64,
     pub status: ExecutionStatus,
 }
 
@@ -137,7 +137,7 @@ pub struct ActualExecution {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub struct ActualMetricPoint {
-    pub time_ms: u64,
+    pub time_us: u64,
     pub running_count: u32,
 }
 
@@ -146,8 +146,8 @@ pub struct ActualMetricPoint {
 #[serde(rename_all = "snake_case")]
 pub struct ActualCycle {
     pub cycle: u64,
-    pub start_ms: u64,
-    pub start_jitter_ms: f64,
+    pub start_us: u64,
+    pub start_jitter_us: i64,
 }
 
 /// Summary metadata returned by load_log IPC upon initial loading.
@@ -156,10 +156,10 @@ pub struct ActualCycle {
 pub struct LogSummary {
     pub config: SchedulerConfig,
     pub max_concurrency: u32,
-    pub total_duration_ms: u64,
+    pub total_duration_us: u64,
     pub total_cycles: u64,
-    pub min_start_jitter_ms: f64,
-    pub max_start_jitter_ms: f64,
+    pub min_start_jitter_us: i64,
+    pub max_start_jitter_us: i64,
     pub is_truncated: bool,
 }
 

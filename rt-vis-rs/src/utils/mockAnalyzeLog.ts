@@ -47,27 +47,27 @@ const mockConfig: SchedulerConfig = {
 
 const MOCK_PARAMS = {
   total_cycles: 500,
-  cycle_time_ms: 50,
+  cycle_time_us: 50_000,
 
-  // Cycle jitter configuration (positive delay accumulation with occasional spikes)
+  // Cycle jitter configuration in microseconds (positive delay accumulation with occasional spikes)
   jitter: {
-    base_min: 0.1,
-    base_max: 1.5,
+    base_min_us: 100,
+    base_max_us: 1_500,
     spike_interval_cycles: 45,
-    spike_min: 4.0,
-    spike_max: 8.0,
+    spike_min_us: 4_000,
+    spike_max_us: 8_000,
   },
 
-  // Internal scheduler dispatch latency configuration
+  // Internal scheduler dispatch latency configuration in microseconds
   dispatch_delay: {
-    min: 0.02,
-    max: 0.08,
+    min_us: 20,
+    max_us: 80,
   },
 
-  // Post-execution ready response latency configuration
+  // Post-execution ready response latency configuration in microseconds
   ready_delay: {
-    min: 0.4,
-    max: 0.8,
+    min_us: 400,
+    max_us: 800,
   },
 
   // Execution duration ratio profile (relative to expected_duration_ms)
@@ -89,24 +89,25 @@ const MOCK_PARAMS = {
 // -----------------------------------------------------------------------------
 
 /**
- * Returns a random floating point number between min and max.
+ * Returns a random integer microsecond value between min and max.
  */
-function getRandom(min: number, max: number): number {
-  return min + Math.random() * (max - min);
+function getRandomUs(min: number, max: number): number {
+  return Math.round(min + Math.random() * (max - min));
 }
 
 /**
- * Computes realistic execution duration based on configured WCET ratio profile.
+ * Computes realistic execution duration in microseconds based on configured WCET ratio profile.
  */
-function computeDuration(expectedMs: number, isSpike = false): number {
+function computeDurationUs(expectedMs: number, isSpike = false): number {
+  const expectedUs = expectedMs * 1_000;
   if (isSpike) {
-    return Math.round(expectedMs * MOCK_PARAMS.spike_anomaly.ratio * 10) / 10;
+    return Math.round(expectedUs * MOCK_PARAMS.spike_anomaly.ratio);
   }
   const r = Math.random();
   const ratio = r < 0.5
     ? MOCK_PARAMS.duration_ratio.min + (MOCK_PARAMS.duration_ratio.median - MOCK_PARAMS.duration_ratio.min) * (r * 2)
     : MOCK_PARAMS.duration_ratio.median + (MOCK_PARAMS.duration_ratio.max - MOCK_PARAMS.duration_ratio.median) * ((r - 0.5) * 2);
-  return Math.max(1, Math.round(expectedMs * ratio * 10) / 10);
+  return Math.max(1_000, Math.round(expectedUs * ratio));
 }
 
 // -----------------------------------------------------------------------------
@@ -138,36 +139,34 @@ function generateFullLogDataset(): FullLogDataset {
 
   // Generate cumulative cycles with realistic timer jitter
   const actualCycles: ActualCycle[] = [];
-  let currentCycleStartMs = 0;
-  let minStartJitterMs = Infinity;
-  let maxStartJitterMs = -Infinity;
+  let currentCycleStartUs = 0;
+  let minStartJitterUs = Infinity;
+  let maxStartJitterUs = -Infinity;
 
   for (let cycle = 0; cycle < MOCK_PARAMS.total_cycles; cycle++) {
     if (cycle === 0) {
       actualCycles.push({
         cycle: 0,
-        start_ms: 0,
-        start_jitter_ms: 0,
+        start_us: 0,
+        start_jitter_us: 0,
       });
-      minStartJitterMs = 0;
-      maxStartJitterMs = 0;
+      minStartJitterUs = 0;
+      maxStartJitterUs = 0;
     } else {
       const isSpike = (cycle % MOCK_PARAMS.jitter.spike_interval_cycles === 0);
-      const jitter = isSpike
-        ? getRandom(MOCK_PARAMS.jitter.spike_min, MOCK_PARAMS.jitter.spike_max)
-        : getRandom(MOCK_PARAMS.jitter.base_min, MOCK_PARAMS.jitter.base_max);
-      const roundedJitter = Math.round(jitter * 100) / 100;
+      const jitterUs = isSpike
+        ? getRandomUs(MOCK_PARAMS.jitter.spike_min_us, MOCK_PARAMS.jitter.spike_max_us)
+        : getRandomUs(MOCK_PARAMS.jitter.base_min_us, MOCK_PARAMS.jitter.base_max_us);
 
-      currentCycleStartMs += MOCK_PARAMS.cycle_time_ms + roundedJitter;
-      const roundedStartMs = Math.round(currentCycleStartMs * 100) / 100;
+      currentCycleStartUs += MOCK_PARAMS.cycle_time_us + jitterUs;
 
-      if (roundedJitter < minStartJitterMs) minStartJitterMs = roundedJitter;
-      if (roundedJitter > maxStartJitterMs) maxStartJitterMs = roundedJitter;
+      if (jitterUs < minStartJitterUs) minStartJitterUs = jitterUs;
+      if (jitterUs > maxStartJitterUs) maxStartJitterUs = jitterUs;
 
       actualCycles.push({
         cycle,
-        start_ms: roundedStartMs,
-        start_jitter_ms: roundedJitter,
+        start_us: currentCycleStartUs,
+        start_jitter_us: jitterUs,
       });
     }
   }
@@ -176,19 +175,19 @@ function generateFullLogDataset(): FullLogDataset {
   let nextLogLineNo = 100;
   let nextExecutionId = 1;
   let nextInstantEventId = 1;
-  const rawMetricEvents: { time_ms: number; change: number }[] = [];
+  const rawMetricEvents: { time_us: number; change: number }[] = [];
 
   function recordExecution(
     cid: number,
     cycle: number,
-    startMs: number,
-    durationMs: number,
-    boundaryMs: number
-  ): { endMs: number; status: 'normal' | 'overrun' } {
-    const roundedStart = Math.round(startMs * 10) / 10;
-    const roundedDuration = Math.round(durationMs * 10) / 10;
-    const endMs = Math.round((roundedStart + roundedDuration) * 10) / 10;
-    const isOverrun = endMs > boundaryMs;
+    startUs: number,
+    durationUs: number,
+    boundaryUs: number
+  ): { endUs: number; status: 'normal' | 'overrun' } {
+    const roundedStart = Math.round(startUs);
+    const roundedDuration = Math.round(durationUs);
+    const endUs = roundedStart + roundedDuration;
+    const isOverrun = endUs > boundaryUs;
     const status = isOverrun ? 'overrun' : 'normal';
     const executionId = nextExecutionId++;
 
@@ -197,21 +196,21 @@ function generateFullLogDataset(): FullLogDataset {
       log_line_no_end: nextLogLineNo++,
       instance_id: executionId,
       cycle,
-      start_ms: roundedStart,
-      duration_ms: roundedDuration,
+      start_us: roundedStart,
+      duration_us: roundedDuration,
       status,
     });
 
     // Concurrency metric step events
-    rawMetricEvents.push({ time_ms: roundedStart, change: 1 });
-    rawMetricEvents.push({ time_ms: endMs, change: -1 });
+    rawMetricEvents.push({ time_us: roundedStart, change: 1 });
+    rawMetricEvents.push({ time_us: endUs, change: -1 });
 
     // Ready event sent shortly after client completion
-    const readyTime = endMs + getRandom(MOCK_PARAMS.ready_delay.min, MOCK_PARAMS.ready_delay.max);
+    const readyTimeUs = endUs + getRandomUs(MOCK_PARAMS.ready_delay.min_us, MOCK_PARAMS.ready_delay.max_us);
     actualInstantEventsByCid.get(cid)?.push({
       log_line_no: nextLogLineNo++,
       instance_id: nextInstantEventId++,
-      time_ms: Math.round(readyTime * 10) / 10,
+      time_us: readyTimeUs,
       event_type: 'ready',
     });
 
@@ -220,114 +219,114 @@ function generateFullLogDataset(): FullLogDataset {
       actualInstantEventsByCid.get(cid)?.push({
         log_line_no: nextLogLineNo++,
         instance_id: nextInstantEventId++,
-        time_ms: Math.round(boundaryMs * 10) / 10,
+        time_us: Math.round(boundaryUs),
         event_type: 'overrun',
       });
       // Late event recorded when the overrun task finishes
       actualInstantEventsByCid.get(cid)?.push({
         log_line_no: nextLogLineNo++,
         instance_id: nextInstantEventId++,
-        time_ms: endMs,
+        time_us: endUs,
         event_type: 'late',
       });
     }
 
-    return { endMs, status };
+    return { endUs, status };
   }
 
-  function recordSkip(cid: number, skipTimeMs: number): void {
-    const roundedTime = Math.round(skipTimeMs * 10) / 10;
+  function recordSkip(cid: number, skipTimeUs: number): void {
+    const roundedTime = Math.round(skipTimeUs);
 
     actualInstantEventsByCid.get(cid)?.push({
       log_line_no: nextLogLineNo++,
       instance_id: nextInstantEventId++,
-      time_ms: roundedTime,
+      time_us: roundedTime,
       event_type: 'skip',
     });
 
     // Ready event sent shortly after skip notification
-    const readyTime = roundedTime + getRandom(MOCK_PARAMS.ready_delay.min, MOCK_PARAMS.ready_delay.max);
+    const readyTimeUs = roundedTime + getRandomUs(MOCK_PARAMS.ready_delay.min_us, MOCK_PARAMS.ready_delay.max_us);
     actualInstantEventsByCid.get(cid)?.push({
       log_line_no: nextLogLineNo++,
       instance_id: nextInstantEventId++,
-      time_ms: Math.round(readyTime * 10) / 10,
+      time_us: readyTimeUs,
       event_type: 'ready',
     });
   }
 
   // Simulate even cycle executions: Camera -> (ObjectDetect & LaneDetect) -> Control
-  let prevEvenEndMs = 0;
+  let prevEvenEndUs = 0;
 
   for (let cycle = 0; cycle < MOCK_PARAMS.total_cycles; cycle += 2) {
-    const cycleStartMs = actualCycles[cycle].start_ms;
-    const boundaryMs = actualCycles[cycle + 2]?.start_ms ?? (cycleStartMs + MOCK_PARAMS.cycle_time_ms * 2);
+    const cycleStartUs = actualCycles[cycle].start_us;
+    const boundaryUs = actualCycles[cycle + 2]?.start_us ?? (cycleStartUs + MOCK_PARAMS.cycle_time_us * 2);
 
     // Check if previous even cycle dragged past this cycle's start time
-    if (prevEvenEndMs > cycleStartMs) {
-      recordSkip(1, cycleStartMs);
-      recordSkip(101, cycleStartMs);
-      recordSkip(102, cycleStartMs);
-      recordSkip(501, cycleStartMs);
+    if (prevEvenEndUs > cycleStartUs) {
+      recordSkip(1, cycleStartUs);
+      recordSkip(101, cycleStartUs);
+      recordSkip(102, cycleStartUs);
+      recordSkip(501, cycleStartUs);
       continue;
     }
 
     // Camera execution
-    const camDelay = getRandom(MOCK_PARAMS.dispatch_delay.min, MOCK_PARAMS.dispatch_delay.max);
-    const camStart = Math.round((cycleStartMs + camDelay) * 10) / 10;
-    const camDuration = computeDuration(10);
-    const camExec = recordExecution(1, cycle, camStart, camDuration, boundaryMs);
+    const camDelayUs = getRandomUs(MOCK_PARAMS.dispatch_delay.min_us, MOCK_PARAMS.dispatch_delay.max_us);
+    const camStartUs = cycleStartUs + camDelayUs;
+    const camDurationUs = computeDurationUs(10);
+    const camExec = recordExecution(1, cycle, camStartUs, camDurationUs, boundaryUs);
 
     // ObjectDetect and LaneDetect parallel execution (physically starts at or after Camera completion)
     const isSpike = (cycle % MOCK_PARAMS.spike_anomaly.interval_cycles === 0 && cycle > 0);
-    const objDuration = computeDuration(60, isSpike);
-    const laneDuration = computeDuration(20);
+    const objDurationUs = computeDurationUs(60, isSpike);
+    const laneDurationUs = computeDurationUs(20);
 
-    const objDelay = getRandom(MOCK_PARAMS.dispatch_delay.min, MOCK_PARAMS.dispatch_delay.max);
-    const laneDelay = getRandom(MOCK_PARAMS.dispatch_delay.min, MOCK_PARAMS.dispatch_delay.max);
-    const objStart = Math.max(camExec.endMs, Math.round((camExec.endMs + objDelay) * 10) / 10);
-    const laneStart = Math.max(camExec.endMs, Math.round((camExec.endMs + laneDelay) * 10) / 10);
+    const objDelayUs = getRandomUs(MOCK_PARAMS.dispatch_delay.min_us, MOCK_PARAMS.dispatch_delay.max_us);
+    const laneDelayUs = getRandomUs(MOCK_PARAMS.dispatch_delay.min_us, MOCK_PARAMS.dispatch_delay.max_us);
+    const objStartUs = camExec.endUs + objDelayUs;
+    const laneStartUs = camExec.endUs + laneDelayUs;
 
-    const objExec = recordExecution(101, cycle, objStart, objDuration, boundaryMs);
-    const laneExec = recordExecution(102, cycle, laneStart, laneDuration, boundaryMs);
+    const objExec = recordExecution(101, cycle, objStartUs, objDurationUs, boundaryUs);
+    const laneExec = recordExecution(102, cycle, laneStartUs, laneDurationUs, boundaryUs);
 
     // Control execution or cascaded skip evaluation (physically starts at or after all dependencies finish)
     if (objExec.status === 'overrun') {
       // Preceding task overran past the boundary, so dependent Control is skipped (Cascaded Skip)
-      recordSkip(501, boundaryMs);
-      prevEvenEndMs = objExec.endMs;
+      recordSkip(501, boundaryUs);
+      prevEvenEndUs = objExec.endUs;
     } else {
       // Preceding tasks completed before the boundary, so scheduler dispatches Control
-      const ctrlDelay = getRandom(MOCK_PARAMS.dispatch_delay.min, MOCK_PARAMS.dispatch_delay.max);
-      const precedingEndMs = Math.max(objExec.endMs, laneExec.endMs);
-      const ctrlStart = Math.max(precedingEndMs, Math.round((precedingEndMs + ctrlDelay) * 10) / 10);
-      const ctrlDuration = computeDuration(20);
-      const ctrlExec = recordExecution(501, cycle, ctrlStart, ctrlDuration, boundaryMs);
-      prevEvenEndMs = ctrlExec.endMs;
+      const ctrlDelayUs = getRandomUs(MOCK_PARAMS.dispatch_delay.min_us, MOCK_PARAMS.dispatch_delay.max_us);
+      const precedingEndUs = Math.max(objExec.endUs, laneExec.endUs);
+      const ctrlStartUs = precedingEndUs + ctrlDelayUs;
+      const ctrlDurationUs = computeDurationUs(20);
+      const ctrlExec = recordExecution(501, cycle, ctrlStartUs, ctrlDurationUs, boundaryUs);
+      prevEvenEndUs = ctrlExec.endUs;
     }
   }
 
   // Simulate odd cycle executions: Telemetry
-  let prevOddEndMs = 0;
+  let prevOddEndUs = 0;
 
   for (let cycle = 1; cycle < MOCK_PARAMS.total_cycles; cycle += 2) {
-    const cycleStartMs = actualCycles[cycle].start_ms;
-    const boundaryMs = actualCycles[cycle + 2]?.start_ms ?? (cycleStartMs + MOCK_PARAMS.cycle_time_ms * 2);
+    const cycleStartUs = actualCycles[cycle].start_us;
+    const boundaryUs = actualCycles[cycle + 2]?.start_us ?? (cycleStartUs + MOCK_PARAMS.cycle_time_us * 2);
 
-    if (prevOddEndMs > cycleStartMs) {
-      recordSkip(901, cycleStartMs);
+    if (prevOddEndUs > cycleStartUs) {
+      recordSkip(901, cycleStartUs);
       continue;
     }
 
-    const telemDelay = getRandom(MOCK_PARAMS.dispatch_delay.min, MOCK_PARAMS.dispatch_delay.max);
-    const telemStart = Math.round((cycleStartMs + telemDelay) * 10) / 10;
-    const telemDuration = computeDuration(25);
-    const telemExec = recordExecution(901, cycle, telemStart, telemDuration, boundaryMs);
-    prevOddEndMs = telemExec.endMs;
+    const telemDelayUs = getRandomUs(MOCK_PARAMS.dispatch_delay.min_us, MOCK_PARAMS.dispatch_delay.max_us);
+    const telemStartUs = cycleStartUs + telemDelayUs;
+    const telemDurationUs = computeDurationUs(25);
+    const telemExec = recordExecution(901, cycle, telemStartUs, telemDurationUs, boundaryUs);
+    prevOddEndUs = telemExec.endUs;
   }
 
   // Aggregate concurrency step events and compile summary metadata
-  rawMetricEvents.sort((a, b) => a.time_ms - b.time_ms);
-  const actualMetrics: ActualMetricPoint[] = [{ time_ms: 0, running_count: 0 }];
+  rawMetricEvents.sort((a, b) => a.time_us - b.time_us);
+  const actualMetrics: ActualMetricPoint[] = [{ time_us: 0, running_count: 0 }];
   let currentRunning = 0;
   let maxConcurrency = 0;
 
@@ -339,29 +338,29 @@ function generateFullLogDataset(): FullLogDataset {
     }
 
     const last = actualMetrics[actualMetrics.length - 1];
-    if (last && last.time_ms === evt.time_ms) {
+    if (last && last.time_us === evt.time_us) {
       // Overwrite previous count at the exact same timestamp to prevent duplicate points
       last.running_count = running;
     } else {
       actualMetrics.push({
-        time_ms: evt.time_ms,
+        time_us: evt.time_us,
         running_count: running
       });
     }
   });
 
   const lastCycle = actualCycles[actualCycles.length - 1];
-  const totalDurationMs = Math.ceil(
-    lastCycle ? lastCycle.start_ms + MOCK_PARAMS.cycle_time_ms : MOCK_PARAMS.total_cycles * MOCK_PARAMS.cycle_time_ms
+  const totalDurationUs = Math.ceil(
+    lastCycle ? lastCycle.start_us + MOCK_PARAMS.cycle_time_us : MOCK_PARAMS.total_cycles * MOCK_PARAMS.cycle_time_us
   );
 
   const summary: LogSummary = {
     config: mockConfig,
     max_concurrency: maxConcurrency,
-    total_duration_ms: totalDurationMs,
+    total_duration_us: totalDurationUs,
     total_cycles: MOCK_PARAMS.total_cycles,
-    min_start_jitter_ms: isFinite(minStartJitterMs) ? minStartJitterMs : 0,
-    max_start_jitter_ms: isFinite(maxStartJitterMs) ? maxStartJitterMs : 0,
+    min_start_jitter_us: isFinite(minStartJitterUs) ? minStartJitterUs : 0,
+    max_start_jitter_us: isFinite(maxStartJitterUs) ? maxStartJitterUs : 0,
     is_truncated: false
   };
 
@@ -391,9 +390,9 @@ export async function mockLoadLog(): Promise<LogSummary> {
 
 /**
  * Simulates get_log_range IPC command.
- * Returns range-sliced actual data for the given [start_ms, end_ms] window.
+ * Returns range-sliced actual data for the given [start_us, end_us] window.
  */
-export async function mockGetLogRange(start_ms: number, end_ms: number): Promise<LogRangeData> {
+export async function mockGetLogRange(start_us: number, end_us: number): Promise<LogRangeData> {
   if (!fullLogCache) {
     fullLogCache = generateFullLogDataset();
   }
@@ -407,8 +406,8 @@ export async function mockGetLogRange(start_ms: number, end_ms: number): Promise
   const slicedExecutions: [number, ActualExecution[]][] = [];
   actualExecutionsByCid.forEach((execs, cid) => {
     const matched = execs.filter(e => {
-      const execEnd = e.start_ms + e.duration_ms;
-      return execEnd >= start_ms && e.start_ms <= end_ms;
+      const execEnd = e.start_us + e.duration_us;
+      return execEnd >= start_us && e.start_us <= end_us;
     });
     slicedExecutions.push([cid, matched]);
   });
@@ -416,17 +415,17 @@ export async function mockGetLogRange(start_ms: number, end_ms: number): Promise
   // Slice instant events per CID
   const slicedEvents: [number, ActualInstantEvent[]][] = [];
   actualInstantEventsByCid.forEach((events, cid) => {
-    const matched = events.filter(e => e.time_ms >= start_ms && e.time_ms <= end_ms);
+    const matched = events.filter(e => e.time_us >= start_us && e.time_us <= end_us);
     slicedEvents.push([cid, matched]);
   });
 
   // Slice metrics
-  const slicedMetrics = actualMetrics.filter(m => m.time_ms >= start_ms && m.time_ms <= end_ms);
+  const slicedMetrics = actualMetrics.filter(m => m.time_us >= start_us && m.time_us <= end_us);
 
   // Slice cycles with padding margin for rendering continuity
-  const cycleMarginMs = (fullLogCache.summary.config.server_config.cycle_time_ms || 50) * 2;
+  const cycleMarginUs = (fullLogCache.summary.config.server_config.cycle_time_ms || 50) * 1_000 * 2;
   const slicedCycles = actualCycles.filter(
-    c => c.start_ms >= start_ms - cycleMarginMs && c.start_ms <= end_ms + cycleMarginMs
+    c => c.start_us >= start_us - cycleMarginUs && c.start_us <= end_us + cycleMarginUs
   );
 
   return {

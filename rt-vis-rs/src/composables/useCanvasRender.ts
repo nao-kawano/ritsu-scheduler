@@ -23,6 +23,7 @@ import type {
   RenderGridOptions,
   RenderActualCycleLinesOptions
 } from '../types/canvas';
+import { formatUsAsMsInt } from '../utils/format';
 
 // =============================================================================
 // Types & Constants
@@ -141,14 +142,14 @@ export function useCanvasRender() {
 
   /**
    * Render sticky timeline header into Canvas context.
-   * Renders cycle boundary lines and time labels at actual start_ms locations.
+   * Renders cycle boundary lines and time labels at actual start_us locations.
    */
   const renderTimelineHeader = (ctx: CanvasRenderingContext2D, options: RenderHeaderOptions) => {
-    const { scrollLeft, width, height, totalCycles, cycleTimeMs, majorPx, styles, actualCycles, pxPerMs } = options;
+    const { scrollLeft, width, height, totalCycles, cycleTimeUs, majorPx, styles, actualCycles, pxPerUs } = options;
 
     const safeMajorPx = Math.max(1, majorPx || 0);
-    const safeCycleTimeMs = Math.max(0, cycleTimeMs || 0);
-    const safePxPerMs = pxPerMs && pxPerMs > 0 ? pxPerMs : safeMajorPx / (safeCycleTimeMs || 1);
+    const safeCycleTimeUs = Math.max(0, cycleTimeUs || 0);
+    const safePxPerUs = pxPerUs && pxPerUs > 0 ? pxPerUs : safeMajorPx / (safeCycleTimeUs || 1);
 
     // Background fill
     ctx.save();
@@ -160,14 +161,14 @@ export function useCanvasRender() {
 
     // Render actual cycle boundary lines & labels if actualCycles dataset is present
     if (actualCycles && actualCycles.length > 0) {
-      const marginMs = safeCycleTimeMs * 2;
-      const startMs = Math.max(0, scrollLeft / safePxPerMs - marginMs);
-      const endMs = (scrollLeft + width) / safePxPerMs + marginMs;
+      const marginUs = safeCycleTimeUs * 2;
+      const startUs = Math.max(0, scrollLeft / safePxPerUs - marginUs);
+      const endUs = (scrollLeft + width) / safePxPerUs + marginUs;
 
       actualCycles.forEach(ac => {
-        if (ac.start_ms < startMs || ac.start_ms > endMs) return;
+        if (ac.start_us < startUs || ac.start_us > endUs) return;
 
-        const x = Math.floor(ac.start_ms * safePxPerMs - scrollLeft) - 0.5;
+        const x = Math.floor(ac.start_us * safePxPerUs - scrollLeft) - 0.5;
 
         ctx.save();
         {
@@ -189,7 +190,7 @@ export function useCanvasRender() {
           ctx.fillText(`Cycle ${ac.cycle}`, textX, HEADER_LABEL_CYCLE_Y);
 
           // Actual Time Label
-          const formattedTime = Number.isInteger(ac.start_ms) ? `${ac.start_ms}ms` : `${ac.start_ms.toFixed(1)}ms`;
+          const formattedTime = formatUsAsMsInt(ac.start_us);
           ctx.save();
           {
             ctx.globalAlpha = HEADER_TEXT_DIM_ALPHA;
@@ -228,14 +229,14 @@ export function useCanvasRender() {
         ctx.textBaseline = 'top';
         ctx.fillText(`Cycle ${c}`, textX, HEADER_LABEL_CYCLE_Y);
 
-        const plannedMs = c * safeCycleTimeMs;
+        const plannedUs = c * safeCycleTimeUs;
         ctx.save();
         {
           ctx.globalAlpha = HEADER_TEXT_DIM_ALPHA;
           ctx.fillStyle = styles.textDimColor;
           ctx.font = `${styles.fontSizePx} ${styles.fontFamily}`;
           ctx.textBaseline = 'top';
-          ctx.fillText(`${plannedMs}ms`, textX, HEADER_LABEL_TIME_Y);
+          ctx.fillText(formatUsAsMsInt(plannedUs), textX, HEADER_LABEL_TIME_Y);
         }
         ctx.restore();
       }
@@ -304,8 +305,8 @@ export function useCanvasRender() {
    * Render actual cycle start lines (thin accent lines overlaid on background grid).
    */
   const renderActualCycleLines = (ctx: CanvasRenderingContext2D, options: RenderActualCycleLinesOptions) => {
-    const { scrollLeft, width, height, actualCycles, pxPerMs, styles } = options;
-    if (!actualCycles || actualCycles.length === 0 || pxPerMs <= 0) return;
+    const { scrollLeft, width, height, actualCycles, pxPerUs, styles } = options;
+    if (!actualCycles || actualCycles.length === 0 || pxPerUs <= 0) return;
 
     ctx.save();
     {
@@ -314,7 +315,7 @@ export function useCanvasRender() {
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       actualCycles.forEach(ac => {
-        const x = Math.floor(ac.start_ms * pxPerMs - scrollLeft) - 0.5;
+        const x = Math.floor(ac.start_us * pxPerUs - scrollLeft) - 0.5;
         if (x >= -2 && x <= width + 2) {
           ctx.moveTo(x, 0);
           ctx.lineTo(x, height);

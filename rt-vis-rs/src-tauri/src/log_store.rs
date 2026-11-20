@@ -71,10 +71,10 @@ impl LogStore {
     }
 
     /// Extracts a range-restricted slice of log data clamped by default safety caps.
-    pub fn get_range(&self, start_ms: u64, end_ms: u64) -> LogRangeData {
+    pub fn get_range(&self, start_us: u64, end_us: u64) -> LogRangeData {
         self.get_range_with_caps(
-            start_ms,
-            end_ms,
+            start_us,
+            end_us,
             MAX_RANGE_EXECUTIONS,
             MAX_RANGE_INSTANT_EVENTS,
             MAX_RANGE_METRICS,
@@ -85,14 +85,14 @@ impl LogStore {
     /// Extracts a range-restricted slice of log data with configurable safety caps.
     pub fn get_range_with_caps(
         &self,
-        start_ms: u64,
-        end_ms: u64,
+        start_us: u64,
+        end_us: u64,
         max_executions: usize,
         max_events: usize,
         max_metrics: usize,
         max_cycles: usize,
     ) -> LogRangeData {
-        if start_ms > end_ms {
+        if start_us > end_us {
             return LogRangeData {
                 actual_executions_by_cid: Vec::new(),
                 actual_instant_events_by_cid: Vec::new(),
@@ -121,10 +121,10 @@ impl LogStore {
         for &cid in &sorted_cids {
             let mut sliced_execs = Vec::new();
             if let Some(execs) = self.executions_by_cid.get(&cid) {
-                let upper_bound = execs.partition_point(|e| e.start_ms <= end_ms);
+                let upper_bound = execs.partition_point(|e| e.start_us <= end_us);
                 for exec in &execs[..upper_bound] {
-                    let exec_end = exec.start_ms + exec.duration_ms as u64;
-                    if exec_end >= start_ms {
+                    let exec_end = exec.start_us.saturating_add(exec.duration_us);
+                    if exec_end >= start_us {
                         if total_executions >= max_executions {
                             is_truncated = true;
                             break;
@@ -144,8 +144,8 @@ impl LogStore {
         for &cid in &sorted_cids {
             let mut sliced_events = Vec::new();
             if let Some(events) = self.instant_events_by_cid.get(&cid) {
-                let start_idx = events.partition_point(|e| e.time_ms < start_ms);
-                let end_idx = events.partition_point(|e| e.time_ms <= end_ms);
+                let start_idx = events.partition_point(|e| e.time_us < start_us);
+                let end_idx = events.partition_point(|e| e.time_us <= end_us);
                 for event in &events[start_idx..end_idx] {
                     if total_events >= max_events {
                         is_truncated = true;
@@ -161,11 +161,11 @@ impl LogStore {
         // Extract concurrency metric points including the immediately preceding point for step continuity
         let mut actual_metrics = Vec::new();
         if !self.metrics.is_empty() {
-            let start_idx = self.metrics.partition_point(|m| m.time_ms < start_ms);
+            let start_idx = self.metrics.partition_point(|m| m.time_us < start_us);
             // Only extract if the requested window overlaps with the recorded metrics timeline
             if start_idx < self.metrics.len() {
                 let effective_start_idx = if start_idx > 0 { start_idx - 1 } else { 0 };
-                let end_idx = self.metrics.partition_point(|m| m.time_ms <= end_ms);
+                let end_idx = self.metrics.partition_point(|m| m.time_us <= end_us);
 
                 if effective_start_idx < end_idx {
                     let candidate_slice = &self.metrics[effective_start_idx..end_idx];
@@ -180,20 +180,17 @@ impl LogStore {
         }
 
         // Extract cycles with padding margins for anchor and grid rendering
-        let cycle_time_ms = self
-            .summary
-            .config
-            .server_config
-            .cycle_time_ms
-            .max(1) as u64;
-        let margin_ms = (cycle_time_ms * 2).max(100);
-        let req_cycle_start = start_ms.saturating_sub(margin_ms);
-        let req_cycle_end = end_ms.saturating_add(margin_ms);
+        let cycle_time_us = (self.summary.config.server_config.cycle_time_ms.max(1) as u64) * 1_000;
+        let margin_us = (cycle_time_us * 2).max(100_000);
+        let req_cycle_start = start_us.saturating_sub(margin_us);
+        let req_cycle_end = end_us.saturating_add(margin_us);
 
         let mut actual_cycles = Vec::new();
         if !self.cycles.is_empty() {
-            let start_idx = self.cycles.partition_point(|c| c.start_ms < req_cycle_start);
-            let end_idx = self.cycles.partition_point(|c| c.start_ms <= req_cycle_end);
+            let start_idx = self
+                .cycles
+                .partition_point(|c| c.start_us < req_cycle_start);
+            let end_idx = self.cycles.partition_point(|c| c.start_us <= req_cycle_end);
 
             if start_idx < self.cycles.len() {
                 let candidate_slice = &self.cycles[start_idx..end_idx.min(self.cycles.len())];

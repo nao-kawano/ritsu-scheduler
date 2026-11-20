@@ -26,6 +26,7 @@ import { useSimulation } from '../composables/useSimulation';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useCreateModeLayout } from '../composables/useCreateModeLayout';
 import { mapPlansByInstanceId } from '../utils/simulation';
+import { formatUsAsMsInt } from '../utils/format';
 import type { ClientConfigUI } from '../types/config';
 import type { PlannedExecution } from '../types/simulation';
 
@@ -34,7 +35,7 @@ import type { PlannedExecution } from '../types/simulation';
 
 const { configCreateMode } = useConfig();
 const { plannedExecutionsCreateMode, configErrors } = useSimulation();
-const { cycleTimeMs, getPos, getMs, getPosFromUs } = useTimeScale();
+const { cycleTimeMs, cycleTimeUs, getPos, getMs, getPosFromUs } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
 // -----------------------------------------------------------------------------
@@ -384,7 +385,7 @@ defineExpose({
       <div class="time-axis" :style="{ width: totalWidth + 'px' }">
         <div v-for="n in totalCycles" :key="n" class="time-tick" :style="{ width: gridInfo.majorPx + 'px' }">
           <span class="cycle-label">Cycle {{ n - 1 }}</span>
-          <span class="time-label">{{ (n - 1) * cycleTimeMs }}ms</span>
+          <span class="time-label">{{ formatUsAsMsInt((n - 1) * cycleTimeUs) }}</span>
         </div>
       </div>
     </div>
@@ -441,8 +442,8 @@ defineExpose({
             <rect :width="getPosFromUs(exec.duration_us)" :height="RECT_HEIGHT" rx="6" class="rt-exec-bar-rect" />
 
             <!-- Hatching overlay for read-only instances -->
-            <rect v-if="!firstInstances.has(exec.instance_id)" :width="getPosFromUs(exec.duration_us)" :height="RECT_HEIGHT"
-              rx="6" fill="url(#hatch)" pointer-events="none" />
+            <rect v-if="!firstInstances.has(exec.instance_id)" :width="getPosFromUs(exec.duration_us)"
+              :height="RECT_HEIGHT" rx="6" fill="url(#hatch)" pointer-events="none" />
 
             <!-- Duration Handle (Visible only for editable instances) -->
             <rect v-if="firstInstances.has(exec.instance_id)" :x="getPosFromUs(exec.duration_us) - 10" y="0" width="12"
