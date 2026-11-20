@@ -15,6 +15,8 @@
 
 use super::*;
 use crate::log_parser::parse_log;
+use crate::types::ExecutionStatus;
+use rt_config::{SchedulerConfig, ServerConfig};
 
 /* -------------------------------------------------------------------------- */
 /* Test Fixtures (Embedded Real Server Logs)                                  */
@@ -73,7 +75,10 @@ fn test_get_range_full_span() {
 
     // Field 4: Verify concurrency metrics parity and ordering
     assert_eq!(range_data.actual_metrics.len(), store.metrics.len());
-    assert_eq!(range_data.actual_metrics[0].time_us, store.metrics[0].time_us);
+    assert_eq!(
+        range_data.actual_metrics[0].time_us,
+        store.metrics[0].time_us
+    );
     assert_eq!(
         range_data.actual_metrics.last().unwrap().time_us,
         store.metrics.last().unwrap().time_us
@@ -277,4 +282,156 @@ fn test_get_range_safety_cap_truncation() {
     );
     assert!(range_cycle_capped.is_truncated);
     assert_eq!(range_cycle_capped.actual_cycles.len(), cap_cycles);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Synthetic Boundary Helpers & Tests                                         */
+/* -------------------------------------------------------------------------- */
+
+/// Builds a minimal synthetic execution bar for boundary testing.
+fn make_exec(instance_id: u64, start_us: u64, duration_us: u64) -> ActualExecution {
+    ActualExecution {
+        log_line_no_start: instance_id,
+        log_line_no_end: Some(instance_id + 1),
+        instance_id,
+        cycle: 0,
+        start_us,
+        duration_us,
+        status: ExecutionStatus::Normal,
+    }
+}
+
+/// Builds a minimal LogStore populated with synthetic executions and metrics.
+fn build_synthetic_store(
+    executions_by_cid: HashMap<u16, Vec<ActualExecution>>,
+    metrics: Vec<ActualMetricPoint>,
+) -> LogStore {
+    let summary = LogSummary {
+        config: SchedulerConfig {
+            server_config: ServerConfig {
+                cycle_time_ms: 50,
+                ..Default::default()
+            },
+            client_configs: Vec::new(),
+        },
+        max_concurrency: 1,
+        total_duration_us: 0,
+        total_cycles: 0,
+        min_start_jitter_us: 0,
+        max_start_jitter_us: 0,
+        is_truncated: false,
+    };
+
+    LogStore::new(
+        summary,
+        executions_by_cid,
+        HashMap::new(),
+        metrics,
+        Vec::new(),
+    )
+}
+
+/// Validates binary-search overlap boundaries for executions across inclusive, gap, and zero-duration cases.
+#[test]
+fn test_get_range_execution_overlap_boundaries() {
+    let mut executions_by_cid = HashMap::new();
+    executions_by_cid.insert(
+        10,
+        vec![
+            make_exec(1, 100, 100),  // [100, 200]
+            make_exec(2, 300, 0),    // [300, 300] zero-duration
+            make_exec(3, 400, 500),  // [400, 900] long overrun
+            make_exec(4, 1000, 100), // [1000, 1100]
+        ],
+    );
+    let store = build_synthetic_store(executions_by_cid, Vec::new());
+
+    let ids_in = |start_us: u64, end_us: u64| -> Vec<u64> {
+        let range = store.get_range(start_us, end_us);
+        assert_eq!(range.actual_executions_by_cid.len(), 1);
+        range.actual_executions_by_cid[0]
+            .1
+            .iter()
+            .map(|e| e.instance_id)
+            .collect()
+    };
+
+    assert_eq!(ids_in(150, 250), vec![1]);
+    assert_eq!(ids_in(200, 250), vec![1]);
+    assert_eq!(ids_in(201, 250), Vec::<u64>::new());
+    assert_eq!(ids_in(50, 100), vec![1]);
+    assert_eq!(ids_in(50, 99), Vec::<u64>::new());
+    assert_eq!(ids_in(300, 300), vec![2]);
+    assert_eq!(ids_in(299, 299), Vec::<u64>::new());
+    assert_eq!(ids_in(301, 301), Vec::<u64>::new());
+    assert_eq!(ids_in(500, 600), vec![3]);
+    assert_eq!(ids_in(901, 999), Vec::<u64>::new());
+    assert_eq!(ids_in(200, 400), vec![1, 2, 3]);
+}
+
+/// Validates metrics continuity inclusion and out-of-bounds symmetry guard around recorded timeline edges.
+#[test]
+fn test_get_range_metrics_continuity_boundaries() {
+    let metrics = vec![
+        ActualMetricPoint {
+            time_us: 100,
+            running_count: 1,
+        },
+        ActualMetricPoint {
+            time_us: 300,
+            running_count: 0,
+        },
+        ActualMetricPoint {
+            time_us: 500,
+            running_count: 1,
+        },
+    ];
+    let store = build_synthetic_store(HashMap::new(), metrics);
+
+    let pts_in = |start_us: u64, end_us: u64| -> Vec<(u64, u32)> {
+        store
+            .get_range(start_us, end_us)
+            .actual_metrics
+            .into_iter()
+            .map(|m| (m.time_us, m.running_count))
+            .collect()
+    };
+
+    assert_eq!(pts_in(0, 99), Vec::<(u64, u32)>::new());
+    assert_eq!(pts_in(150, 250), vec![(100, 1)]);
+    assert_eq!(pts_in(300, 350), vec![(100, 1), (300, 0)]);
+    assert_eq!(pts_in(501, 600), Vec::<(u64, u32)>::new());
+}
+
+/// Validates exact cap matching across multiple CIDs does not mark truncation until an extra item overflows.
+#[test]
+fn test_get_range_exact_cap_boundary_across_cids() {
+    let mut executions_by_cid = HashMap::new();
+    executions_by_cid.insert(10, vec![make_exec(1, 0, 40), make_exec(2, 50, 40)]);
+    executions_by_cid.insert(20, vec![make_exec(3, 200, 50)]);
+    let store = build_synthetic_store(executions_by_cid, Vec::new());
+
+    // Remaining executions reaches 0 after CID 10, but CID 20 has 0 candidates in [0, 100], so no truncation occurs
+    let exact_fit = store.get_range_with_caps(0, 100, 2, 100, 100, 100);
+    assert!(!exact_fit.is_truncated);
+    assert_eq!(exact_fit.actual_executions_by_cid[0].0, 10);
+    assert_eq!(exact_fit.actual_executions_by_cid[0].1.len(), 2);
+    assert_eq!(exact_fit.actual_executions_by_cid[1].0, 20);
+    assert_eq!(exact_fit.actual_executions_by_cid[1].1.len(), 0);
+
+    // Expanding to [0, 300] introduces a candidate in CID 20 that overflows remaining_executions == 0
+    let overflow_second_cid = store.get_range_with_caps(0, 300, 2, 100, 100, 100);
+    assert!(overflow_second_cid.is_truncated);
+    assert_eq!(overflow_second_cid.actual_executions_by_cid[0].0, 10);
+    assert_eq!(overflow_second_cid.actual_executions_by_cid[0].1.len(), 2);
+    assert_eq!(overflow_second_cid.actual_executions_by_cid[1].0, 20);
+    assert_eq!(overflow_second_cid.actual_executions_by_cid[1].1.len(), 0);
+
+    // Increasing cap to 3 accommodates all executions across both CIDs without truncation
+    let full_fit = store.get_range_with_caps(0, 300, 3, 100, 100, 100);
+    assert!(!full_fit.is_truncated);
+    assert_eq!(full_fit.actual_executions_by_cid[0].0, 10);
+    assert_eq!(full_fit.actual_executions_by_cid[0].1.len(), 2);
+    assert_eq!(full_fit.actual_executions_by_cid[1].0, 20);
+    assert_eq!(full_fit.actual_executions_by_cid[1].1.len(), 1);
 }
