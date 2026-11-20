@@ -29,7 +29,7 @@ import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender } from '../composables/useCanvasRender';
 import { getSimulationCycles, getMaxStartCycle, getSteadyPeriod, mapToTemplateCycle, groupPlansByAnchorCycle, filterVisibleActualCycles, findActualCycleForTime } from '../utils/cycle';
 import { mapPlansByInstanceId } from '../utils/simulation';
-import { formatDelta } from '../utils/format';
+import { formatUsAsMs, formatDeltaUsAsMs } from '../utils/format';
 import type { ActualExecution, ActualInstantEvent, ActualCycle } from '../types/analyze';
 import type { ThemeStyles } from '../types/canvas';
 
@@ -39,7 +39,7 @@ import type { ThemeStyles } from '../types/canvas';
 const { activeConfig } = useConfig();
 const { plannedExecutionsAnalyzeMode } = useSimulation();
 const { logSummaryAnalyzeMode, logRangeDataAnalyzeMode, fetchLogRange } = useExecutionLog();
-const { pxPerCycle, cycleTimeMs, pxPerMs } = useTimeScale();
+const { pxPerCycle, cycleTimeUs, pxPerUs } = useTimeScale();
 const { totalCycles, totalWidth, gridInfo } = useAnalyzeModeLayout();
 const { getThemeStyles, prepareCanvas, renderTimelineHeader, renderBackgroundGrid, renderActualCycleLines } = useCanvasRender();
 
@@ -64,8 +64,9 @@ interface HitBarItem {
   width: number;
   height: number;
   actual: ActualExecution;
-  planDurationMs: number | null;
-  planStartMs: number | null;
+  planDurationUs: number | null;
+  planStartUs: number | null;
+  isMinWidth: boolean;
 }
 
 /**
@@ -220,7 +221,7 @@ const tooltipStyle = computed(() => {
 
   // Estimated dimensions for boundary overflow detection
   // Dynamically estimate height based on whether hovering multiple instant events or an actual execution bar
-  const ESTIMATED_MAX_WIDTH = 340;
+  const ESTIMATED_MAX_WIDTH = 440;
   const events = hoveredEvents.value;
   const estimatedHeight = events && events.length > 0
     ? Math.min(250, 60 + Math.min(events.length, 4) * 44 + (events.length > 4 ? 20 : 0))
@@ -328,19 +329,19 @@ const renderPlanBoxes = (
   if (!logSummaryAnalyzeMode.value) return;
 
   const plans = plannedExecutionsAnalyzeMode.value;
-  if (!plans || plans.length === 0 || totalCycles.value <= 0 || cycleTimeMs.value <= 0) return;
+  if (!plans || plans.length === 0 || totalCycles.value <= 0 || cycleTimeUs.value <= 0) return;
   if (!plansByAnchorCycle.value || templateCycles.value <= 0) return;
 
-  // Calculate culled time range with 2-cycle padding margin in physical milliseconds
-  const marginMs = cycleTimeMs.value * 2;
-  const startMs = Math.max(0, scrollLeft / pxPerMs.value - marginMs);
-  const endMs = (scrollLeft + width) / pxPerMs.value + marginMs;
+  // Calculate culled time range with 2-cycle padding margin in physical microseconds
+  const marginUs = cycleTimeUs.value * 2;
+  const startUs = Math.max(0, scrollLeft / pxPerUs.value - marginUs);
+  const endUs = (scrollLeft + width) / pxPerUs.value + marginUs;
 
   const actualCycles = logRangeDataAnalyzeMode.value?.actual_cycles;
   if (!actualCycles || actualCycles.length === 0) return;
 
   // Filter visible actual cycles based on physical time bounds
-  const visibleCycles = filterVisibleActualCycles(actualCycles, startMs, endMs);
+  const visibleCycles = filterVisibleActualCycles(actualCycles, startUs, endUs);
   if (visibleCycles.length === 0) return;
 
   // Phase alignment pattern: render exact matching template phase for each visible cycle
@@ -350,15 +351,15 @@ const renderPlanBoxes = (
     const matchingPlans = plansByAnchorCycle.value!.get(templateCycle);
     if (!matchingPlans) return;
 
-    const cycleStartMs = ac.start_ms;
+    const cycleStartUs = ac.start_us;
 
     matchingPlans.forEach(plan => {
       const r = cidToRowIndex.get(plan.cid);
       if (r === undefined) return;
 
-      const startMs = cycleStartMs + (plan.anchor_offset_ms || 0);
-      const x = Math.floor(startMs * pxPerMs.value - scrollLeft);
-      const barWidth = Math.max(4, Math.floor(plan.duration_ms * pxPerMs.value));
+      const execStartUs = cycleStartUs + (plan.anchor_offset_us || 0);
+      const x = Math.floor(execStartUs * pxPerUs.value - scrollLeft);
+      const barWidth = Math.max(4, Math.floor(plan.duration_us * pxPerUs.value));
       const y = Math.floor(r * ROW_HEIGHT - scrollTop + (ROW_HEIGHT - PLAN_RECT_HEIGHT) / 2);
 
       // Render dependency arrows first (so they are positioned behind the Plan Box)
@@ -377,9 +378,9 @@ const renderPlanBoxes = (
           const parentAc = cycleDiff === 0 ? ac : actualCyclesMap.value.get(ac.cycle - cycleDiff);
           if (!parentAc) return;
 
-          const depStartMs = parentAc.start_ms + (depPlan.anchor_offset_ms || 0);
-          const depWidth = Math.max(4, Math.floor(depPlan.duration_ms * pxPerMs.value));
-          const fromX = Math.floor(depStartMs * pxPerMs.value - scrollLeft) + depWidth;
+          const depStartUs = parentAc.start_us + (depPlan.anchor_offset_us || 0);
+          const depWidth = Math.max(4, Math.floor(depPlan.duration_us * pxPerUs.value));
+          const fromX = Math.floor(depStartUs * pxPerUs.value - scrollLeft) + depWidth;
           const fromY = Math.floor(depRow * ROW_HEIGHT - scrollTop + ROW_HEIGHT / 2);
 
           // Vertical culling: skip if both ends are outside viewport vertically
@@ -469,26 +470,28 @@ const renderActualBars = (
     const clientName = cidToClientName.value.get(cid) || `Client ${cid}`;
 
     actuals.forEach(actual => {
-      // Guard against skipped executions (sub-millisecond or cut-off executions with duration_ms == 0 are rendered with minimum width)
-      if (actual.status === 'skip' || actual.duration_ms < 0) return;
+      // Guard against skipped executions (sub-microsecond or cut-off executions with duration_us == 0 are rendered with minimum width)
+      if (actual.status === 'skip' || actual.duration_us < 0) return;
 
-      const x = Math.floor(actual.start_ms * pxPerMs.value - scrollLeft);
-      const barWidth = Math.max(4, Math.floor(actual.duration_ms * pxPerMs.value));
+      const x = Math.floor(actual.start_us * pxPerUs.value - scrollLeft);
+      const rawWidth = Math.floor(actual.duration_us * pxPerUs.value);
+      const isMinWidth = rawWidth < 4;
+      const barWidth = Math.max(4, rawWidth);
       const y = Math.floor(r * ROW_HEIGHT - scrollTop + (ROW_HEIGHT - ACTUAL_RECT_HEIGHT) / 2);
 
       if (y + ACTUAL_RECT_HEIGHT >= 0 && y <= height && x + barWidth >= 0 && x <= width) {
         // Resolve corresponding planned duration and planned start time for tooltip comparison
-        let planDurationMs: number | null = null;
-        let planStartMs: number | null = null;
+        let planDurationUs: number | null = null;
+        let planStartUs: number | null = null;
         if (plansByAnchorCycle.value && templateCycles.value > 0) {
           const templateCycle = mapToTemplateCycle(actual.cycle, maxStartCycle.value, steadyPeriod.value);
           const matchingPlans = plansByAnchorCycle.value.get(templateCycle);
           const plan = matchingPlans?.find(p => p.cid === cid);
           if (plan) {
-            planDurationMs = plan.duration_ms;
+            planDurationUs = plan.duration_us;
             const actualCycle = actualCyclesMap.value.get(actual.cycle);
-            const cycleStartMs = actualCycle ? actualCycle.start_ms : (actual.cycle * cycleTimeMs.value);
-            planStartMs = cycleStartMs + (plan.anchor_offset_ms || 0);
+            const cycleStartUs = actualCycle ? actualCycle.start_us : (actual.cycle * cycleTimeUs.value);
+            planStartUs = cycleStartUs + (plan.anchor_offset_us || 0);
           }
         }
 
@@ -501,8 +504,9 @@ const renderActualBars = (
           width: barWidth,
           height: ACTUAL_RECT_HEIGHT,
           actual,
-          planDurationMs,
-          planStartMs
+          planDurationUs,
+          planStartUs,
+          isMinWidth
         });
 
         ctx.save();
@@ -565,12 +569,12 @@ const renderInstantEvents = (
     if (yCenter + EVENT_DIAMOND_RADIUS_PX < 0 || yCenter - EVENT_DIAMOND_RADIUS_PX > height) return;
 
     events.forEach(event => {
-      const x = Math.floor(event.time_ms * pxPerMs.value - scrollLeft);
+      const x = Math.floor(event.time_us * pxPerUs.value - scrollLeft);
       // Horizontal viewport culling
       if (x + EVENT_DIAMOND_RADIUS_PX < 0 || x - EVENT_DIAMOND_RADIUS_PX > width) return;
 
       // Reverse lookup cycle number and cache hit item for tooltip hit testing
-      const cycle = findActualCycleForTime(actualCycles, event.time_ms)?.cycle ?? 0;
+      const cycle = findActualCycleForTime(actualCycles, event.time_us)?.cycle ?? 0;
       visibleHitEvents.push({
         cid,
         clientName,
@@ -649,11 +653,11 @@ const renderHeader = (styles: ThemeStyles) => {
     width,
     height,
     totalCycles: totalCycles.value,
-    cycleTimeMs: cycleTimeMs.value,
+    cycleTimeUs: cycleTimeUs.value,
     majorPx: gridInfo.value.majorPx,
     styles,
     actualCycles: logRangeDataAnalyzeMode.value?.actual_cycles,
-    pxPerMs: pxPerMs.value
+    pxPerUs: pxPerUs.value
   });
 };
 
@@ -698,13 +702,13 @@ const renderContent = (styles: ThemeStyles) => {
   });
 
   // Render actual cycle start lines overlay (double grid structure)
-  if (logRangeDataAnalyzeMode.value?.actual_cycles && cycleTimeMs.value > 0) {
+  if (logRangeDataAnalyzeMode.value?.actual_cycles && cycleTimeUs.value > 0) {
     renderActualCycleLines(ctx, {
       scrollLeft,
       width,
       height,
       actualCycles: logRangeDataAnalyzeMode.value.actual_cycles,
-      pxPerMs: pxPerMs.value,
+      pxPerUs: pxPerUs.value,
       styles
     });
   }
@@ -724,12 +728,12 @@ const renderContent = (styles: ThemeStyles) => {
  * for smooth frame rates while requesting missing range data in the background.
  */
 const requestVisibleLogRange = () => {
-  if (!contentScrollEl.value || !logSummaryAnalyzeMode.value || cycleTimeMs.value <= 0) return;
+  if (!contentScrollEl.value || !logSummaryAnalyzeMode.value || cycleTimeUs.value <= 0) return;
 
   const { scrollLeft, clientWidth } = contentScrollEl.value;
-  const startMs = Math.max(0, Math.floor(scrollLeft / pxPerMs.value));
-  const endMs = Math.ceil((scrollLeft + clientWidth) / pxPerMs.value);
-  fetchLogRange(startMs, endMs);
+  const startUs = Math.max(0, Math.floor(scrollLeft / pxPerUs.value));
+  const endUs = Math.ceil((scrollLeft + clientWidth) / pxPerUs.value);
+  fetchLogRange(startUs, endUs);
 };
 
 // --- Pipeline Orchestrator ---
@@ -790,7 +794,7 @@ const onMouseMove = (e: MouseEvent) => {
 
   if (hitEvents.length > 0) {
     // Sort events by timestamp ascending
-    hitEvents.sort((a, b) => a.event.time_ms - b.event.time_ms);
+    hitEvents.sort((a, b) => a.event.time_us - b.event.time_us);
     hoveredEvents.value = hitEvents;
     hoveredBar.value = null;
     tooltipPos.value = { mouseX, mouseY, scrollLeft, scrollTop };
@@ -833,7 +837,7 @@ const onMouseLeave = () => {
 /**
  * Automatically adjust scroll position to keep center physical time anchored upon scale/cycle changes.
  */
-watch(pxPerMs, (newPx, oldPx) => {
+watch(pxPerUs, (newPx, oldPx) => {
   if (!contentScrollEl.value || !oldPx || !newPx || oldPx === newPx) return;
 
   const container = contentScrollEl.value;
@@ -841,8 +845,8 @@ watch(pxPerMs, (newPx, oldPx) => {
   if (viewportWidth <= 0) return;
 
   const currentScrollLeft = container.scrollLeft;
-  const centerMs = (currentScrollLeft + viewportWidth / 2) / oldPx;
-  const targetScrollLeft = Math.floor(centerMs * newPx - viewportWidth / 2);
+  const centerUs = (currentScrollLeft + viewportWidth / 2) / oldPx;
+  const targetScrollLeft = Math.floor(centerUs * newPx - viewportWidth / 2);
 
   nextTick(() => {
     if (!container) return;
@@ -864,7 +868,7 @@ watch(pxPerMs, (newPx, oldPx) => {
  */
 const renderDependencies = computed(() => ({
   pxPerCycle: pxPerCycle.value,
-  cycleTimeMs: cycleTimeMs.value,
+  cycleTimeUs: cycleTimeUs.value,
   totalCycles: totalCycles.value,
   totalWidth: totalWidth.value,
   clientConfigs: activeConfig.value.client_configs,
@@ -969,41 +973,42 @@ defineExpose({
                 <span class="tooltip-bar-label">Duration:</span>
                 <span class="tooltip-bar-value tooltip-mono">
                   <template v-if="hoveredBar.actual.log_line_no_end === null">
-                    {{ hoveredBar.actual.duration_ms.toFixed(2) }} ms
+                    {{ formatUsAsMs(hoveredBar.actual.duration_us) }}
                     <span class="tooltip-bar-sub">(Cut off at log end)</span>
                   </template>
-                  <template v-else-if="hoveredBar.actual.duration_ms === 0">
-                    0.00 ms
-                    <span class="tooltip-bar-sub">(&lt; 1 ms / Min width)</span>
+                  <template v-else-if="hoveredBar.actual.duration_us === 0">
+                    0.000 ms
+                    <span class="tooltip-bar-sub">(&lt; 1 us / Min width)</span>
                   </template>
                   <template v-else>
-                    {{ hoveredBar.actual.duration_ms.toFixed(2) }} ms
-                    <template v-if="hoveredBar.planDurationMs !== null">
-                      <span class="tooltip-bar-sub">(Plan: {{ hoveredBar.planDurationMs.toFixed(2) }} ms / Δ{{
-                        formatDelta(hoveredBar.actual.duration_ms - hoveredBar.planDurationMs) }})</span>
+                    {{ formatUsAsMs(hoveredBar.actual.duration_us) }}
+                    <template v-if="hoveredBar.planDurationUs !== null">
+                      <span class="tooltip-bar-sub">(Plan: {{ formatUsAsMs(hoveredBar.planDurationUs) }} / Δ{{
+                        formatDeltaUsAsMs(hoveredBar.actual.duration_us - hoveredBar.planDurationUs) }})</span>
                     </template>
+                    <span v-if="hoveredBar.isMinWidth" class="tooltip-bar-sub">(Min width)</span>
                   </template>
                 </span>
               </div>
               <div class="tooltip-bar-row">
                 <span class="tooltip-bar-label">Start:</span>
                 <span class="tooltip-bar-value tooltip-mono">
-                  {{ hoveredBar.actual.start_ms.toFixed(2) }} ms
-                  <template v-if="hoveredBar.planStartMs !== null">
-                    <span class="tooltip-bar-sub">(Plan: {{ hoveredBar.planStartMs.toFixed(2) }} ms / Δ{{
-                      formatDelta(hoveredBar.actual.start_ms - hoveredBar.planStartMs) }})</span>
+                  {{ formatUsAsMs(hoveredBar.actual.start_us) }}
+                  <template v-if="hoveredBar.planStartUs !== null">
+                    <span class="tooltip-bar-sub">(Plan: {{ formatUsAsMs(hoveredBar.planStartUs) }} / Δ{{
+                      formatDeltaUsAsMs(hoveredBar.actual.start_us - hoveredBar.planStartUs) }})</span>
                   </template>
                 </span>
               </div>
               <div class="tooltip-bar-row">
                 <span class="tooltip-bar-label">End:</span>
                 <span class="tooltip-bar-value tooltip-mono">
-                  {{ (hoveredBar.actual.start_ms + hoveredBar.actual.duration_ms).toFixed(2) }} ms
-                  <template v-if="hoveredBar.planStartMs !== null && hoveredBar.planDurationMs !== null">
-                    <span class="tooltip-bar-sub">(Plan: {{ (hoveredBar.planStartMs +
-                      hoveredBar.planDurationMs).toFixed(2) }}
-                      ms / Δ{{ formatDelta((hoveredBar.actual.start_ms + hoveredBar.actual.duration_ms) -
-                        (hoveredBar.planStartMs + hoveredBar.planDurationMs)) }})</span>
+                  {{ formatUsAsMs(hoveredBar.actual.start_us + hoveredBar.actual.duration_us) }}
+                  <template v-if="hoveredBar.planStartUs !== null && hoveredBar.planDurationUs !== null">
+                    <span class="tooltip-bar-sub">(Plan: {{ formatUsAsMs(hoveredBar.planStartUs +
+                      hoveredBar.planDurationUs) }}
+                      / Δ{{ formatDeltaUsAsMs((hoveredBar.actual.start_us + hoveredBar.actual.duration_us) -
+                        (hoveredBar.planStartUs + hoveredBar.planDurationUs)) }})</span>
                   </template>
                 </span>
               </div>
@@ -1039,7 +1044,7 @@ defineExpose({
                   <span class="tooltip-mono">Cycle #{{ item.cycle }} (Instance #{{ item.event.instance_id }})</span>
                 </div>
                 <div class="tooltip-event-row-bottom">
-                  <span class="tooltip-mono">Time: {{ item.event.time_ms.toFixed(2) }} ms</span>
+                  <span class="tooltip-mono">Time: {{ formatUsAsMs(item.event.time_us) }}</span>
                   <span class="tooltip-event-divider">|</span>
                   <span class="tooltip-mono">Log Line: L{{ item.event.log_line_no }}</span>
                 </div>
@@ -1135,7 +1140,7 @@ defineExpose({
   position: absolute;
   z-index: 30;
   width: max-content;
-  max-width: 380px;
+  max-width: 440px;
   padding: 10px 12px;
   background-color: var(--rt-color-surface-elevated, #24272e);
   border: var(--rt-border-main);

@@ -14,21 +14,47 @@
 // =============================================================================
 
 /**
- * Format delta value with sign and units for tooltip display.
- * Clamps near-zero floating point residuals to clean positive zero (+0.00 ms).
+ * Format microsecond duration or timestamp as rounded integer milliseconds (e.g. "50 ms").
+ * Normalizes negative zero to "0 ms".
  */
-export function formatDelta(delta: number): string {
-  if (Math.abs(delta) < 0.005) {
-    return '+0.00 ms';
-  }
-  const sign = delta > 0 ? '+' : '';
-  return `${sign}${delta.toFixed(2)} ms`;
+export function formatUsAsMsInt(us: number): string {
+  const ms = Math.round(us / 1000);
+  const normalized = ms === 0 ? 0 : ms;
+  return `${normalized} ms`;
 }
 
 /**
- * Format delta count with explicit positive sign for concurrency delta.
+ * Format microsecond duration or timestamp with fixed 3 decimal places in milliseconds (e.g. "10.913 ms").
+ * Normalizes zero and sub-half-microsecond residuals to "0.000 ms".
+ */
+export function formatUsAsMs(us: number): string {
+  if (Math.abs(us) < 0.5) {
+    return '0.000 ms';
+  }
+  const ms = us / 1000;
+  return `${ms.toFixed(3)} ms`;
+}
+
+/**
+ * Format microsecond delta value with explicit sign and 3 decimal places in milliseconds.
+ * Normalizes zero and sub-half-microsecond residuals to "+0.000 ms".
+ */
+export function formatDeltaUsAsMs(deltaUs: number): string {
+  if (Math.abs(deltaUs) < 0.5) {
+    return '+0.000 ms';
+  }
+  const ms = deltaUs / 1000;
+  const sign = deltaUs > 0 ? '+' : '';
+  return `${sign}${ms.toFixed(3)} ms`;
+}
+
+/**
+ * Format delta count with explicit positive sign for concurrency delta (including "+0").
  */
 export function formatDeltaCount(delta: number): string {
+  if (delta === 0) {
+    return '+0';
+  }
   const sign = delta > 0 ? '+' : '';
   return `${sign}${delta}`;
 }

@@ -52,6 +52,24 @@ const SAMPLE_LOG_RETRANSMIT: &str = r#"2026/09/06 00:00:00.000000 [INFO ] main -
 2026/09/06 00:00:00.111000 [DEBUG] process_running - <STAT> CYC:000000000000 CID:001 MID:2 Running -> Idle
 "#;
 
+/// Minimal synthetic log exercising positive, negative, and zero cycle-to-cycle start jitter.
+const SAMPLE_LOG_SIGNED_JITTER: &str = r#"2026/09/06 00:00:00.000000 [INFO ] main - <CONFIG> [server_config]
+2026/09/06 00:00:00.001000 [INFO ] main - <CONFIG> port = 7878
+2026/09/06 00:00:00.002000 [INFO ] main - <CONFIG> cycle_time_ms = 50
+2026/09/06 00:00:00.003000 [INFO ] main - <CONFIG> stats_interval_cycle = 0
+2026/09/06 00:00:00.004000 [INFO ] main - <CONFIG> [[client_configs]]
+2026/09/06 00:00:00.005000 [INFO ] main - <CONFIG> client_id = 1
+2026/09/06 00:00:00.006000 [INFO ] main - <CONFIG> start_cycle = 0
+2026/09/06 00:00:00.007000 [INFO ] main - <CONFIG> interval = 1
+2026/09/06 00:00:00.008000 [INFO ] main - <CONFIG> offset = 0
+2026/09/06 00:00:00.009000 [INFO ] main - <CONFIG> depends = []
+2026/09/06 00:00:00.010000 [INFO ] main - <CONFIG> expected_duration_ms = 10
+2026/09/06 00:00:00.100000 [DEBUG] process_running - <STAT> CYC:000000000000 START
+2026/09/06 00:00:00.150250 [DEBUG] process_running - <STAT> CYC:000000000001 START
+2026/09/06 00:00:00.199900 [DEBUG] process_running - <STAT> CYC:000000000002 START
+2026/09/06 00:00:00.249900 [DEBUG] process_running - <STAT> CYC:000000000003 START
+"#;
+
 /* -------------------------------------------------------------------------- */
 /* Test Cases                                                                 */
 /* -------------------------------------------------------------------------- */
@@ -72,34 +90,39 @@ fn test_parse_real_log_normal() {
     assert_eq!(store.summary.config.client_configs.len(), 3);
     assert_eq!(store.summary.total_cycles, 9); // CYC: 0 to 8
     assert!(!store.summary.is_truncated);
-    assert!(store.summary.total_duration_ms > 400);
+    assert!(store.summary.total_duration_us > 400_000);
 
-    // Verify cycle sequence and timing
+    // Verify cycle sequence and sub-millisecond timing
     let cycles = &store.cycles;
     assert_eq!(cycles.len(), 9);
     assert_eq!(cycles[0].cycle, 0);
-    assert_eq!(cycles[0].start_ms, 0);
-    assert_eq!(cycles[0].start_jitter_ms, 0.0);
+    assert_eq!(cycles[0].start_us, 0);
+    assert_eq!(cycles[0].start_jitter_us, 0);
 
     assert_eq!(cycles[1].cycle, 1);
-    assert_eq!(cycles[1].start_ms, 50);
+    assert_eq!(cycles[1].start_us, 50_350);
+    assert_eq!(cycles[1].start_jitter_us, 350);
 
     // Verify task executions by client ID
     // CID 10 (cycle: 2, offset: 0) runs in even cycles (0, 2, 4, 6, 8)
     let execs_cid10 = store.executions_by_cid.get(&10).expect("CID 10 not found");
     assert_eq!(execs_cid10.len(), 5);
+    assert_eq!(execs_cid10[0].start_us, 571);
+    assert_eq!(execs_cid10[0].duration_us, 10_913);
     for exec in execs_cid10 {
         assert_eq!(exec.status, ExecutionStatus::Normal);
-        assert!(exec.duration_ms >= 10);
+        assert!(exec.duration_us >= 10_000);
         assert!(exec.log_line_no_start > 0);
     }
 
     // CID 11 (cycle: 2, offset: 0, depends: [10]) runs after CID 10 in even cycles
     let execs_cid11 = store.executions_by_cid.get(&11).expect("CID 11 not found");
     assert_eq!(execs_cid11.len(), 5);
+    assert_eq!(execs_cid11[0].start_us, 11_689);
+    assert_eq!(execs_cid11[0].duration_us, 11_338);
     for exec in execs_cid11 {
         assert_eq!(exec.status, ExecutionStatus::Normal);
-        assert!(exec.duration_ms >= 10);
+        assert!(exec.duration_us >= 10_000);
         assert!(exec.log_line_no_start > 0);
         assert!(exec.log_line_no_end.is_some());
     }
@@ -109,7 +132,7 @@ fn test_parse_real_log_normal() {
     assert_eq!(execs_cid20.len(), 4);
     for exec in execs_cid20 {
         assert_eq!(exec.status, ExecutionStatus::Normal);
-        assert!(exec.duration_ms >= 10);
+        assert!(exec.duration_us >= 10_000);
         assert!(exec.log_line_no_start > 0);
     }
 
@@ -134,9 +157,15 @@ fn test_parse_real_log_normal() {
         );
     }
 
-    // Verify concurrency metrics
+    // Verify concurrency metrics preserve sub-millisecond transitions
     assert!(!store.metrics.is_empty());
     assert!(store.summary.max_concurrency >= 1);
+    assert_eq!(store.metrics[0].time_us, 571);
+    assert_eq!(store.metrics[0].running_count, 1);
+    assert_eq!(store.metrics[1].time_us, 11_484);
+    assert_eq!(store.metrics[1].running_count, 0);
+    assert_eq!(store.metrics[2].time_us, 11_689);
+    assert_eq!(store.metrics[2].running_count, 1);
     assert_eq!(store.metrics.last().unwrap().running_count, 0);
 }
 
@@ -150,7 +179,7 @@ fn test_parse_real_log_overrun_and_cascaded_skip() {
     assert_eq!(execs_cid10.len(), 3);
     for exec in execs_cid10 {
         assert_eq!(exec.status, ExecutionStatus::Overrun);
-        assert!(exec.duration_ms > 100); // 50ms cycle_time * 2 = 100ms exceeded
+        assert!(exec.duration_us > 100_000); // 50ms cycle_time * 2 = 100ms exceeded
     }
 
     let evts_cid10 = store
@@ -248,7 +277,7 @@ fn test_parse_retransmission_guard() {
     // In-cycle Retransmit event must be captured.
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, InstantEventType::Retransmit);
-    assert_eq!(events[0].time_ms, 2);
+    assert_eq!(events[0].time_us, 2_000);
 
     // Retransmit log must not generate duplicate execution bars.
     let execs = store
@@ -282,4 +311,24 @@ fn test_parse_truncated_log_safety() {
     assert_eq!(execs_cid10.len(), 1);
     assert_eq!(execs_cid10[0].log_line_no_end, None);
     assert_eq!(execs_cid10[0].status, ExecutionStatus::Normal);
+}
+
+/// Validates positive, negative, and zero cycle-to-cycle start jitter calculation and summary bounds.
+#[test]
+fn test_parse_cycle_jitter_positive_and_negative() {
+    let store = parse_log_str(SAMPLE_LOG_SIGNED_JITTER)
+        .expect("Failed to parse signed jitter synthetic log");
+
+    assert_eq!(store.cycles.len(), 4);
+    assert_eq!(store.cycles[0].start_us, 0);
+    assert_eq!(store.cycles[0].start_jitter_us, 0);
+    assert_eq!(store.cycles[1].start_us, 50_250);
+    assert_eq!(store.cycles[1].start_jitter_us, 250);
+    assert_eq!(store.cycles[2].start_us, 99_900);
+    assert_eq!(store.cycles[2].start_jitter_us, -350);
+    assert_eq!(store.cycles[3].start_us, 149_900);
+    assert_eq!(store.cycles[3].start_jitter_us, 0);
+
+    assert_eq!(store.summary.min_start_jitter_us, -350);
+    assert_eq!(store.summary.max_start_jitter_us, 250);
 }

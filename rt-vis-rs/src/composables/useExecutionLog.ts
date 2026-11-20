@@ -36,7 +36,7 @@ import { useSimulation } from './useSimulation';
 const USE_MOCK_LOG = false;
 
 const FETCH_DEBOUNCE_MS = 50;
-const MIN_MARGIN_MS = 1000;
+const MIN_MARGIN_US = 1_000_000;
 
 // =============================================================================
 // Module State (Singleton)
@@ -49,8 +49,8 @@ const logRangeDataAnalyzeMode = ref<LogRangeData | null>(null);
 const isLogLoading = ref<boolean>(false);
 
 // Internal range cache and flight state
-const cachedWindowRangeAnalyzeMode = ref<{ start_ms: number; end_ms: number } | null>(null);
-const inFlightRangeAnalyzeMode = ref<{ start_ms: number; end_ms: number } | null>(null);
+const cachedWindowRangeAnalyzeMode = ref<{ start_us: number; end_us: number } | null>(null);
+const inFlightRangeAnalyzeMode = ref<{ start_us: number; end_us: number } | null>(null);
 let fetchLogRangeTimer: number | null = null;
 
 // =============================================================================
@@ -137,19 +137,19 @@ export function useExecutionLog() {
    * Fetches range-restricted actual log data via get_log_range IPC (or mock).
    * Uses margin cache padding, in-flight deduplication, and 50ms debounce to prevent redundant IPC calls during scrolling and resizing.
    */
-  const fetchLogRange = (startMs: number, endMs: number): void => {
-    if (startMs < 0 || endMs <= startMs) return;
+  const fetchLogRange = (startUs: number, endUs: number): void => {
+    if (startUs < 0 || endUs <= startUs) return;
 
     // Cache hit check: if request fits within existing cached range, bypass IPC
     if (cachedWindowRangeAnalyzeMode.value) {
-      if (startMs >= cachedWindowRangeAnalyzeMode.value.start_ms && endMs <= cachedWindowRangeAnalyzeMode.value.end_ms) {
+      if (startUs >= cachedWindowRangeAnalyzeMode.value.start_us && endUs <= cachedWindowRangeAnalyzeMode.value.end_us) {
         return;
       }
     }
 
     // In-flight check: if request is already covered by an ongoing fetch, bypass IPC
     if (inFlightRangeAnalyzeMode.value) {
-      if (startMs >= inFlightRangeAnalyzeMode.value.start_ms && endMs <= inFlightRangeAnalyzeMode.value.end_ms) {
+      if (startUs >= inFlightRangeAnalyzeMode.value.start_us && endUs <= inFlightRangeAnalyzeMode.value.end_us) {
         return;
       }
     }
@@ -166,26 +166,26 @@ export function useExecutionLog() {
 
       // Re-check cache in case another fetch completed in the meantime
       if (cachedWindowRangeAnalyzeMode.value) {
-        if (startMs >= cachedWindowRangeAnalyzeMode.value.start_ms && endMs <= cachedWindowRangeAnalyzeMode.value.end_ms) {
+        if (startUs >= cachedWindowRangeAnalyzeMode.value.start_us && endUs <= cachedWindowRangeAnalyzeMode.value.end_us) {
           return;
         }
       }
 
-      // Compute 100% margin padding (min 1000ms margin) and clamp to log bounds
-      const totalDurationMs = logSummaryAnalyzeMode.value?.total_duration_ms ?? Infinity;
-      const windowWidth = endMs - startMs;
-      const margin = Math.max(MIN_MARGIN_MS, windowWidth);
-      const reqStart = Math.max(0, Math.floor(startMs - margin));
-      const reqEnd = Math.min(totalDurationMs, Math.ceil(endMs + margin));
+      // Compute 100% margin padding (min 1,000,000us margin) and clamp to log bounds
+      const totalDurationUs = logSummaryAnalyzeMode.value?.total_duration_us ?? Infinity;
+      const windowWidth = endUs - startUs;
+      const margin = Math.max(MIN_MARGIN_US, windowWidth);
+      const reqStart = Math.max(0, Math.floor(startUs - margin));
+      const reqEnd = Math.min(totalDurationUs, Math.ceil(endUs + margin));
 
-      inFlightRangeAnalyzeMode.value = { start_ms: reqStart, end_ms: reqEnd };
+      inFlightRangeAnalyzeMode.value = { start_us: reqStart, end_us: reqEnd };
 
       try {
         const rangeData = USE_MOCK_LOG
           ? await mockGetLogRange(reqStart, reqEnd)
-          : await invoke<LogRangeData>('get_log_range', { startMs: reqStart, endMs: reqEnd });
+          : await invoke<LogRangeData>('get_log_range', { startUs: reqStart, endUs: reqEnd });
         logRangeDataAnalyzeMode.value = rangeData;
-        cachedWindowRangeAnalyzeMode.value = { start_ms: reqStart, end_ms: reqEnd };
+        cachedWindowRangeAnalyzeMode.value = { start_us: reqStart, end_us: reqEnd };
       } catch (e) {
         console.error('Failed to fetch log range:', e);
       } finally {

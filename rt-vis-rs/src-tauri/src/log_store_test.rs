@@ -15,6 +15,8 @@
 
 use super::*;
 use crate::log_parser::parse_log;
+use crate::types::ExecutionStatus;
+use rt_config::{SchedulerConfig, ServerConfig};
 
 /* -------------------------------------------------------------------------- */
 /* Test Fixtures (Embedded Real Server Logs)                                  */
@@ -30,9 +32,9 @@ const LOG_NORMAL: &str = include_str!("../fixtures/logs/server_normal.log");
 #[test]
 fn test_get_range_full_span() {
     let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
-    let total_duration_ms = store.summary.total_duration_ms;
+    let total_duration_us = store.summary.total_duration_us;
 
-    let range_data = store.get_range(0, total_duration_ms + 100);
+    let range_data = store.get_range(0, total_duration_us + 100_000);
 
     // Field 1: Verify truncation flag
     assert!(!range_data.is_truncated);
@@ -73,13 +75,16 @@ fn test_get_range_full_span() {
 
     // Field 4: Verify concurrency metrics parity and ordering
     assert_eq!(range_data.actual_metrics.len(), store.metrics.len());
-    assert_eq!(range_data.actual_metrics[0].time_ms, store.metrics[0].time_ms);
     assert_eq!(
-        range_data.actual_metrics.last().unwrap().time_ms,
-        store.metrics.last().unwrap().time_ms
+        range_data.actual_metrics[0].time_us,
+        store.metrics[0].time_us
+    );
+    assert_eq!(
+        range_data.actual_metrics.last().unwrap().time_us,
+        store.metrics.last().unwrap().time_us
     );
     for window in range_data.actual_metrics.windows(2) {
-        assert!(window[0].time_ms <= window[1].time_ms);
+        assert!(window[0].time_us <= window[1].time_us);
     }
 
     // Field 5: Verify total cycles parity and ordering
@@ -90,7 +95,7 @@ fn test_get_range_full_span() {
         store.cycles.last().unwrap().cycle
     );
     for window in range_data.actual_cycles.windows(2) {
-        assert!(window[0].start_ms <= window[1].start_ms);
+        assert!(window[0].start_us <= window[1].start_us);
     }
 }
 
@@ -100,64 +105,64 @@ fn test_get_range_partial_slice() {
     let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
 
     // Target a window around Cycle 1 and Cycle 2 (roughly 50ms to 149ms)
-    let start_ms = 50;
-    let end_ms = 149;
-    let range_data = store.get_range(start_ms, end_ms);
+    let start_us = 50_000;
+    let end_us = 149_000;
+    let range_data = store.get_range(start_us, end_us);
 
     // Field 1: Verify truncation flag
     assert!(!range_data.is_truncated);
 
-    // Field 2: Verify all returned executions strictly overlap with [start_ms, end_ms]
+    // Field 2: Verify all returned executions strictly overlap with [start_us, end_us]
     for (cid, execs) in &range_data.actual_executions_by_cid {
         for exec in execs {
-            let exec_end = exec.start_ms + exec.duration_ms as u64;
+            let exec_end = exec.start_us + exec.duration_us;
             assert!(
-                exec.start_ms <= end_ms && exec_end >= start_ms,
+                exec.start_us <= end_us && exec_end >= start_us,
                 "Execution for CID {} at [{}, {}] does not overlap with requested window [{}, {}]",
                 cid,
-                exec.start_ms,
+                exec.start_us,
                 exec_end,
-                start_ms,
-                end_ms
+                start_us,
+                end_us
             );
         }
     }
 
-    // Field 3: Verify all returned instant events strictly fall within [start_ms, end_ms]
+    // Field 3: Verify all returned instant events strictly fall within [start_us, end_us]
     for (cid, events) in &range_data.actual_instant_events_by_cid {
         for event in events {
             assert!(
-                event.time_ms >= start_ms && event.time_ms <= end_ms,
-                "Instant event for CID {} at {}ms falls outside requested window [{}, {}]",
+                event.time_us >= start_us && event.time_us <= end_us,
+                "Instant event for CID {} at {}us falls outside requested window [{}, {}]",
                 cid,
-                event.time_ms,
-                start_ms,
-                end_ms
+                event.time_us,
+                start_us,
+                end_us
             );
         }
     }
 
     // Field 4: Verify metrics continuity (includes preceding point if available) and sorting
     assert!(!range_data.actual_metrics.is_empty());
-    assert!(range_data.actual_metrics[0].time_ms <= start_ms);
+    assert!(range_data.actual_metrics[0].time_us <= start_us);
     if range_data.actual_metrics.len() > 1 {
         for m in &range_data.actual_metrics[1..] {
-            assert!(m.time_ms >= start_ms && m.time_ms <= end_ms);
+            assert!(m.time_us >= start_us && m.time_us <= end_us);
         }
     }
     for window in range_data.actual_metrics.windows(2) {
-        assert!(window[0].time_ms <= window[1].time_ms);
+        assert!(window[0].time_us <= window[1].time_us);
     }
 
-    // Field 5: Verify cycle margin inclusion (cycle_time_ms * 2 = 100ms margin around [50, 149])
-    // Expected bounds: max(0, 50 - 100) = 0ms to 149 + 100 = 249ms
+    // Field 5: Verify cycle margin inclusion (cycle_time_us * 2 = 100_000us margin around [50_000, 149_000])
+    // Expected bounds: max(0, 50_000 - 100_000) = 0us to 149_000 + 100_000 = 249_000us
     assert!(!range_data.actual_cycles.is_empty());
     for cycle in &range_data.actual_cycles {
         assert!(
-            cycle.start_ms <= end_ms + 100,
-            "Cycle {} start {}ms exceeded upper margin boundary",
+            cycle.start_us <= end_us + 100_000,
+            "Cycle {} start {}us exceeded upper margin boundary",
             cycle.cycle,
-            cycle.start_ms
+            cycle.start_us
         );
     }
 }
@@ -167,7 +172,7 @@ fn test_get_range_partial_slice() {
 fn test_get_range_inverted_bounds() {
     let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
 
-    let range_data = store.get_range(200, 100);
+    let range_data = store.get_range(200_000, 100_000);
 
     assert!(!range_data.is_truncated);
     assert!(range_data.actual_executions_by_cid.is_empty());
@@ -182,7 +187,7 @@ fn test_get_range_out_of_bounds() {
     let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
 
     // Request a window far beyond the end of the log
-    let range_data = store.get_range(50_000, 60_000);
+    let range_data = store.get_range(50_000_000, 60_000_000);
 
     // Field 1: Truncation flag
     assert!(!range_data.is_truncated);
@@ -214,13 +219,13 @@ fn test_get_range_out_of_bounds() {
 #[test]
 fn test_get_range_safety_cap_truncation() {
     let store = parse_log(LOG_NORMAL.as_bytes()).expect("Failed to parse normal fixture log");
-    let total_duration_ms = store.summary.total_duration_ms;
+    let total_duration_us = store.summary.total_duration_us;
 
     // Test execution cap truncation
     let cap_execs = 5;
     let range_exec_capped = store.get_range_with_caps(
         0,
-        total_duration_ms + 100,
+        total_duration_us + 100_000,
         cap_execs,
         MAX_RANGE_INSTANT_EVENTS,
         MAX_RANGE_METRICS,
@@ -238,7 +243,7 @@ fn test_get_range_safety_cap_truncation() {
     let cap_events = 7;
     let range_event_capped = store.get_range_with_caps(
         0,
-        total_duration_ms + 100,
+        total_duration_us + 100_000,
         MAX_RANGE_EXECUTIONS,
         cap_events,
         MAX_RANGE_METRICS,
@@ -256,7 +261,7 @@ fn test_get_range_safety_cap_truncation() {
     let cap_metrics = 3;
     let range_metric_capped = store.get_range_with_caps(
         0,
-        total_duration_ms + 100,
+        total_duration_us + 100_000,
         MAX_RANGE_EXECUTIONS,
         MAX_RANGE_INSTANT_EVENTS,
         cap_metrics,
@@ -269,7 +274,7 @@ fn test_get_range_safety_cap_truncation() {
     let cap_cycles = 4;
     let range_cycle_capped = store.get_range_with_caps(
         0,
-        total_duration_ms + 100,
+        total_duration_us + 100_000,
         MAX_RANGE_EXECUTIONS,
         MAX_RANGE_INSTANT_EVENTS,
         MAX_RANGE_METRICS,
@@ -277,4 +282,156 @@ fn test_get_range_safety_cap_truncation() {
     );
     assert!(range_cycle_capped.is_truncated);
     assert_eq!(range_cycle_capped.actual_cycles.len(), cap_cycles);
+}
+
+/* -------------------------------------------------------------------------- */
+/* Synthetic Boundary Helpers & Tests                                         */
+/* -------------------------------------------------------------------------- */
+
+/// Builds a minimal synthetic execution bar for boundary testing.
+fn make_exec(instance_id: u64, start_us: u64, duration_us: u64) -> ActualExecution {
+    ActualExecution {
+        log_line_no_start: instance_id,
+        log_line_no_end: Some(instance_id + 1),
+        instance_id,
+        cycle: 0,
+        start_us,
+        duration_us,
+        status: ExecutionStatus::Normal,
+    }
+}
+
+/// Builds a minimal LogStore populated with synthetic executions and metrics.
+fn build_synthetic_store(
+    executions_by_cid: HashMap<u16, Vec<ActualExecution>>,
+    metrics: Vec<ActualMetricPoint>,
+) -> LogStore {
+    let summary = LogSummary {
+        config: SchedulerConfig {
+            server_config: ServerConfig {
+                cycle_time_ms: 50,
+                ..Default::default()
+            },
+            client_configs: Vec::new(),
+        },
+        max_concurrency: 1,
+        total_duration_us: 0,
+        total_cycles: 0,
+        min_start_jitter_us: 0,
+        max_start_jitter_us: 0,
+        is_truncated: false,
+    };
+
+    LogStore::new(
+        summary,
+        executions_by_cid,
+        HashMap::new(),
+        metrics,
+        Vec::new(),
+    )
+}
+
+/// Validates binary-search overlap boundaries for executions across inclusive, gap, and zero-duration cases.
+#[test]
+fn test_get_range_execution_overlap_boundaries() {
+    let mut executions_by_cid = HashMap::new();
+    executions_by_cid.insert(
+        10,
+        vec![
+            make_exec(1, 100, 100),  // [100, 200]
+            make_exec(2, 300, 0),    // [300, 300] zero-duration
+            make_exec(3, 400, 500),  // [400, 900] long overrun
+            make_exec(4, 1000, 100), // [1000, 1100]
+        ],
+    );
+    let store = build_synthetic_store(executions_by_cid, Vec::new());
+
+    let ids_in = |start_us: u64, end_us: u64| -> Vec<u64> {
+        let range = store.get_range(start_us, end_us);
+        assert_eq!(range.actual_executions_by_cid.len(), 1);
+        range.actual_executions_by_cid[0]
+            .1
+            .iter()
+            .map(|e| e.instance_id)
+            .collect()
+    };
+
+    assert_eq!(ids_in(150, 250), vec![1]);
+    assert_eq!(ids_in(200, 250), vec![1]);
+    assert_eq!(ids_in(201, 250), Vec::<u64>::new());
+    assert_eq!(ids_in(50, 100), vec![1]);
+    assert_eq!(ids_in(50, 99), Vec::<u64>::new());
+    assert_eq!(ids_in(300, 300), vec![2]);
+    assert_eq!(ids_in(299, 299), Vec::<u64>::new());
+    assert_eq!(ids_in(301, 301), Vec::<u64>::new());
+    assert_eq!(ids_in(500, 600), vec![3]);
+    assert_eq!(ids_in(901, 999), Vec::<u64>::new());
+    assert_eq!(ids_in(200, 400), vec![1, 2, 3]);
+}
+
+/// Validates metrics continuity inclusion and out-of-bounds symmetry guard around recorded timeline edges.
+#[test]
+fn test_get_range_metrics_continuity_boundaries() {
+    let metrics = vec![
+        ActualMetricPoint {
+            time_us: 100,
+            running_count: 1,
+        },
+        ActualMetricPoint {
+            time_us: 300,
+            running_count: 0,
+        },
+        ActualMetricPoint {
+            time_us: 500,
+            running_count: 1,
+        },
+    ];
+    let store = build_synthetic_store(HashMap::new(), metrics);
+
+    let pts_in = |start_us: u64, end_us: u64| -> Vec<(u64, u32)> {
+        store
+            .get_range(start_us, end_us)
+            .actual_metrics
+            .into_iter()
+            .map(|m| (m.time_us, m.running_count))
+            .collect()
+    };
+
+    assert_eq!(pts_in(0, 99), Vec::<(u64, u32)>::new());
+    assert_eq!(pts_in(150, 250), vec![(100, 1)]);
+    assert_eq!(pts_in(300, 350), vec![(100, 1), (300, 0)]);
+    assert_eq!(pts_in(501, 600), Vec::<(u64, u32)>::new());
+}
+
+/// Validates exact cap matching across multiple CIDs does not mark truncation until an extra item overflows.
+#[test]
+fn test_get_range_exact_cap_boundary_across_cids() {
+    let mut executions_by_cid = HashMap::new();
+    executions_by_cid.insert(10, vec![make_exec(1, 0, 40), make_exec(2, 50, 40)]);
+    executions_by_cid.insert(20, vec![make_exec(3, 200, 50)]);
+    let store = build_synthetic_store(executions_by_cid, Vec::new());
+
+    // Remaining executions reaches 0 after CID 10, but CID 20 has 0 candidates in [0, 100], so no truncation occurs
+    let exact_fit = store.get_range_with_caps(0, 100, 2, 100, 100, 100);
+    assert!(!exact_fit.is_truncated);
+    assert_eq!(exact_fit.actual_executions_by_cid[0].0, 10);
+    assert_eq!(exact_fit.actual_executions_by_cid[0].1.len(), 2);
+    assert_eq!(exact_fit.actual_executions_by_cid[1].0, 20);
+    assert_eq!(exact_fit.actual_executions_by_cid[1].1.len(), 0);
+
+    // Expanding to [0, 300] introduces a candidate in CID 20 that overflows remaining_executions == 0
+    let overflow_second_cid = store.get_range_with_caps(0, 300, 2, 100, 100, 100);
+    assert!(overflow_second_cid.is_truncated);
+    assert_eq!(overflow_second_cid.actual_executions_by_cid[0].0, 10);
+    assert_eq!(overflow_second_cid.actual_executions_by_cid[0].1.len(), 2);
+    assert_eq!(overflow_second_cid.actual_executions_by_cid[1].0, 20);
+    assert_eq!(overflow_second_cid.actual_executions_by_cid[1].1.len(), 0);
+
+    // Increasing cap to 3 accommodates all executions across both CIDs without truncation
+    let full_fit = store.get_range_with_caps(0, 300, 3, 100, 100, 100);
+    assert!(!full_fit.is_truncated);
+    assert_eq!(full_fit.actual_executions_by_cid[0].0, 10);
+    assert_eq!(full_fit.actual_executions_by_cid[0].1.len(), 2);
+    assert_eq!(full_fit.actual_executions_by_cid[1].0, 20);
+    assert_eq!(full_fit.actual_executions_by_cid[1].1.len(), 1);
 }

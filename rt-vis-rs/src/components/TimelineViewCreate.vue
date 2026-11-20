@@ -26,6 +26,7 @@ import { useSimulation } from '../composables/useSimulation';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useCreateModeLayout } from '../composables/useCreateModeLayout';
 import { mapPlansByInstanceId } from '../utils/simulation';
+import { formatUsAsMsInt } from '../utils/format';
 import type { ClientConfigUI } from '../types/config';
 import type { PlannedExecution } from '../types/simulation';
 
@@ -34,7 +35,7 @@ import type { PlannedExecution } from '../types/simulation';
 
 const { configCreateMode } = useConfig();
 const { plannedExecutionsCreateMode, configErrors } = useSimulation();
-const { cycleTimeMs, getPos, getMs } = useTimeScale();
+const { cycleTimeMs, cycleTimeUs, getPos, getMs, getPosFromUs } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
 // -----------------------------------------------------------------------------
@@ -203,13 +204,13 @@ const dependencyArrows = computed(() => {
   const execMap = executionsByInstanceId.value;
 
   for (const exec of activeExecutions.value) {
-    const toX = getPos(exec.start_ms);
+    const toX = getPosFromUs(exec.start_us);
     const toY = getBarY(exec.cid) + RECT_HEIGHT / 2;
 
     for (const depId of exec.depends_instance_ids) {
       const depExec = execMap.get(depId);
       if (depExec) {
-        const fromX = getPos(depExec.start_ms + depExec.duration_ms);
+        const fromX = getPosFromUs(depExec.start_us + depExec.duration_us);
         const fromY = getBarY(depExec.cid) + RECT_HEIGHT / 2;
 
         // Calculate horizontal control point offset based on distance to avoid "flat" curves on short gaps.
@@ -384,7 +385,7 @@ defineExpose({
       <div class="time-axis" :style="{ width: totalWidth + 'px' }">
         <div v-for="n in totalCycles" :key="n" class="time-tick" :style="{ width: gridInfo.majorPx + 'px' }">
           <span class="cycle-label">Cycle {{ n - 1 }}</span>
-          <span class="time-label">{{ (n - 1) * cycleTimeMs }}ms</span>
+          <span class="time-label">{{ formatUsAsMsInt((n - 1) * cycleTimeUs) }}</span>
         </div>
       </div>
     </div>
@@ -427,7 +428,7 @@ defineExpose({
 
           <!-- Execution Bars Grouped by Instance -->
           <g v-for="exec in activeExecutions" :key="exec.instance_id"
-            :transform="`translate(${getPos(exec.start_ms)}, ${getBarY(exec.cid)})`" class="rt-exec-bar" :class="{
+            :transform="`translate(${getPosFromUs(exec.start_us)}, ${getBarY(exec.cid)})`" class="rt-exec-bar" :class="{
               'rt-exec-highlight': highlightedIds.has(exec.instance_id),
               'rt-exec-dimmed': hoveredInstanceId !== null && !highlightedIds.has(exec.instance_id),
               'rt-exec-overrun': exec.status === 'overrun',
@@ -438,14 +439,14 @@ defineExpose({
             @mousedown="firstInstances.has(exec.instance_id) && startDrag($event, exec, 'offset')">
 
             <!-- Main Bar Body -->
-            <rect :width="getPos(exec.duration_ms)" :height="RECT_HEIGHT" rx="6" class="rt-exec-bar-rect" />
+            <rect :width="getPosFromUs(exec.duration_us)" :height="RECT_HEIGHT" rx="6" class="rt-exec-bar-rect" />
 
             <!-- Hatching overlay for read-only instances -->
-            <rect v-if="!firstInstances.has(exec.instance_id)" :width="getPos(exec.duration_ms)" :height="RECT_HEIGHT"
-              rx="6" fill="url(#hatch)" pointer-events="none" />
+            <rect v-if="!firstInstances.has(exec.instance_id)" :width="getPosFromUs(exec.duration_us)"
+              :height="RECT_HEIGHT" rx="6" fill="url(#hatch)" pointer-events="none" />
 
             <!-- Duration Handle (Visible only for editable instances) -->
-            <rect v-if="firstInstances.has(exec.instance_id)" :x="getPos(exec.duration_ms) - 10" y="0" width="12"
+            <rect v-if="firstInstances.has(exec.instance_id)" :x="getPosFromUs(exec.duration_us) - 10" y="0" width="12"
               :height="RECT_HEIGHT" class="rt-exec-handle-duration"
               @mousedown.stop="startDrag($event, exec, 'duration')" />
 

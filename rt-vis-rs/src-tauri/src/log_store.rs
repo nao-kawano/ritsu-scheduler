@@ -43,6 +43,13 @@ pub const MAX_RANGE_CYCLES: usize = 5_000;
 /* -------------------------------------------------------------------------- */
 
 /// In-memory dataset holding the full parsed log for lifetime of the session.
+///
+/// Range queries via [`LogStore::get_range_with_caps`] rely on the following invariants
+/// established during log parsing:
+/// - `executions_by_cid`: sorted by `start_us` and non-overlapping per client (guaranteed by
+///   Ritsu's single-active-execution-per-CID state machine under monotonic timestamps), so
+///   `start_us.saturating_add(duration_us)` is monotonically non-decreasing.
+/// - `instant_events_by_cid`, `metrics`, and `cycles`: sorted in ascending timestamp order.
 #[derive(Debug, Clone)]
 pub struct LogStore {
     pub summary: LogSummary,
@@ -71,10 +78,10 @@ impl LogStore {
     }
 
     /// Extracts a range-restricted slice of log data clamped by default safety caps.
-    pub fn get_range(&self, start_ms: u64, end_ms: u64) -> LogRangeData {
+    pub fn get_range(&self, start_us: u64, end_us: u64) -> LogRangeData {
         self.get_range_with_caps(
-            start_ms,
-            end_ms,
+            start_us,
+            end_us,
             MAX_RANGE_EXECUTIONS,
             MAX_RANGE_INSTANT_EVENTS,
             MAX_RANGE_METRICS,
@@ -85,14 +92,14 @@ impl LogStore {
     /// Extracts a range-restricted slice of log data with configurable safety caps.
     pub fn get_range_with_caps(
         &self,
-        start_ms: u64,
-        end_ms: u64,
+        start_us: u64,
+        end_us: u64,
         max_executions: usize,
         max_events: usize,
         max_metrics: usize,
         max_cycles: usize,
     ) -> LogRangeData {
-        if start_ms > end_ms {
+        if start_us > end_us {
             return LogRangeData {
                 actual_executions_by_cid: Vec::new(),
                 actual_instant_events_by_cid: Vec::new(),
@@ -116,95 +123,65 @@ impl LogStore {
 
         // Extract overlapping execution bars per client
         let mut actual_executions_by_cid = Vec::with_capacity(sorted_cids.len());
-        let mut total_executions = 0;
-
+        let mut remaining_executions = max_executions;
         for &cid in &sorted_cids {
-            let mut sliced_execs = Vec::new();
-            if let Some(execs) = self.executions_by_cid.get(&cid) {
-                let upper_bound = execs.partition_point(|e| e.start_ms <= end_ms);
-                for exec in &execs[..upper_bound] {
-                    let exec_end = exec.start_ms + exec.duration_ms as u64;
-                    if exec_end >= start_ms {
-                        if total_executions >= max_executions {
-                            is_truncated = true;
-                            break;
-                        }
-                        sliced_execs.push(exec.clone());
-                        total_executions += 1;
-                    }
-                }
-            }
-            actual_executions_by_cid.push((cid, sliced_execs));
+            let candidate = self
+                .executions_by_cid
+                .get(&cid)
+                .map(|execs| {
+                    slice_partitioned_range(
+                        execs,
+                        |e| e.start_us.saturating_add(e.duration_us) < start_us,
+                        |e| e.start_us <= end_us,
+                    )
+                })
+                .unwrap_or(&[]);
+            let (capped, truncated) = slice_capped(candidate, remaining_executions);
+            remaining_executions -= capped.len();
+            is_truncated |= truncated;
+            actual_executions_by_cid.push((cid, capped.to_vec()));
         }
 
         // Extract instant events per client
         let mut actual_instant_events_by_cid = Vec::with_capacity(sorted_cids.len());
-        let mut total_events = 0;
-
+        let mut remaining_events = max_events;
         for &cid in &sorted_cids {
-            let mut sliced_events = Vec::new();
-            if let Some(events) = self.instant_events_by_cid.get(&cid) {
-                let start_idx = events.partition_point(|e| e.time_ms < start_ms);
-                let end_idx = events.partition_point(|e| e.time_ms <= end_ms);
-                for event in &events[start_idx..end_idx] {
-                    if total_events >= max_events {
-                        is_truncated = true;
-                        break;
-                    }
-                    sliced_events.push(event.clone());
-                    total_events += 1;
-                }
-            }
-            actual_instant_events_by_cid.push((cid, sliced_events));
+            let candidate = self
+                .instant_events_by_cid
+                .get(&cid)
+                .map(|events| {
+                    slice_partitioned_range(
+                        events,
+                        |e| e.time_us < start_us,
+                        |e| e.time_us <= end_us,
+                    )
+                })
+                .unwrap_or(&[]);
+            let (capped, truncated) = slice_capped(candidate, remaining_events);
+            remaining_events -= capped.len();
+            is_truncated |= truncated;
+            actual_instant_events_by_cid.push((cid, capped.to_vec()));
         }
 
         // Extract concurrency metric points including the immediately preceding point for step continuity
-        let mut actual_metrics = Vec::new();
-        if !self.metrics.is_empty() {
-            let start_idx = self.metrics.partition_point(|m| m.time_ms < start_ms);
-            // Only extract if the requested window overlaps with the recorded metrics timeline
-            if start_idx < self.metrics.len() {
-                let effective_start_idx = if start_idx > 0 { start_idx - 1 } else { 0 };
-                let end_idx = self.metrics.partition_point(|m| m.time_ms <= end_ms);
-
-                if effective_start_idx < end_idx {
-                    let candidate_slice = &self.metrics[effective_start_idx..end_idx];
-                    if candidate_slice.len() > max_metrics {
-                        is_truncated = true;
-                        actual_metrics.extend_from_slice(&candidate_slice[..max_metrics]);
-                    } else {
-                        actual_metrics.extend_from_slice(candidate_slice);
-                    }
-                }
-            }
-        }
+        let metrics_candidate = slice_metrics_with_continuity(&self.metrics, start_us, end_us);
+        let (capped_metrics, truncated) = slice_capped(metrics_candidate, max_metrics);
+        is_truncated |= truncated;
+        let actual_metrics = capped_metrics.to_vec();
 
         // Extract cycles with padding margins for anchor and grid rendering
-        let cycle_time_ms = self
-            .summary
-            .config
-            .server_config
-            .cycle_time_ms
-            .max(1) as u64;
-        let margin_ms = (cycle_time_ms * 2).max(100);
-        let req_cycle_start = start_ms.saturating_sub(margin_ms);
-        let req_cycle_end = end_ms.saturating_add(margin_ms);
-
-        let mut actual_cycles = Vec::new();
-        if !self.cycles.is_empty() {
-            let start_idx = self.cycles.partition_point(|c| c.start_ms < req_cycle_start);
-            let end_idx = self.cycles.partition_point(|c| c.start_ms <= req_cycle_end);
-
-            if start_idx < self.cycles.len() {
-                let candidate_slice = &self.cycles[start_idx..end_idx.min(self.cycles.len())];
-                if candidate_slice.len() > max_cycles {
-                    is_truncated = true;
-                    actual_cycles.extend_from_slice(&candidate_slice[..max_cycles]);
-                } else {
-                    actual_cycles.extend_from_slice(candidate_slice);
-                }
-            }
-        }
+        let cycle_time_us = (self.summary.config.server_config.cycle_time_ms.max(1) as u64) * 1_000;
+        let margin_us = (cycle_time_us * 2).max(100_000);
+        let req_cycle_start = start_us.saturating_sub(margin_us);
+        let req_cycle_end = end_us.saturating_add(margin_us);
+        let cycles_candidate = slice_partitioned_range(
+            &self.cycles,
+            |c| c.start_us < req_cycle_start,
+            |c| c.start_us <= req_cycle_end,
+        );
+        let (capped_cycles, truncated) = slice_capped(cycles_candidate, max_cycles);
+        is_truncated |= truncated;
+        let actual_cycles = capped_cycles.to_vec();
 
         LogRangeData {
             actual_executions_by_cid,
@@ -213,5 +190,51 @@ impl LogStore {
             actual_cycles,
             is_truncated,
         }
+    }
+}
+
+/* -------------------------------------------------------------------------- */
+
+/// Extracts a contiguous subslice matching a sorted lower/upper predicate pair.
+///
+/// Both predicates must partition `items` (all `true` elements preceding all `false` elements).
+fn slice_partitioned_range<T>(
+    items: &[T],
+    before_start: impl FnMut(&T) -> bool,
+    within_end: impl FnMut(&T) -> bool,
+) -> &[T] {
+    let start_idx = items.partition_point(before_start);
+    let end_idx = start_idx + items[start_idx..].partition_point(within_end);
+    &items[start_idx..end_idx]
+}
+
+/// Extracts concurrency metric points in `[start_us, end_us]`, including the immediately
+/// preceding point for step-chart continuity when the window overlaps the recorded timeline.
+fn slice_metrics_with_continuity(
+    metrics: &[ActualMetricPoint],
+    start_us: u64,
+    end_us: u64,
+) -> &[ActualMetricPoint] {
+    if start_us > end_us {
+        return &[];
+    }
+
+    let start_idx = metrics.partition_point(|m| m.time_us < start_us);
+    // Only extract if the requested window overlaps with the recorded metrics timeline
+    if start_idx >= metrics.len() {
+        return &[];
+    }
+
+    let effective_start_idx = start_idx.saturating_sub(1);
+    let end_idx = start_idx + metrics[start_idx..].partition_point(|m| m.time_us <= end_us);
+    &metrics[effective_start_idx..end_idx]
+}
+
+/// Caps `slice` to at most `max_len` elements and reports whether truncation occurred.
+fn slice_capped<T>(slice: &[T], max_len: usize) -> (&[T], bool) {
+    if slice.len() > max_len {
+        (&slice[..max_len], true)
+    } else {
+        (slice, false)
     }
 }

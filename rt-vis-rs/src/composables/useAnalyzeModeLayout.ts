@@ -51,7 +51,7 @@ export function useAnalyzeModeLayout() {
   // ---------------------------------------------------------------------------
   // Dependencies & Inject
 
-  const { pxPerCycle, cycleTimeMs } = useTimeScale();
+  const { pxPerCycle, cycleTimeUs, pxPerUs } = useTimeScale();
   const { logSummaryAnalyzeMode } = useExecutionLog();
 
   // ---------------------------------------------------------------------------
@@ -69,23 +69,22 @@ export function useAnalyzeModeLayout() {
   });
 
   /**
-   * Total duration in milliseconds for Analyze Mode.
-   * Uses total_duration_ms from log metadata, or falls back to a 4-cycle skeleton duration before log load.
+   * Total duration in microseconds for Analyze Mode.
+   * Uses total_duration_us from log metadata, or falls back to a 4-cycle skeleton duration before log load.
    */
-  const totalDurationMs = computed(() => {
-    if (logSummaryAnalyzeMode.value && logSummaryAnalyzeMode.value.total_duration_ms > 0) {
-      return logSummaryAnalyzeMode.value.total_duration_ms;
+  const totalDurationUs = computed(() => {
+    if (logSummaryAnalyzeMode.value && logSummaryAnalyzeMode.value.total_duration_us > 0) {
+      return logSummaryAnalyzeMode.value.total_duration_us;
     }
-    return 4 * (cycleTimeMs.value || 50);
+    return 4 * (cycleTimeUs.value || 50_000);
   });
 
   /**
    * Total width of the timeline in pixels for the current zoom level.
-   * Based on linear physical time (pxPerMs).
+   * Based on linear physical time (pxPerUs).
    */
   const totalWidth = computed(() => {
-    const pxPerMs = cycleTimeMs.value > 0 ? pxPerCycle.value / cycleTimeMs.value : 0;
-    return Math.ceil(totalDurationMs.value * pxPerMs);
+    return Math.ceil(totalDurationUs.value * pxPerUs.value);
   });
 
   /**

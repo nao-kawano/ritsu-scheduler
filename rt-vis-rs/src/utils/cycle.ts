@@ -110,24 +110,24 @@ export function groupPlansByAnchorCycle(
  */
 export function filterVisibleActualCycles(
   actualCycles: ActualCycle[],
-  startMs: number,
-  endMs: number
+  startUs: number,
+  endUs: number
 ): ActualCycle[] {
-  return actualCycles.filter(ac => ac.start_ms >= startMs && ac.start_ms <= endMs);
+  return actualCycles.filter(ac => ac.start_us >= startUs && ac.start_us <= endUs);
 }
 
 /**
- * Find the actual cycle corresponding to timeMs using binary search.
- * Returns the cycle whose start_ms is the greatest value <= timeMs.
+ * Find the actual cycle corresponding to timeUs using binary search.
+ * Returns the cycle whose start_us is the greatest value <= timeUs.
  */
-export function findActualCycleForTime(cycles: ActualCycle[], timeMs: number): ActualCycle | null {
+export function findActualCycleForTime(cycles: ActualCycle[], timeUs: number): ActualCycle | null {
   if (!cycles || cycles.length === 0) return null;
   let low = 0;
   let high = cycles.length - 1;
   let found: ActualCycle | null = null;
   while (low <= high) {
     const mid = (low + high) >> 1;
-    if (cycles[mid].start_ms <= timeMs) {
+    if (cycles[mid].start_us <= timeUs) {
       found = cycles[mid];
       low = mid + 1;
     } else {

@@ -34,7 +34,7 @@ import {
   findPlannedConcurrencyForTime,
   type ConcurrencyStep
 } from '../utils/metrics';
-import { formatDelta, formatDeltaCount } from '../utils/format';
+import { formatUsAsMs, formatDeltaUsAsMs, formatDeltaCount } from '../utils/format';
 import type { ThemeStyles } from '../types/canvas';
 
 // -----------------------------------------------------------------------------
@@ -43,7 +43,7 @@ import type { ThemeStyles } from '../types/canvas';
 const { activeConfig } = useConfig();
 const { plannedExecutionsAnalyzeMode, plannedMetricsAnalyzeMode } = useSimulation();
 const { logSummaryAnalyzeMode, logRangeDataAnalyzeMode, fetchLogRange } = useExecutionLog();
-const { pxPerCycle, cycleTimeMs, pxPerMs } = useTimeScale();
+const { pxPerCycle, cycleTimeUs, pxPerUs } = useTimeScale();
 const { totalCycles, totalWidth, gridInfo } = useAnalyzeModeLayout();
 const { getThemeStyles, prepareCanvas, renderTimelineHeader, renderBackgroundGrid, renderActualCycleLines } = useCanvasRender();
 
@@ -61,11 +61,11 @@ const emit = defineEmits<{
  * Hover payload data for metrics chart tooltip and crosshair tracking.
  */
 interface MetricHoverData {
-  timeMs: number;
+  timeUs: number;
   cycle: number;
   actualConcurrency: number;
   plannedConcurrency: number | null;
-  jitterMs: number | null;
+  jitterUs: number | null;
 }
 
 // -----------------------------------------------------------------------------
@@ -125,7 +125,7 @@ const tooltipStyle = computed(() => {
 
   // Estimated bounding box thresholds for boundary overflow detection
   // Aligned with actual rendered tooltip dimensions (~80-82px) to preserve design parity with TimelineView
-  const ESTIMATED_MAX_WIDTH = 300;
+  const ESTIMATED_MAX_WIDTH = 340;
   const ESTIMATED_MAX_HEIGHT = 84;
   const MARGIN_Y = 6;
   const offset = 12;
@@ -243,13 +243,13 @@ const renderMetricsRow1Planned = (
     return;
   }
 
-  const curCycleTime = cycleTimeMs.value;
+  const curCycleTimeUs = cycleTimeUs.value;
 
-  const marginMs = curCycleTime * 4;
-  const startMs = Math.max(0, scrollLeft / pxPerMs.value - marginMs);
-  const endMs = (scrollLeft + width) / pxPerMs.value + marginMs;
+  const marginUs = curCycleTimeUs * 4;
+  const startUs = Math.max(0, scrollLeft / pxPerUs.value - marginUs);
+  const endUs = (scrollLeft + width) / pxPerUs.value + marginUs;
 
-  const steps = computePlannedConcurrencySteps(plannedExecs, actualCycles, maxStartCycle.value, steadyPeriod.value, startMs, endMs);
+  const steps = computePlannedConcurrencySteps(plannedExecs, actualCycles, maxStartCycle.value, steadyPeriod.value, startUs, endUs);
   visiblePlannedSteps = steps;
   if (steps.length === 0) return;
 
@@ -259,12 +259,12 @@ const renderMetricsRow1Planned = (
     ctx.globalAlpha = 0.4;
     ctx.beginPath();
 
-    const firstX = Math.floor(steps[0].timeMs * pxPerMs.value - scrollLeft);
+    const firstX = Math.floor(steps[0].timeUs * pxPerUs.value - scrollLeft);
     ctx.moveTo(firstX, baseY);
 
     let prevY = baseY;
     steps.forEach(step => {
-      const x = Math.floor(step.timeMs * pxPerMs.value - scrollLeft);
+      const x = Math.floor(step.timeUs * pxPerUs.value - scrollLeft);
       const y = baseY - (step.count / maxConcurrency) * (ROW_HEIGHT - CHART_TOP_MARGIN);
 
       // Horizontal segment: maintain previous concurrency count up to current event time
@@ -275,7 +275,7 @@ const renderMetricsRow1Planned = (
       prevY = y;
     });
 
-    const lastX = Math.floor(steps[steps.length - 1].timeMs * pxPerMs.value - scrollLeft);
+    const lastX = Math.floor(steps[steps.length - 1].timeUs * pxPerUs.value - scrollLeft);
     ctx.lineTo(lastX, baseY);
     ctx.closePath();
     ctx.fill();
@@ -306,7 +306,7 @@ const renderMetricsRow1Actual = (
     ctx.beginPath();
 
     actuals.forEach((pt, idx) => {
-      const x = Math.floor(pt.time_ms * pxPerMs.value - scrollLeft);
+      const x = Math.floor(pt.time_us * pxPerUs.value - scrollLeft);
       const rawY = baseY - (pt.running_count / maxConcurrency) * (ROW_HEIGHT - CHART_TOP_MARGIN);
       const y = Math.min(rawY, maxLineY);
 
@@ -336,7 +336,7 @@ const renderMetricsRow1 = (
   width: number,
   styles: ThemeStyles
 ) => {
-  if (!logSummaryAnalyzeMode.value || totalCycles.value <= 0 || cycleTimeMs.value <= 0) return;
+  if (!logSummaryAnalyzeMode.value || totalCycles.value <= 0 || cycleTimeUs.value <= 0) return;
 
   const row1BaseY = ROW_HEIGHT;
 
@@ -392,8 +392,8 @@ const renderMetricsRow2Jitter = (
     ctx.beginPath();
 
     actualCycles.forEach((ac, idx) => {
-      const x = Math.floor(ac.start_ms * pxPerMs.value - scrollLeft);
-      const jitterY = Math.floor(row2ZeroY - (ac.start_jitter_ms / jitterSpan) * availableHeight);
+      const x = Math.floor(ac.start_us * pxPerUs.value - scrollLeft);
+      const jitterY = Math.floor(row2ZeroY - (ac.start_jitter_us / jitterSpan) * availableHeight);
 
       if (idx === 0) {
         ctx.moveTo(x, jitterY);
@@ -426,9 +426,9 @@ const renderMetricsRow2 = (
 
   // Dynamic baseline calculations using min/max start jitter metadata
   // Prevents negative jitter space from wasting 50% of the canvas when delays are predominantly positive.
-  const minJitter = Math.min(0, summary.min_start_jitter_ms ?? 0);
-  const maxJitter = Math.max(0.1, summary.max_start_jitter_ms ?? 0.1);
-  const jitterSpan = Math.max(0.1, maxJitter - minJitter);
+  const minJitter = Math.min(0, summary.min_start_jitter_us ?? 0);
+  const maxJitter = Math.max(100, summary.max_start_jitter_us ?? 100);
+  const jitterSpan = Math.max(100, maxJitter - minJitter);
 
   // Position 0ms baseline dynamically based on min/max ratio.
   const zeroRatio = (0 - minJitter) / jitterSpan;
@@ -460,11 +460,11 @@ const renderHeader = (styles: ThemeStyles) => {
     width,
     height,
     totalCycles: totalCycles.value,
-    cycleTimeMs: cycleTimeMs.value,
+    cycleTimeUs: cycleTimeUs.value,
     majorPx: gridInfo.value.majorPx,
     styles,
     actualCycles: logRangeDataAnalyzeMode.value?.actual_cycles,
-    pxPerMs: pxPerMs.value
+    pxPerUs: pxPerUs.value
   });
 };
 
@@ -504,13 +504,13 @@ const renderContent = (styles: ThemeStyles) => {
   });
 
   // Render actual cycle start lines overlay (double grid structure matching TimelineView)
-  if (logRangeDataAnalyzeMode.value?.actual_cycles && cycleTimeMs.value > 0) {
+  if (logRangeDataAnalyzeMode.value?.actual_cycles && cycleTimeUs.value > 0) {
     renderActualCycleLines(ctx, {
       scrollLeft,
       width,
       height,
       actualCycles: logRangeDataAnalyzeMode.value.actual_cycles,
-      pxPerMs: pxPerMs.value,
+      pxPerUs: pxPerUs.value,
       styles
     });
   }
@@ -529,12 +529,12 @@ const renderContent = (styles: ThemeStyles) => {
  * for smooth frame rates while requesting missing range data in the background.
  */
 const requestVisibleLogRange = () => {
-  if (!contentScrollEl.value || !logSummaryAnalyzeMode.value || cycleTimeMs.value <= 0) return;
+  if (!contentScrollEl.value || !logSummaryAnalyzeMode.value || cycleTimeUs.value <= 0) return;
 
   const { scrollLeft, clientWidth } = contentScrollEl.value;
-  const startMs = Math.max(0, Math.floor(scrollLeft / pxPerMs.value));
-  const endMs = Math.ceil((scrollLeft + clientWidth) / pxPerMs.value);
-  fetchLogRange(startMs, endMs);
+  const startUs = Math.max(0, Math.floor(scrollLeft / pxPerUs.value));
+  const endUs = Math.ceil((scrollLeft + clientWidth) / pxPerUs.value);
+  fetchLogRange(startUs, endUs);
 };
 
 // --- Pipeline Orchestrator ---
@@ -573,7 +573,7 @@ const onScroll = (e: Event) => {
  * Handle mouse move over metrics content for crosshair and tooltip tracking.
  */
 const onMouseMove = (e: MouseEvent) => {
-  if (!contentScrollEl.value || pxPerMs.value <= 0) return;
+  if (!contentScrollEl.value || pxPerUs.value <= 0) return;
 
   const rect = contentScrollEl.value.getBoundingClientRect();
   const mouseX = e.clientX - rect.left;
@@ -582,8 +582,8 @@ const onMouseMove = (e: MouseEvent) => {
   const scrollTop = contentScrollEl.value.scrollTop;
 
   // Calculate physical time on timeline
-  const timeMs = (mouseX + scrollLeft) / pxPerMs.value;
-  if (timeMs < 0) {
+  const timeUs = (mouseX + scrollLeft) / pxPerUs.value;
+  if (timeUs < 0) {
     hoveredMetric.value = null;
     return;
   }
@@ -591,21 +591,21 @@ const onMouseMove = (e: MouseEvent) => {
   const actualCycles = logRangeDataAnalyzeMode.value?.actual_cycles;
   const actualMetrics = logRangeDataAnalyzeMode.value?.actual_metrics;
 
-  const matchedCycle = actualCycles ? findActualCycleForTime(actualCycles, timeMs) : null;
+  const matchedCycle = actualCycles ? findActualCycleForTime(actualCycles, timeUs) : null;
   if (!matchedCycle) {
     hoveredMetric.value = null;
     return;
   }
 
-  const actualConcurrency = actualMetrics ? findActualConcurrencyForTime(actualMetrics, timeMs) : 0;
-  const plannedConcurrency = findPlannedConcurrencyForTime(visiblePlannedSteps, timeMs);
+  const actualConcurrency = actualMetrics ? findActualConcurrencyForTime(actualMetrics, timeUs) : 0;
+  const plannedConcurrency = findPlannedConcurrencyForTime(visiblePlannedSteps, timeUs);
 
   hoveredMetric.value = {
-    timeMs,
+    timeUs,
     cycle: matchedCycle.cycle,
     actualConcurrency,
     plannedConcurrency,
-    jitterMs: matchedCycle.start_jitter_ms
+    jitterUs: matchedCycle.start_jitter_us
   };
 
   tooltipPos.value = { mouseX, mouseY, scrollLeft, scrollTop };
@@ -624,7 +624,7 @@ const onMouseLeave = () => {
 /**
  * Automatically adjust scroll position to keep center physical time anchored upon scale/cycle changes.
  */
-watch(pxPerMs, (newPx, oldPx) => {
+watch(pxPerUs, (newPx, oldPx) => {
   if (!contentScrollEl.value || !oldPx || !newPx || oldPx === newPx) return;
 
   const container = contentScrollEl.value;
@@ -632,8 +632,8 @@ watch(pxPerMs, (newPx, oldPx) => {
   if (viewportWidth <= 0) return;
 
   const currentScrollLeft = container.scrollLeft;
-  const centerMs = (currentScrollLeft + viewportWidth / 2) / oldPx;
-  const targetScrollLeft = Math.floor(centerMs * newPx - viewportWidth / 2);
+  const centerUs = (currentScrollLeft + viewportWidth / 2) / oldPx;
+  const targetScrollLeft = Math.floor(centerUs * newPx - viewportWidth / 2);
 
   nextTick(() => {
     if (!container) return;
@@ -655,7 +655,7 @@ watch(pxPerMs, (newPx, oldPx) => {
  */
 const renderDependencies = computed(() => ({
   pxPerCycle: pxPerCycle.value,
-  cycleTimeMs: cycleTimeMs.value,
+  cycleTimeUs: cycleTimeUs.value,
   totalCycles: totalCycles.value,
   totalWidth: totalWidth.value,
   clientConfigs: activeConfig.value.client_configs,
@@ -743,7 +743,7 @@ defineExpose({
           <div class="tooltip-card">
             <div class="tooltip-header">
               <span class="tooltip-cycle">Cycle #{{ hoveredMetric.cycle }}</span>
-              <span class="tooltip-time tooltip-mono">{{ hoveredMetric.timeMs.toFixed(2) }} ms</span>
+              <span class="tooltip-time tooltip-mono">{{ formatUsAsMs(hoveredMetric.timeUs) }}</span>
             </div>
             <div class="tooltip-metric-body">
               <div class="tooltip-metric-row">
@@ -761,7 +761,7 @@ defineExpose({
               <div class="tooltip-metric-row">
                 <span class="tooltip-metric-label">Cycle Jitter:</span>
                 <span class="tooltip-metric-value tooltip-mono">
-                  {{ hoveredMetric.jitterMs !== null ? formatDelta(hoveredMetric.jitterMs) : 'N/A' }}
+                  {{ hoveredMetric.jitterUs !== null ? formatDeltaUsAsMs(hoveredMetric.jitterUs) : 'N/A' }}
                 </span>
               </div>
             </div>
@@ -867,7 +867,7 @@ defineExpose({
   left: 0;
   z-index: 30;
   width: max-content;
-  max-width: 320px;
+  max-width: 360px;
   padding: 8px 12px;
   background-color: var(--rt-color-surface-elevated, #24272e);
   border: var(--rt-border-main);

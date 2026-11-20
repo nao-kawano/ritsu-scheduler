@@ -25,13 +25,14 @@ import { useConfig } from '../composables/useConfig';
 import { useSimulation } from '../composables/useSimulation';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useCreateModeLayout } from '../composables/useCreateModeLayout';
+import { formatUsAsMsInt } from '../utils/format';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
 const { configCreateMode } = useConfig();
 const { plannedMetricsCreateMode } = useSimulation();
-const { cycleTimeMs, getPos } = useTimeScale();
+const { cycleTimeUs, getPosFromUs } = useTimeScale();
 const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 
 // -----------------------------------------------------------------------------
@@ -80,7 +81,7 @@ const areaPath = computed(() => {
 
   for (let i = 0; i < plannedMetricsCreateMode.value.length; i++) {
     const current = plannedMetricsCreateMode.value[i];
-    const x = getPos(current.time_ms);
+    const x = getPosFromUs(current.time_us);
 
     // Calculate Y coordinate (inverted for SVG coordinates)
     const y = METRICS_HEIGHT - (current.running_count / maxCount) * (METRICS_HEIGHT - CHART_TOP_MARGIN);
@@ -99,7 +100,7 @@ const areaPath = computed(() => {
   }
 
   // Close the area by dropping to the ground line and closing back to start
-  const lastX = getPos(plannedMetricsCreateMode.value[plannedMetricsCreateMode.value.length - 1].time_ms);
+  const lastX = getPosFromUs(plannedMetricsCreateMode.value[plannedMetricsCreateMode.value.length - 1].time_us);
   path += ` L ${lastX},${METRICS_HEIGHT} Z`;
 
   return path;
@@ -123,7 +124,7 @@ const linePath = computed(() => {
 
   for (let i = 0; i < plannedMetricsCreateMode.value.length; i++) {
     const current = plannedMetricsCreateMode.value[i];
-    const x = getPos(current.time_ms);
+    const x = getPosFromUs(current.time_us);
 
     // Calculate Y coordinate with bottom boundary clamping for stroke width preservation
     const rawY = METRICS_HEIGHT - (current.running_count / maxCount) * (METRICS_HEIGHT - CHART_TOP_MARGIN);
@@ -183,7 +184,7 @@ defineExpose({
       <div class="time-axis" :style="{ width: totalWidth + 'px' }">
         <div v-for="n in totalCycles" :key="n" class="time-tick" :style="{ width: gridInfo.majorPx + 'px' }">
           <span class="cycle-label">Cycle {{ n - 1 }}</span>
-          <span class="time-label">{{ (n - 1) * cycleTimeMs }}ms</span>
+          <span class="time-label">{{ formatUsAsMsInt((n - 1) * cycleTimeUs) }}</span>
         </div>
       </div>
     </div>

@@ -26,7 +26,7 @@ export type InstantEventType = 'ready' | 'overrun' | 'skip' | 'late' | 'error' |
 export interface ActualInstantEvent {
   log_line_no: number;
   instance_id: number;
-  time_ms: number;
+  time_us: number;
   event_type: InstantEventType;
 }
 
@@ -38,8 +38,8 @@ export interface ActualExecution {
   log_line_no_end: number | null;
   instance_id: number;
   cycle: number;
-  start_ms: number;
-  duration_ms: number;
+  start_us: number;
+  duration_us: number;
   status: ExecutionStatus;
 }
 
@@ -47,7 +47,7 @@ export interface ActualExecution {
  * Actual metric data point for concurrency level over time.
  */
 export interface ActualMetricPoint {
-  time_ms: number;
+  time_us: number;
   running_count: number;
 }
 
@@ -56,8 +56,8 @@ export interface ActualMetricPoint {
  */
 export interface ActualCycle {
   cycle: number;
-  start_ms: number;
-  start_jitter_ms: number;
+  start_us: number;
+  start_jitter_us: number;
 }
 
 /**
@@ -66,10 +66,10 @@ export interface ActualCycle {
 export interface LogSummary {
   config: SchedulerConfig;
   max_concurrency: number;
-  total_duration_ms: number;
+  total_duration_us: number;
   total_cycles: number;
-  min_start_jitter_ms: number;
-  max_start_jitter_ms: number;
+  min_start_jitter_us: number;
+  max_start_jitter_us: number;
   is_truncated: boolean;
 }
 

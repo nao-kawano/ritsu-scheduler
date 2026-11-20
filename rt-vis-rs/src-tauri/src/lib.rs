@@ -89,8 +89,8 @@ fn load_log(path: &str, state: tauri::State<'_, AppState>) -> Result<LogSummary,
 
 #[tauri::command]
 fn get_log_range(
-    start_ms: u64,
-    end_ms: u64,
+    start_us: u64,
+    end_us: u64,
     state: tauri::State<'_, AppState>,
 ) -> Result<LogRangeData, String> {
     let lock = state
@@ -101,7 +101,7 @@ fn get_log_range(
         .as_ref()
         .ok_or_else(|| "No log file has been loaded yet".to_string())?;
 
-    Ok(store.get_range(start_ms, end_ms))
+    Ok(store.get_range(start_us, end_us))
 }
 
 #[cfg(debug_assertions)]
