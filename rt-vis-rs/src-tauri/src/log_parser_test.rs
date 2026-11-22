@@ -196,17 +196,24 @@ fn test_parse_real_log_overrun_and_cascaded_skip() {
         .count();
     assert_eq!(overrun_count, 3); // Overrun detected in cycles 2, 6, and 10
     assert_eq!(late_count, 3); // Late completion recorded in cycles 2, 6, and 10
+    let overrun_cycles: Vec<u64> = evts_cid10
+        .iter()
+        .filter(|e| e.event_type == InstantEventType::Overrun)
+        .map(|e| e.cycle)
+        .collect();
+    assert_eq!(overrun_cycles, vec![2, 6, 10]);
 
     // Verify cascaded skip on dependent task CID 11 across cycles
     let evts_cid11 = store
         .instant_events_by_cid
         .get(&11)
         .expect("Events for CID 11 not found");
-    let skip_count = evts_cid11
+    let skip_cycles: Vec<u64> = evts_cid11
         .iter()
         .filter(|e| e.event_type == InstantEventType::Skip)
-        .count();
-    assert_eq!(skip_count, 3); // Skipped in cycle 2, 6, and 10 due to CID 10 overrun
+        .map(|e| e.cycle)
+        .collect();
+    assert_eq!(skip_cycles, vec![2, 6, 10]); // Skipped in cycle 2, 6, and 10 due to CID 10 overrun
 
     // Dependent task CID 11 was skipped in all cycles, so no execution bars exist at all
     let execs_cid11 = store.executions_by_cid.get(&11).expect("CID 11 not found");
@@ -274,9 +281,10 @@ fn test_parse_retransmission_guard() {
         .expect("Events for CID 1 not found");
 
     // Startup JOIN and JOIN (Retransmit) prior to Cycle 0 START must be ignored.
-    // In-cycle Retransmit event must be captured.
+    // In-cycle Retransmit event must be captured with its cycle number.
     assert_eq!(events.len(), 1);
     assert_eq!(events[0].event_type, InstantEventType::Retransmit);
+    assert_eq!(events[0].cycle, 0);
     assert_eq!(events[0].time_us, 2_000);
 
     // Retransmit log must not generate duplicate execution bars.

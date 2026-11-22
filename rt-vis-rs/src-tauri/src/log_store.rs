@@ -17,7 +17,8 @@
 //!
 
 use crate::types::{
-    ActualCycle, ActualExecution, ActualInstantEvent, ActualMetricPoint, LogRangeData, LogSummary,
+    ActualCycle, ActualExecution, ActualInstantEvent, ActualMetricPoint, AnomalyEventItem,
+    AnomalyEventsPage, ClientBudgetStats, InstantEventType, LogRangeData, LogSummary,
 };
 
 use std::collections::HashMap;
@@ -40,6 +41,9 @@ pub const MAX_RANGE_METRICS: usize = 10_000;
 /// Maximum number of cycles returned in a single range request.
 pub const MAX_RANGE_CYCLES: usize = 5_000;
 
+/// Maximum number of anomaly events returned in a single page request.
+pub const MAX_ANOMALY_EVENTS_PAGE_LIMIT: usize = 1_000;
+
 /* -------------------------------------------------------------------------- */
 
 /// In-memory dataset holding the full parsed log for lifetime of the session.
@@ -50,30 +54,34 @@ pub const MAX_RANGE_CYCLES: usize = 5_000;
 ///   Ritsu's single-active-execution-per-CID state machine under monotonic timestamps), so
 ///   `start_us.saturating_add(duration_us)` is monotonically non-decreasing.
 /// - `instant_events_by_cid`, `metrics`, and `cycles`: sorted in ascending timestamp order.
+/// - `anomaly_events`: sorted chronologically by `(time_us, log_line_no, instance_id)` across all clients.
 #[derive(Debug, Clone)]
 pub struct LogStore {
     pub summary: LogSummary,
+    pub cycles: Vec<ActualCycle>,
     pub executions_by_cid: HashMap<u16, Vec<ActualExecution>>,
     pub instant_events_by_cid: HashMap<u16, Vec<ActualInstantEvent>>,
+    pub anomaly_events: Vec<AnomalyEventItem>,
     pub metrics: Vec<ActualMetricPoint>,
-    pub cycles: Vec<ActualCycle>,
 }
 
 impl LogStore {
     /// Constructs a new populated LogStore from parsed components.
     pub fn new(
         summary: LogSummary,
+        cycles: Vec<ActualCycle>,
         executions_by_cid: HashMap<u16, Vec<ActualExecution>>,
         instant_events_by_cid: HashMap<u16, Vec<ActualInstantEvent>>,
+        anomaly_events: Vec<AnomalyEventItem>,
         metrics: Vec<ActualMetricPoint>,
-        cycles: Vec<ActualCycle>,
     ) -> Self {
         Self {
             summary,
+            cycles,
             executions_by_cid,
             instant_events_by_cid,
+            anomaly_events,
             metrics,
-            cycles,
         }
     }
 
@@ -190,6 +198,67 @@ impl LogStore {
             actual_cycles,
             is_truncated,
         }
+    }
+
+    /// Returns a filtered, paginated slice of cross-client anomaly events without mutating the store.
+    pub fn get_anomaly_events(
+        &self,
+        cid: Option<u16>,
+        event_types: &[InstantEventType],
+        offset: usize,
+        limit: usize,
+    ) -> AnomalyEventsPage {
+        if event_types.is_empty() {
+            return AnomalyEventsPage {
+                total_count: 0,
+                items: Vec::new(),
+            };
+        }
+
+        let clamped_limit = limit.min(MAX_ANOMALY_EVENTS_PAGE_LIMIT);
+        let mut total_count: usize = 0;
+        let mut items = Vec::with_capacity(clamped_limit.min(self.anomaly_events.len()));
+
+        for item in &self.anomaly_events {
+            if let Some(target_cid) = cid
+                && item.cid != target_cid
+            {
+                continue;
+            }
+            if !event_types.contains(&item.event_type) {
+                continue;
+            }
+            if total_count >= offset && items.len() < clamped_limit {
+                items.push(item.clone());
+            }
+            total_count += 1;
+        }
+
+        AnomalyEventsPage { total_count, items }
+    }
+
+    /// Recomputes budget alignment statistics for a client against a candidate `expected_duration_ms`.
+    ///
+    /// Returns `None` if `cid` is absent or has no completed execution bars.
+    pub fn recompute_client_budget(
+        &self,
+        cid: u16,
+        expected_duration_ms: u32,
+    ) -> Option<ClientBudgetStats> {
+        let client_stats = self
+            .summary
+            .stats
+            .clients
+            .iter()
+            .find(|client| client.cid == cid)?;
+        let duration_stats = client_stats.duration.as_ref()?;
+        let executions = self.executions_by_cid.get(&cid)?;
+
+        Some(crate::stats::compute_client_budget(
+            executions,
+            duration_stats,
+            expected_duration_ms,
+        ))
     }
 }
 

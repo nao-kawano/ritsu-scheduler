@@ -20,8 +20,8 @@ use rt_config::SchedulerConfig;
 
 use crate::log_store::LogStore;
 use crate::types::{
-    ActualCycle, ActualExecution, ActualInstantEvent, ActualMetricPoint, ExecutionStatus,
-    InstantEventType, LogSummary,
+    ActualCycle, ActualExecution, ActualInstantEvent, ActualMetricPoint, AnomalyEventItem,
+    ExecutionStatus, InstantEventType, LogSummary,
 };
 
 use chrono::NaiveDateTime;
@@ -67,6 +67,7 @@ struct LogParserContext {
     in_progress: HashMap<u16, InProgressExecution>,
     executions_by_cid: HashMap<u16, Vec<ActualExecution>>,
     instant_events_by_cid: HashMap<u16, Vec<ActualInstantEvent>>,
+    anomaly_events: Vec<AnomalyEventItem>,
     metrics: Vec<ActualMetricPoint>,
     cycles: Vec<ActualCycle>,
 
@@ -93,6 +94,7 @@ impl LogParserContext {
             in_progress: HashMap::new(),
             executions_by_cid: HashMap::new(),
             instant_events_by_cid: HashMap::new(),
+            anomaly_events: Vec::new(),
             metrics: Vec::new(),
             cycles: Vec::new(),
 
@@ -169,7 +171,7 @@ impl LogParserContext {
 
         // Record retransmission event and skip state updates to prevent duplicate execution tracking.
         if stat_body.contains("(Retransmit)") {
-            self.record_instant_event(cid, current_us, InstantEventType::Retransmit);
+            self.record_instant_event(cid, cycle_num, current_us, InstantEventType::Retransmit);
             return;
         }
 
@@ -215,7 +217,7 @@ impl LogParserContext {
             if let Some(exec) = self.in_progress.get_mut(&cid) {
                 exec.status = ExecutionStatus::Overrun;
             }
-            self.record_instant_event(cid, current_us, InstantEventType::Overrun);
+            self.record_instant_event(cid, cycle_num, current_us, InstantEventType::Overrun);
         } else if stat_body.contains("Overrun -> Late") {
             // Overrun task completes late upon receiving DONE; finalize bar and record Late event.
             if let Some(exec) = self.in_progress.remove(&cid) {
@@ -235,27 +237,33 @@ impl LogParserContext {
                 self.current_running_count = self.current_running_count.saturating_sub(1);
                 record_metric_point(&mut self.metrics, current_us, self.current_running_count);
             }
-            self.record_instant_event(cid, current_us, InstantEventType::Late);
+            self.record_instant_event(cid, cycle_num, current_us, InstantEventType::Late);
         } else if stat_body.contains("Ready -> Skip") {
             // Task execution skipped due to dependency delay or prior skip; record Skip event.
-            self.record_instant_event(cid, current_us, InstantEventType::Skip);
+            self.record_instant_event(cid, cycle_num, current_us, InstantEventType::Skip);
         } else if stat_body.contains("Idle -> Late") {
             // Client missed cycle start without sending READY in time; record Late event.
-            self.record_instant_event(cid, current_us, InstantEventType::Late);
+            self.record_instant_event(cid, cycle_num, current_us, InstantEventType::Late);
         } else if stat_body.contains("Idle -> Ready")
             || stat_body.contains("Skip -> Ready")
             || stat_body.contains("Late -> Idle")
         {
             // Client transmitted READY to announce readiness or recover from late state; record Ready event.
-            self.record_instant_event(cid, current_us, InstantEventType::Ready);
+            self.record_instant_event(cid, cycle_num, current_us, InstantEventType::Ready);
         } else if stat_body.contains("EXIT") {
             // Client disconnected or terminated; record Exit event.
-            self.record_instant_event(cid, current_us, InstantEventType::Exit);
+            self.record_instant_event(cid, cycle_num, current_us, InstantEventType::Exit);
         }
     }
 
-    /// Records an instant point event for a client.
-    fn record_instant_event(&mut self, cid: u16, time_us: u64, event_type: InstantEventType) {
+    /// Records an instant point event for a client and captures anomalies for the timeline index.
+    fn record_instant_event(
+        &mut self,
+        cid: u16,
+        cycle: u64,
+        time_us: u64,
+        event_type: InstantEventType,
+    ) {
         let event_id = self.next_instant_event_id;
         self.next_instant_event_id += 1;
         self.instant_events_by_cid
@@ -264,14 +272,25 @@ impl LogParserContext {
             .push(ActualInstantEvent {
                 log_line_no: self.line_no,
                 instance_id: event_id,
+                cycle,
                 time_us,
                 event_type,
             });
+        if event_type.is_anomaly() {
+            self.anomaly_events.push(AnomalyEventItem {
+                log_line_no: self.line_no,
+                instance_id: event_id,
+                cid,
+                cycle,
+                time_us,
+                event_type,
+            });
+        }
     }
 
-    /// Finalizes parsing, safely closes open executions, and builds the LogStore.
+    /// Finalizes parsed structures, computes log statistics, and constructs the LogStore.
     fn finish(mut self) -> Result<LogStore, String> {
-        // Safely close any unfinished executions (e.g., server aborted or truncated log)
+        // Safely close any unfinished executions (e.g., server aborted or truncated log).
         for (cid, exec) in self.in_progress.into_iter() {
             let duration_us = self.last_log_us.saturating_sub(exec.start_us);
             self.executions_by_cid
@@ -287,19 +306,22 @@ impl LogParserContext {
                     status: exec.status,
                 });
         }
-        // Ensure scheduler configuration is parsed and validated before building the store.
+
+        // Resolve and validate the scheduler configuration before normalizing client maps.
         let config = match self.parsed_config {
             Some(cfg) => cfg,
             None => parse_embedded_config(&self.config_lines)?,
         };
 
-        // Normalize execution bars and instant events by sorting chronologically and ensuring entries exist for all configured clients.
+        // Normalize parsed collections chronologically and ensure entries exist for all configured clients.
         for execs in self.executions_by_cid.values_mut() {
             execs.sort_by_key(|e| e.start_us);
         }
         for evts in self.instant_events_by_cid.values_mut() {
             evts.sort_by_key(|e| e.time_us);
         }
+        self.anomaly_events
+            .sort_by_key(|item| (item.time_us, item.log_line_no, item.instance_id));
         for client in &config.client_configs {
             self.executions_by_cid.entry(client.client_id).or_default();
             self.instant_events_by_cid
@@ -307,28 +329,8 @@ impl LogParserContext {
                 .or_default();
         }
 
-        // Compute summary metrics across all parsed cycles and concurrency points.
-        let max_concurrency = self
-            .metrics
-            .iter()
-            .map(|m| m.running_count)
-            .max()
-            .unwrap_or(0);
+        // Finalize timeline bounds before computing statistics.
         let total_cycles = self.cycles.len() as u64;
-
-        let min_start_jitter_us = self
-            .cycles
-            .iter()
-            .map(|c| c.start_jitter_us)
-            .min()
-            .unwrap_or(0);
-        let max_start_jitter_us = self
-            .cycles
-            .iter()
-            .map(|c| c.start_jitter_us)
-            .max()
-            .unwrap_or(0);
-
         let cycle_time_us = (config.server_config.cycle_time_ms as u64) * 1_000;
         let final_cycle_end_us = self
             .cycles
@@ -337,7 +339,19 @@ impl LogParserContext {
             .unwrap_or(0);
         let total_duration_us = final_cycle_end_us.max(self.last_log_us);
 
-        // Construct log summary metadata.
+        // Compute log statistics and derive backward-compatible top-level summary metadata.
+        let stats = crate::stats::compute_log_stats(
+            &config,
+            &self.cycles,
+            &self.executions_by_cid,
+            &self.instant_events_by_cid,
+            &self.anomaly_events,
+            &self.metrics,
+            total_duration_us,
+        );
+        let max_concurrency = stats.concurrency.peak_concurrency;
+        let min_start_jitter_us = stats.jitter.as_ref().map(|j| j.min_us.min(0)).unwrap_or(0);
+        let max_start_jitter_us = stats.jitter.as_ref().map(|j| j.max_us.max(0)).unwrap_or(0);
         let summary = LogSummary {
             config,
             max_concurrency,
@@ -345,15 +359,17 @@ impl LogParserContext {
             total_cycles,
             min_start_jitter_us,
             max_start_jitter_us,
+            stats,
             is_truncated: self.is_truncated,
         };
 
         Ok(LogStore::new(
             summary,
+            self.cycles,
             self.executions_by_cid,
             self.instant_events_by_cid,
+            self.anomaly_events,
             self.metrics,
-            self.cycles,
         ))
     }
 }
