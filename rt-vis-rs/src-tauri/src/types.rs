@@ -355,11 +355,8 @@ pub struct ActualCycle {
 #[serde(rename_all = "snake_case")]
 pub struct LogSummary {
     pub config: SchedulerConfig,
-    pub max_concurrency: u32,
     pub total_duration_us: u64,
     pub total_cycles: u64,
-    pub min_start_jitter_us: i64,
-    pub max_start_jitter_us: i64,
     pub stats: LogStats,
     pub is_truncated: bool,
 }

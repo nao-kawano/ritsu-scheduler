@@ -159,7 +159,7 @@ fn test_parse_real_log_normal() {
 
     // Verify concurrency metrics preserve sub-millisecond transitions
     assert!(!store.metrics.is_empty());
-    assert!(store.summary.max_concurrency >= 1);
+    assert!(store.summary.stats.concurrency.peak_concurrency >= 1);
     assert_eq!(store.metrics[0].time_us, 571);
     assert_eq!(store.metrics[0].running_count, 1);
     assert_eq!(store.metrics[1].time_us, 11_484);
@@ -337,6 +337,12 @@ fn test_parse_cycle_jitter_positive_and_negative() {
     assert_eq!(store.cycles[3].start_us, 149_900);
     assert_eq!(store.cycles[3].start_jitter_us, 0);
 
-    assert_eq!(store.summary.min_start_jitter_us, -350);
-    assert_eq!(store.summary.max_start_jitter_us, 250);
+    let jitter = store
+        .summary
+        .stats
+        .jitter
+        .as_ref()
+        .expect("jitter stats should exist");
+    assert_eq!(jitter.min_us, -350);
+    assert_eq!(jitter.max_us, 250);
 }

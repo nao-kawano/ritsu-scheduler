@@ -595,11 +595,8 @@ fn test_store_recompute_client_budget_immutable() {
     let stats = compute_log_stats(&config, &[], &execs, &HashMap::new(), &[], &[], 100_000);
     let summary = LogSummary {
         config,
-        max_concurrency: 1,
         total_duration_us: 100_000,
         total_cycles: 0,
-        min_start_jitter_us: 0,
-        max_start_jitter_us: 0,
         is_truncated: false,
         stats,
     };
@@ -671,11 +668,8 @@ fn test_store_get_anomaly_events_filtering_and_paging() {
     );
     let summary = LogSummary {
         config,
-        max_concurrency: 0,
         total_duration_us: 200_000,
         total_cycles: 0,
-        min_start_jitter_us: 0,
-        max_start_jitter_us: 0,
         is_truncated: false,
         stats,
     };
@@ -952,14 +946,9 @@ fn test_parse_log_anomaly_ordering_and_positive_jitter_summary_compat() {
         );
     }
 
-    // Legacy summary fields stay consistent with stats while clamping min jitter at 0 for Cycle 0 compatibility.
-    assert_eq!(
-        store.summary.max_concurrency,
-        stats.concurrency.peak_concurrency
-    );
+    // Verify summary stats reflect parsed peak concurrency and cycle-to-cycle jitter (excluding Cycle 0).
+    assert!(stats.concurrency.peak_concurrency >= 1);
     let jitter = stats.jitter.as_ref().unwrap();
     assert_eq!(jitter.min_us, 200);
     assert_eq!(jitter.max_us, 500);
-    assert_eq!(store.summary.min_start_jitter_us, 0);
-    assert_eq!(store.summary.max_start_jitter_us, 500);
 }

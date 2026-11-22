@@ -27,7 +27,7 @@ import { useExecutionLog } from '../composables/useExecutionLog';
 import { useTimeScale } from '../composables/useTimeScale';
 import { useAnalyzeModeLayout } from '../composables/useAnalyzeModeLayout';
 import { useCanvasRender } from '../composables/useCanvasRender';
-import { getSimulationCycles, getMaxStartCycle, getSteadyPeriod, mapToTemplateCycle, groupPlansByAnchorCycle, filterVisibleActualCycles, findActualCycleForTime } from '../utils/cycle';
+import { getSimulationCycles, getMaxStartCycle, getSteadyPeriod, mapToTemplateCycle, groupPlansByAnchorCycle, filterVisibleActualCycles } from '../utils/cycle';
 import { mapPlansByInstanceId } from '../utils/simulation';
 import { formatUsAsMs, formatDeltaUsAsMs } from '../utils/format';
 import type { ActualExecution, ActualInstantEvent, ActualCycle } from '../types/analyze';
@@ -557,8 +557,6 @@ const renderInstantEvents = (
   const rangeData = logRangeDataAnalyzeMode.value;
   if (!rangeData || !rangeData.actual_instant_events_by_cid) return;
 
-  const actualCycles = rangeData.actual_cycles || [];
-
   rangeData.actual_instant_events_by_cid.forEach(([cid, events]) => {
     const r = cidToRowIndex.get(cid);
     if (r === undefined) return;
@@ -573,15 +571,14 @@ const renderInstantEvents = (
       // Horizontal viewport culling
       if (x + EVENT_DIAMOND_RADIUS_PX < 0 || x - EVENT_DIAMOND_RADIUS_PX > width) return;
 
-      // Reverse lookup cycle number and cache hit item for tooltip hit testing
-      const cycle = findActualCycleForTime(actualCycles, event.time_us)?.cycle ?? 0;
+      // Cache hit item for tooltip hit testing using cycle recorded by parser
       visibleHitEvents.push({
         cid,
         clientName,
         x,
         y: yCenter,
         event,
-        cycle
+        cycle: event.cycle
       });
 
       ctx.save();
@@ -750,6 +747,47 @@ const renderAll = () => {
   requestVisibleLogRange();
 };
 
+// --- Navigation & Jump ---
+
+/**
+ * Scrolls the timeline so that `timeUs` is horizontally centered in the viewport.
+ * When `cid` is provided, also centers that client row vertically.
+ */
+const scrollToTime = (timeUs: number, cid?: number) => {
+  if (!contentScrollEl.value || pxPerUs.value <= 0) return;
+
+  // Clear stale hover tooltips before jumping
+  hoveredBar.value = null;
+  hoveredEvents.value = null;
+  tooltipPos.value = null;
+
+  const container = contentScrollEl.value;
+  const viewportWidth = container.clientWidth;
+  const viewportHeight = container.clientHeight;
+
+  const targetX = timeUs * pxPerUs.value;
+  const maxScrollLeft = Math.max(0, container.scrollWidth - viewportWidth);
+  const clampedScrollLeft = Math.max(0, Math.min(maxScrollLeft, Math.floor(targetX - viewportWidth / 2)));
+
+  container.scrollLeft = clampedScrollLeft;
+  if (headerScrollEl.value) {
+    headerScrollEl.value.scrollLeft = clampedScrollLeft;
+  }
+
+  if (cid !== undefined) {
+    const rowIndex = cidToRowIndex.value.get(cid);
+    if (rowIndex !== undefined) {
+      const rowCenterY = rowIndex * ROW_HEIGHT + ROW_HEIGHT / 2;
+      const maxScrollTop = Math.max(0, container.scrollHeight - viewportHeight);
+      const clampedScrollTop = Math.max(0, Math.min(maxScrollTop, Math.floor(rowCenterY - viewportHeight / 2)));
+      container.scrollTop = clampedScrollTop;
+    }
+  }
+
+  // Re-render and request range data immediately even if scroll offset did not change
+  renderAll();
+};
+
 // -----------------------------------------------------------------------------
 // Event Handlers
 
@@ -897,7 +935,28 @@ const onLayoutOrThemeChange = () => {
   renderAll();
 };
 
+let resizeRafId: number | null = null;
+
+/**
+ * Schedule a rAF-throttled re-render when the container element resizes (e.g. sidebar toggle).
+ */
+const onContainerResize = () => {
+  if (resizeRafId === null) {
+    resizeRafId = window.requestAnimationFrame(() => {
+      resizeRafId = null;
+      renderAll();
+    });
+  }
+};
+
 const themeMutationObserver = new MutationObserver(onLayoutOrThemeChange);
+const containerResizeObserver = new ResizeObserver(onContainerResize);
+
+// Re-bind ResizeObserver whenever :key="activeConfig.sessionId" recreates the scroll container DOM
+watch(contentScrollEl, (newEl, oldEl) => {
+  if (oldEl) containerResizeObserver.unobserve(oldEl);
+  if (newEl) containerResizeObserver.observe(newEl);
+}, { immediate: true, flush: 'post' });
 
 onMounted(() => {
   updateThemeStyles();
@@ -916,7 +975,12 @@ onUnmounted(() => {
     window.cancelAnimationFrame(renderRafId);
     renderRafId = null;
   }
+  if (resizeRafId !== null) {
+    window.cancelAnimationFrame(resizeRafId);
+    resizeRafId = null;
+  }
   window.removeEventListener('resize', onLayoutOrThemeChange);
+  containerResizeObserver.disconnect();
   themeMutationObserver.disconnect();
 });
 
@@ -925,7 +989,8 @@ onUnmounted(() => {
 
 defineExpose({
   headerScrollEl,
-  contentScrollEl
+  contentScrollEl,
+  scrollToTime
 });
 </script>
 

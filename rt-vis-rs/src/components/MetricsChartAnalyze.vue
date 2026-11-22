@@ -328,7 +328,7 @@ const renderMetricsRow1Actual = (
 
 /**
  * Render Row 1: Concurrent client count metrics (Planned translucent area + Actual error-colored step chart).
- * Uses dynamic scaling based on log max_concurrency metadata and planned metrics.
+ * Uses dynamic scaling based on log peak concurrency statistics and planned metrics.
  */
 const renderMetricsRow1 = (
   ctx: CanvasRenderingContext2D,
@@ -342,7 +342,7 @@ const renderMetricsRow1 = (
 
   const planned = plannedMetricsAnalyzeMode.value;
   const plannedMax = planned && planned.length > 0 ? Math.max(...planned.map(p => p.running_count)) : 1;
-  const logMax = logSummaryAnalyzeMode.value.max_concurrency || 1;
+  const logMax = logSummaryAnalyzeMode.value.stats.concurrency.peak_concurrency || 1;
   const maxConcurrency = Math.max(1, plannedMax, logMax);
 
   renderMetricsRow1Planned(ctx, scrollLeft, width, maxConcurrency, row1BaseY, styles);
@@ -424,10 +424,10 @@ const renderMetricsRow2 = (
   const row2BottomY = ROW_HEIGHT * 2 - CHART_BOTTOM_MARGIN;
   const availableHeight = row2BottomY - row2TopY;
 
-  // Dynamic baseline calculations using min/max start jitter metadata
+  // Dynamic baseline calculations using jitter statistics
   // Prevents negative jitter space from wasting 50% of the canvas when delays are predominantly positive.
-  const minJitter = Math.min(0, summary.min_start_jitter_us ?? 0);
-  const maxJitter = Math.max(100, summary.max_start_jitter_us ?? 100);
+  const minJitter = Math.min(0, summary.stats.jitter?.min_us ?? 0);
+  const maxJitter = Math.max(100, summary.stats.jitter?.max_us ?? 100);
   const jitterSpan = Math.max(100, maxJitter - minJitter);
 
   // Position 0ms baseline dynamically based on min/max ratio.
@@ -685,7 +685,28 @@ const onLayoutOrThemeChange = () => {
   renderAll();
 };
 
+let resizeRafId: number | null = null;
+
+/**
+ * Schedule a rAF-throttled re-render when the container element resizes (e.g. sidebar toggle).
+ */
+const onContainerResize = () => {
+  if (resizeRafId === null) {
+    resizeRafId = window.requestAnimationFrame(() => {
+      resizeRafId = null;
+      renderAll();
+    });
+  }
+};
+
 const themeMutationObserver = new MutationObserver(onLayoutOrThemeChange);
+const containerResizeObserver = new ResizeObserver(onContainerResize);
+
+// Re-bind ResizeObserver whenever :key="activeConfig.sessionId" recreates the scroll container DOM
+watch(contentScrollEl, (newEl, oldEl) => {
+  if (oldEl) containerResizeObserver.unobserve(oldEl);
+  if (newEl) containerResizeObserver.observe(newEl);
+}, { immediate: true, flush: 'post' });
 
 onMounted(() => {
   updateThemeStyles();
@@ -704,7 +725,12 @@ onUnmounted(() => {
     window.cancelAnimationFrame(renderRafId);
     renderRafId = null;
   }
+  if (resizeRafId !== null) {
+    window.cancelAnimationFrame(resizeRafId);
+    resizeRafId = null;
+  }
   window.removeEventListener('resize', onLayoutOrThemeChange);
+  containerResizeObserver.disconnect();
   themeMutationObserver.disconnect();
 });
 

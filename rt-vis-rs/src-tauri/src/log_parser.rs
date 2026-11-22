@@ -339,7 +339,7 @@ impl LogParserContext {
             .unwrap_or(0);
         let total_duration_us = final_cycle_end_us.max(self.last_log_us);
 
-        // Compute log statistics and derive backward-compatible top-level summary metadata.
+        // Compute log statistics and build summary metadata.
         let stats = crate::stats::compute_log_stats(
             &config,
             &self.cycles,
@@ -349,16 +349,10 @@ impl LogParserContext {
             &self.metrics,
             total_duration_us,
         );
-        let max_concurrency = stats.concurrency.peak_concurrency;
-        let min_start_jitter_us = stats.jitter.as_ref().map(|j| j.min_us.min(0)).unwrap_or(0);
-        let max_start_jitter_us = stats.jitter.as_ref().map(|j| j.max_us.max(0)).unwrap_or(0);
         let summary = LogSummary {
             config,
-            max_concurrency,
             total_duration_us,
             total_cycles,
-            min_start_jitter_us,
-            max_start_jitter_us,
             stats,
             is_truncated: self.is_truncated,
         };

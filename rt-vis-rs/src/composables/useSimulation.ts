@@ -19,7 +19,12 @@
 
 import { ref, watch } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
-import type { PlannedExecution, PlannedMetricPoint, SimulationResult } from '../types/simulation';
+import type {
+  ConcurrencyStats,
+  PlannedExecution,
+  PlannedMetricPoint,
+  SimulationResult
+} from '../types/simulation';
 import { useApp } from './useApp';
 import { useConfig } from './useConfig';
 
@@ -36,6 +41,7 @@ const SIMULATION_DEBOUNCE_MS = 100;
 // Simulation results for Create Mode
 const plannedExecutionsCreateMode = ref<PlannedExecution[]>([]);
 const plannedMetricsCreateMode = ref<PlannedMetricPoint[]>([]);
+const plannedConcurrencyStatsCreateMode = ref<ConcurrencyStats | null>(null);
 
 // Simulation results for Analyze Mode
 const plannedExecutionsAnalyzeMode = ref<PlannedExecution[]>([]);
@@ -87,6 +93,7 @@ export function useSimulation() {
         if (mode.value === 'Create') {
           plannedExecutionsCreateMode.value = result.executions;
           plannedMetricsCreateMode.value = result.metrics;
+          plannedConcurrencyStatsCreateMode.value = result.concurrency_stats;
         } else {
           plannedExecutionsAnalyzeMode.value = result.executions;
           plannedMetricsAnalyzeMode.value = result.metrics;
@@ -101,6 +108,7 @@ export function useSimulation() {
         if (mode.value === 'Create') {
           plannedExecutionsCreateMode.value = [];
           plannedMetricsCreateMode.value = [];
+          plannedConcurrencyStatsCreateMode.value = null;
         } else {
           plannedExecutionsAnalyzeMode.value = [];
           plannedMetricsAnalyzeMode.value = [];
@@ -121,6 +129,7 @@ export function useSimulation() {
     if (mode.value === 'Create') {
       plannedExecutionsCreateMode.value = [];
       plannedMetricsCreateMode.value = [];
+      plannedConcurrencyStatsCreateMode.value = null;
     } else {
       plannedExecutionsAnalyzeMode.value = [];
       plannedMetricsAnalyzeMode.value = [];
@@ -162,6 +171,7 @@ export function useSimulation() {
   return {
     plannedExecutionsCreateMode,
     plannedMetricsCreateMode,
+    plannedConcurrencyStatsCreateMode,
     plannedExecutionsAnalyzeMode,
     plannedMetricsAnalyzeMode,
     configErrors,
