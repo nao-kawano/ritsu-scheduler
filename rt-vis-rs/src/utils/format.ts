@@ -58,3 +58,21 @@ export function formatDeltaCount(delta: number): string {
   const sign = delta > 0 ? '+' : '';
   return `${sign}${delta}`;
 }
+
+/**
+ * Format a numeric client identifier as zero-padded CID label (e.g. "CID: 001" or "CID: 001 (sensor)").
+ */
+export function formatCid(cid: number, displayName?: string): string {
+  const padded = String(cid).padStart(3, '0');
+  return displayName ? `CID: ${padded} (${displayName})` : `CID: ${padded}`;
+}
+
+/**
+ * Format a [0, 1] ratio as percentage with a space before "%" (e.g. "100.00 %").
+ * Normalizes negative zero residuals to "0.00 %".
+ */
+export function formatRatioAsPercent(ratio: number, decimals: number = 2): string {
+  const pct = ratio * 100;
+  const normalized = Math.abs(pct) < 1e-12 ? 0 : pct;
+  return `${normalized.toFixed(decimals)} %`;
+}

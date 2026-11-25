@@ -35,8 +35,31 @@ export interface PlannedMetricPoint {
   running_count: number;
 }
 
+/**
+ * Time-weighted duration and ratio spent at a discrete concurrency level.
+ */
+export interface ConcurrencyLevelStat {
+  level: number;
+  duration_us: number;
+  ratio: number;
+}
+
+/**
+ * System-wide concurrency and utilization statistics over a time window.
+ */
+export interface ConcurrencyStats {
+  total_duration_us: number;
+  active_duration_us: number;
+  active_ratio: number;
+  active_avg_concurrency: number;
+  peak_concurrency: number;
+  peak_time_us: number | null;
+  distribution: ConcurrencyLevelStat[];
+}
+
 export interface SimulationResult {
   executions: PlannedExecution[];
   metrics: PlannedMetricPoint[];
+  concurrency_stats: ConcurrencyStats | null;
   config_errors: Record<number, string[]>;
 }

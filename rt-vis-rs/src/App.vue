@@ -25,6 +25,7 @@ import { useScrollSync } from "./composables/useScrollSync";
 import { useApp } from "./composables/useApp";
 import { useConfig } from "./composables/useConfig";
 import { useSimulation } from "./composables/useSimulation";
+import { useStatsPanel } from "./composables/useStatsPanel";
 
 import TopControl from "./components/TopControl.vue";
 import ClientList from "./components/ClientList.vue";
@@ -33,6 +34,7 @@ import ZoomControl from "./components/ZoomControl.vue";
 import GlobalError from "./components/GlobalError.vue";
 import ServerAdvancedPopup from "./components/ServerAdvancedPopup.vue";
 import ClientEditPopup from "./components/ClientEditPopup.vue";
+import StatsPanel from "./components/stats/StatsPanel.vue";
 
 // Mode-specific components
 import TimelineViewCreate from "./components/TimelineViewCreate.vue";
@@ -46,6 +48,7 @@ import MetricsChartAnalyze from "./components/MetricsChartAnalyze.vue";
 const { mode } = useApp();
 const { isOpenServerAdvanced, selectedClientWrap } = useConfig();
 const { simulationError } = useSimulation();
+const { isOpen: isStatsOpen } = useStatsPanel();
 
 // -----------------------------------------------------------------------------
 // Props & Emits
@@ -110,7 +113,14 @@ const { onClientListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync(
 // -----------------------------------------------------------------------------
 // Event Handlers
 
-// (none)
+/**
+ * Scrolls the Analyze timeline viewport to the given timestamp and optional client row.
+ */
+const onJumpToTime = (timeUs: number, cid?: number) => {
+  if (mode.value === 'Analyze' && timelineViewRef.value?.scrollToTime) {
+    timelineViewRef.value.scrollToTime(timeUs, cid);
+  }
+};
 
 // -----------------------------------------------------------------------------
 // Watchers & Reactive Triggers
@@ -139,27 +149,34 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
     <!-- Top Pane -->
     <TopControl />
 
-    <div class="timeline-section">
-      <!-- Global Floating Error Display -->
-      <GlobalError :message="currentErrorMessage" class="floating-error" />
+    <div class="workspace-body" :class="{ 'is-stats-open': isStatsOpen }">
+      <div class="workspace-main">
+        <div class="timeline-section">
+          <!-- Global Floating Error Display -->
+          <GlobalError :message="currentErrorMessage" class="floating-error" />
 
-      <!-- Left Pane -->
-      <ClientList :key="mode" ref="clientListRef" @scroll="onClientListScroll" />
+          <!-- Left Pane -->
+          <ClientList :key="mode" ref="clientListRef" @scroll="onClientListScroll" />
 
-      <!-- Right Pane -->
-      <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewAnalyze" ref="timelineViewRef"
-        @scroll="onTimelineScroll" />
+          <!-- Right Pane -->
+          <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewAnalyze" ref="timelineViewRef"
+            @scroll="onTimelineScroll" />
 
-      <!-- Floating Zoom Control -->
-      <ZoomControl class="floating-zoom" />
+          <!-- Floating Zoom Control -->
+          <ZoomControl class="floating-zoom" />
+        </div>
+
+        <!-- Bottom Pane -->
+        <footer class="metrics-section">
+          <MetricsLabels />
+          <component :is="mode === 'Create' ? MetricsChartCreate : MetricsChartAnalyze" ref="metricsChartRef"
+            @scroll="onMetricsScroll" />
+        </footer>
+      </div>
+
+      <!-- Right Statistics Inspector Pane -->
+      <StatsPanel v-if="isStatsOpen" @jump="onJumpToTime" />
     </div>
-
-    <!-- Bottom Pane -->
-    <footer class="metrics-section">
-      <MetricsLabels />
-      <component :is="mode === 'Create' ? MetricsChartCreate : MetricsChartAnalyze" ref="metricsChartRef"
-        @scroll="onMetricsScroll" />
-    </footer>
 
     <!-- Edit Popups (Conditional) -->
     <ServerAdvancedPopup v-if="isOpenServerAdvanced" />
@@ -182,6 +199,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
   --top-height: 100px;
   --bottom-height: 193px;
   --left-width: 280px;
+  --right-width: 360px;
   --row-height: 70px;
   --header-row-height: 36px;
   --sb-size: 16px;
@@ -201,6 +219,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
   --rt-font-m: 14px;
   --rt-font-l: 18px;
   --rt-font-brand: 22px;
+  --rt-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 
 /* --- Semantic Color Mapping (Binds M3 to RT) --- */
@@ -219,6 +238,8 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
   /* Primary */
   --rt-color-primary: var(--md-sys-color-primary);
   --rt-color-on-primary: var(--md-sys-color-on-primary);
+  --rt-color-primary-container: var(--md-sys-color-primary-container);
+  --rt-color-on-primary-container: var(--md-sys-color-on-primary-container);
 
   /* Secondary */
   --rt-color-secondary: var(--md-sys-color-secondary);
@@ -235,6 +256,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
   --rt-color-on-error-container: var(--md-sys-color-on-error-container);
 
   --rt-color-warning: var(--md-extended-color-warning-color);
+  --rt-color-on-warning: var(--md-extended-color-warning-on-color);
   --rt-color-warning-container: var(--md-extended-color-warning-color-container);
   --rt-color-on-warning-container: var(--md-extended-color-warning-on-color-container);
 
@@ -275,6 +297,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
   --rt-bshadow-pop-error: 3px 3px 3px 0px var(--rt-color-error-container);
   --rt-bshadow-focus: 0 0 3px 2px var(--md-sys-color-primary-fixed-dim);
   --rt-bshadow-invalid: 0 0 3px 2px var(--rt-color-error-container);
+  --rt-bshadow-tooltip: 0 4px 16px rgba(0, 0, 0, 0.45);
   --rt-grid-major: color-mix(in srgb, var(--rt-color-text) 30%, transparent);
   --rt-grid-minor: color-mix(in srgb, var(--rt-color-text) 10%, transparent);
 }
@@ -395,6 +418,38 @@ body.is-dragging-resize * {
 .rt-btn-ghost:hover {
   background: var(--rt-color-surface-header);
   color: var(--rt-color-text);
+}
+
+.rt-icon-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: var(--rt-radius-s);
+  background: transparent;
+  color: var(--rt-color-text-dim);
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s, box-shadow 0.15s;
+}
+
+.rt-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.rt-icon-btn:not(:disabled):not(.is-active):hover {
+  background-color: var(--rt-color-surface-header);
+  color: var(--rt-color-text);
+}
+
+.rt-icon-btn.is-active {
+  background-color: var(--rt-color-primary);
+  box-shadow: var(--rt-bshadow-focus);
+  color: var(--rt-color-on-primary);
 }
 
 /* --- Toggle Switch --- */
@@ -679,6 +734,19 @@ body.is-dragging-resize * {
   margin-top: 32px;
 }
 
+/* --- Floating Tooltips --- */
+
+.rt-tooltip {
+  width: max-content;
+  border: var(--rt-border-main);
+  border-radius: var(--rt-radius-m);
+  background-color: var(--rt-color-surface-elevated);
+  box-shadow: var(--rt-bshadow-tooltip);
+  color: var(--rt-color-text);
+  pointer-events: none;
+  user-select: none;
+}
+
 /* -----------------------------------------------------------------------------
  * States & Modifiers
  * ----------------------------------------------------------------------------- */
@@ -696,11 +764,27 @@ body.is-dragging-resize * {
 
 .app-container {
   display: grid;
-  grid-template-rows: var(--top-height) 1fr var(--bottom-height);
+  grid-template-rows: var(--top-height) 1fr;
   width: 100vw;
   height: 100vh;
   overflow: hidden;
   background-color: var(--rt-color-bg);
+}
+
+.workspace-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.workspace-main {
+  display: grid;
+  grid-template-rows: 1fr var(--bottom-height);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .timeline-section {
@@ -747,5 +831,7 @@ body.is-dragging-resize * {
  * States & Modifiers
  * ----------------------------------------------------------------------------- */
 
-/* (none) */
+.workspace-body.is-stats-open {
+  grid-template-columns: minmax(0, 1fr) var(--right-width);
+}
 </style>

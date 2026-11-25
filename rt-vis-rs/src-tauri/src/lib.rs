@@ -18,11 +18,12 @@ use rt_config::SchedulerConfig;
 mod log_parser;
 mod log_store;
 mod simulator;
+mod stats;
 mod types;
 
 use log_store::LogStore;
 use simulator::simulate_plan;
-use types::{LogRangeData, LogSummary};
+use types::{AnomalyEventsPage, ClientBudgetStats, InstantEventType, LogRangeData, LogSummary};
 
 use std::fs::File;
 use std::io::BufReader;
@@ -42,6 +43,21 @@ impl Default for AppState {
             log_store: Mutex::new(None),
         }
     }
+}
+
+/// Executes a read-only operation against the currently loaded LogStore.
+fn with_loaded_log_store<T>(
+    state: &tauri::State<'_, AppState>,
+    f: impl FnOnce(&LogStore) -> T,
+) -> Result<T, String> {
+    let lock = state
+        .log_store
+        .lock()
+        .map_err(|e| format!("Failed to acquire log store lock: {}", e))?;
+    let store = lock
+        .as_ref()
+        .ok_or_else(|| "No log file has been loaded yet".to_string())?;
+    Ok(f(store))
 }
 
 /* -------------------------------------------------------------------------- */
@@ -93,15 +109,31 @@ fn get_log_range(
     end_us: u64,
     state: tauri::State<'_, AppState>,
 ) -> Result<LogRangeData, String> {
-    let lock = state
-        .log_store
-        .lock()
-        .map_err(|e| format!("Failed to acquire log store lock: {}", e))?;
-    let store = lock
-        .as_ref()
-        .ok_or_else(|| "No log file has been loaded yet".to_string())?;
+    with_loaded_log_store(&state, |store| store.get_range(start_us, end_us))
+}
 
-    Ok(store.get_range(start_us, end_us))
+#[tauri::command]
+fn get_anomaly_events(
+    cid: Option<u16>,
+    event_types: Vec<InstantEventType>,
+    offset: usize,
+    limit: usize,
+    state: tauri::State<'_, AppState>,
+) -> Result<AnomalyEventsPage, String> {
+    with_loaded_log_store(&state, |store| {
+        store.get_anomaly_events(cid, &event_types, offset, limit)
+    })
+}
+
+#[tauri::command]
+fn recompute_client_budget(
+    cid: u16,
+    expected_duration_ms: u32,
+    state: tauri::State<'_, AppState>,
+) -> Result<Option<ClientBudgetStats>, String> {
+    with_loaded_log_store(&state, |store| {
+        store.recompute_client_budget(cid, expected_duration_ms)
+    })
 }
 
 #[cfg(debug_assertions)]
@@ -163,7 +195,9 @@ pub fn run() {
             save_config,
             simulate_plan,
             load_log,
-            get_log_range
+            get_log_range,
+            get_anomaly_events,
+            recompute_client_budget
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

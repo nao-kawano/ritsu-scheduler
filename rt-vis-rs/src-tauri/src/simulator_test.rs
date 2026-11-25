@@ -327,6 +327,26 @@ fn test_simulate_plan_concurrent_metrics() {
     assert_eq!(result.metrics[7].running_count, 0);
     assert_eq!(result.metrics[8].time_us, 400_000);
     assert_eq!(result.metrics[8].running_count, 0);
+
+    // Steady-state 2nd period is [200_000, 400_000):
+    // [200_000, 300_000) -> level 1 (100_000us)
+    // [300_000, 330_000) -> level 2 (30_000us)
+    // [330_000, 350_000) -> level 1 (20_000us)
+    // [350_000, 400_000) -> level 0 (50_000us)
+    let cstats = result
+        .concurrency_stats
+        .expect("concurrency_stats should be Some for valid simulation");
+    assert_eq!(cstats.total_duration_us, 200_000);
+    assert_eq!(cstats.active_duration_us, 150_000);
+    assert!((cstats.active_ratio - 0.75).abs() < 1e-9);
+    // Weighted active sum: (1 * 120_000 + 2 * 30_000) / 150_000 = 1.2
+    assert!((cstats.active_avg_concurrency - 1.2).abs() < 1e-9);
+    assert_eq!(cstats.peak_concurrency, 2);
+    assert_eq!(cstats.peak_time_us, Some(300_000));
+    assert_eq!(cstats.distribution.len(), 3);
+    assert_eq!(cstats.distribution[0].duration_us, 50_000);
+    assert_eq!(cstats.distribution[1].duration_us, 120_000);
+    assert_eq!(cstats.distribution[2].duration_us, 30_000);
 }
 
 #[test]
@@ -577,4 +597,37 @@ fn test_simulate_plan_start_cycle() {
 
     assert_eq!(execs_2[1].start_us, 300_000);
     assert_eq!(execs_2[1].anchor_cycle, 3);
+
+    // Steady-state 2nd period: [max_start_cycle + max_interval, max_manager_cycle] = [3, 5] => [300_000, 500_000)
+    // Cycle 3: P2 runs [300_000, 310_000], Cycle 4: P1 runs [400_000, 410_000].
+    let cstats = result
+        .concurrency_stats
+        .expect("concurrency_stats should be Some for start_cycle simulation");
+    assert_eq!(cstats.total_duration_us, 200_000);
+    assert_eq!(cstats.active_duration_us, 20_000);
+    assert!((cstats.active_ratio - 0.1).abs() < 1e-9);
+    assert!((cstats.active_avg_concurrency - 1.0).abs() < 1e-9);
+    assert_eq!(cstats.peak_concurrency, 1);
+    assert_eq!(cstats.peak_time_us, Some(300_000));
+}
+
+#[test]
+fn test_simulate_plan_empty_and_invalid_return_none_stats() {
+    init_test_logger();
+
+    // Empty client list -> concurrency_stats must be None
+    let empty_cfg = create_config(Vec::new());
+    let empty_res = simulate_plan(empty_cfg).unwrap();
+    assert!(empty_res.concurrency_stats.is_none());
+
+    // Invalid config (unknown dependency CID) -> concurrency_stats must be None
+    let invalid_cfg = create_config(vec![
+        ClientConfig::builder(1, 1)
+            .depends(vec![999])
+            .build()
+            .unwrap(),
+    ]);
+    let invalid_res = simulate_plan(invalid_cfg).unwrap();
+    assert!(!invalid_res.config_errors.is_empty());
+    assert!(invalid_res.concurrency_stats.is_none());
 }

@@ -15,7 +15,7 @@
 
 use super::*;
 use crate::log_parser::parse_log;
-use crate::types::ExecutionStatus;
+use crate::types::{ExecutionStatus, LogStats};
 use rt_config::{SchedulerConfig, ServerConfig};
 
 /* -------------------------------------------------------------------------- */
@@ -314,20 +314,19 @@ fn build_synthetic_store(
             },
             client_configs: Vec::new(),
         },
-        max_concurrency: 1,
         total_duration_us: 0,
         total_cycles: 0,
-        min_start_jitter_us: 0,
-        max_start_jitter_us: 0,
         is_truncated: false,
+        stats: LogStats::default(),
     };
 
     LogStore::new(
         summary,
+        Vec::new(),
         executions_by_cid,
         HashMap::new(),
-        metrics,
         Vec::new(),
+        metrics,
     )
 }
 

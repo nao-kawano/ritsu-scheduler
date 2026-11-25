@@ -17,11 +17,22 @@
 // Imports
 // =============================================================================
 
-import { ref } from 'vue';
+import { effectScope, ref, watch, type EffectScope } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
-import type { LogSummary, LogRangeData } from '../types/analyze';
-import { mockLoadLog, mockGetLogRange } from '../utils/mockAnalyzeLog';
+import type {
+  AnomalyEventsPage,
+  ClientBudgetStats,
+  InstantEventType,
+  LogRangeData,
+  LogSummary
+} from '../types/analyze';
+import {
+  mockGetAnomalyEvents,
+  mockGetLogRange,
+  mockLoadLog,
+  mockRecomputeClientBudget
+} from '../utils/mockAnalyzeLog';
 import { useConfig } from './useConfig';
 import { useSimulation } from './useSimulation';
 
@@ -48,10 +59,19 @@ const logSummaryAnalyzeMode = ref<LogSummary | null>(null);
 const logRangeDataAnalyzeMode = ref<LogRangeData | null>(null);
 const isLogLoading = ref<boolean>(false);
 
+// Per-client budget overrides computed when expected_duration_ms is edited in Analyze Mode
+const budgetOverridesByCid = ref<Map<number, ClientBudgetStats>>(new Map());
+
 // Internal range cache and flight state
 const cachedWindowRangeAnalyzeMode = ref<{ start_us: number; end_us: number } | null>(null);
 const inFlightRangeAnalyzeMode = ref<{ start_us: number; end_us: number } | null>(null);
 let fetchLogRangeTimer: number | null = null;
+
+// Session and per-CID sequence counters to discard stale async budget recomputations
+let logSessionSeq = 0;
+const recomputeSeqByCid = new Map<number, number>();
+const lastExpectedDurationMsByCid = new Map<number, number>();
+let budgetWatcherScope: EffectScope | null = null;
 
 // =============================================================================
 // Internal Helpers
@@ -67,7 +87,7 @@ export function useExecutionLog() {
   // ---------------------------------------------------------------------------
   // Dependencies & Inject
 
-  const { restoreConfigFromLog } = useConfig();
+  const { configAnalyzeMode, restoreConfigFromLog } = useConfig();
   const { simulatePlan } = useSimulation();
 
   // ---------------------------------------------------------------------------
@@ -108,6 +128,15 @@ export function useExecutionLog() {
 
       currentLogPathAnalyzeMode.value = logPath;
       logSummaryAnalyzeMode.value = summary;
+
+      // Reset budget overrides and seed expected durations before restoring config to avoid spurious recomputation
+      logSessionSeq += 1;
+      budgetOverridesByCid.value = new Map();
+      recomputeSeqByCid.clear();
+      lastExpectedDurationMsByCid.clear();
+      for (const client of summary.config.client_configs) {
+        lastExpectedDurationMsByCid.set(client.client_id, client.expected_duration_ms);
+      }
 
       // Sync restored config from log to configAnalyzeMode
       restoreConfigFromLog(summary.config);
@@ -194,10 +223,131 @@ export function useExecutionLog() {
     }, delay);
   };
 
+  /**
+   * Fetches a filtered, paginated slice of cross-client anomaly events from backend or mock store.
+   */
+  const fetchAnomalyEvents = async (
+    cid: number | null,
+    eventTypes: InstantEventType[],
+    offset: number,
+    limit: number
+  ): Promise<AnomalyEventsPage> => {
+    if (USE_MOCK_LOG) {
+      return mockGetAnomalyEvents(cid, eventTypes, offset, limit);
+    }
+    return invoke<AnomalyEventsPage>('get_anomaly_events', {
+      cid,
+      eventTypes,
+      offset,
+      limit
+    });
+  };
+
+  /**
+   * Recomputes budget alignment statistics for a client against a candidate expected_duration_ms
+   * without mutating the immutable baseline LogSummary.stats.
+   */
+  const recomputeClientBudget = async (cid: number, expectedDurationMs: number): Promise<void> => {
+    if (!logSummaryAnalyzeMode.value || !Number.isFinite(expectedDurationMs)) {
+      return;
+    }
+
+    const normalizedMs = Math.max(0, Math.round(expectedDurationMs));
+    const session = logSessionSeq;
+    const seq = (recomputeSeqByCid.get(cid) ?? 0) + 1;
+    recomputeSeqByCid.set(cid, seq);
+
+    try {
+      const result = USE_MOCK_LOG
+        ? await mockRecomputeClientBudget(cid, normalizedMs)
+        : await invoke<ClientBudgetStats | null>('recompute_client_budget', {
+          cid,
+          expectedDurationMs: normalizedMs
+        });
+
+      // Discard stale responses if another log was loaded or a newer request was issued for this CID
+      if (session !== logSessionSeq || recomputeSeqByCid.get(cid) !== seq) {
+        return;
+      }
+
+      const nextOverrides = new Map(budgetOverridesByCid.value);
+      if (result !== null) {
+        nextOverrides.set(cid, result);
+      } else {
+        nextOverrides.delete(cid);
+      }
+      budgetOverridesByCid.value = nextOverrides;
+    } catch (e) {
+      console.error(`Failed to recompute client budget for CID ${cid}:`, e);
+    }
+  };
+
+  /**
+   * Returns the effective budget stats for a client, preferring any live override over the baseline.
+   */
+  const getEffectiveClientBudget = (cid: number): ClientBudgetStats | null => {
+    return (
+      budgetOverridesByCid.value.get(cid) ??
+      logSummaryAnalyzeMode.value?.stats.clients.find(c => c.cid === cid)?.budget ??
+      null
+    );
+  };
+
   // ---------------------------------------------------------------------------
   // Watchers & Reactive Triggers
 
-  // (none)
+  // Register a single detached watcher to keep client budget overrides synchronized with Analyze config edits
+  if (!budgetWatcherScope) {
+    budgetWatcherScope = effectScope(true);
+    budgetWatcherScope.run(() => {
+      watch(
+        () => configAnalyzeMode.client_configs.map(c => [c.data.client_id, c.data.expected_duration_ms] as const),
+        entries => {
+          const summary = logSummaryAnalyzeMode.value;
+          if (!summary) {
+            return;
+          }
+
+          const currentCids = new Set(entries.map(([cid]) => cid));
+          for (const cachedCid of lastExpectedDurationMsByCid.keys()) {
+            if (!currentCids.has(cachedCid)) {
+              lastExpectedDurationMsByCid.delete(cachedCid);
+            }
+          }
+
+          for (const [cid, expectedMs] of entries) {
+            const prevMs = lastExpectedDurationMsByCid.get(cid);
+            lastExpectedDurationMsByCid.set(cid, expectedMs);
+
+            if (prevMs === expectedMs) {
+              continue;
+            }
+
+            const baselineClient = summary.stats.clients.find(c => c.cid === cid);
+            if (!baselineClient || baselineClient.duration === null) {
+              continue;
+            }
+
+            const normalizedMs = Math.max(0, Math.round(expectedMs));
+            if (
+              baselineClient.budget !== null &&
+              normalizedMs * 1_000 === baselineClient.budget.expected_duration_us
+            ) {
+              // Invalidate any in-flight recomputation and restore baseline by removing override
+              recomputeSeqByCid.set(cid, (recomputeSeqByCid.get(cid) ?? 0) + 1);
+              if (budgetOverridesByCid.value.has(cid)) {
+                const nextOverrides = new Map(budgetOverridesByCid.value);
+                nextOverrides.delete(cid);
+                budgetOverridesByCid.value = nextOverrides;
+              }
+            } else {
+              void recomputeClientBudget(cid, normalizedMs);
+            }
+          }
+        }
+      );
+    });
+  }
 
   // ---------------------------------------------------------------------------
   // Lifecycle Hooks & Observers
@@ -212,7 +362,11 @@ export function useExecutionLog() {
     logSummaryAnalyzeMode,
     logRangeDataAnalyzeMode,
     isLogLoading,
+    budgetOverridesByCid,
     loadLog,
-    fetchLogRange
+    fetchLogRange,
+    fetchAnomalyEvents,
+    recomputeClientBudget,
+    getEffectiveClientBudget
   };
 }

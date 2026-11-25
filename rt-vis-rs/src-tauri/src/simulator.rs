@@ -419,10 +419,23 @@ pub fn simulate_plan(config: SchedulerConfig) -> Result<SimulationResult, String
         }
     }
 
+    // Evaluate concurrency statistics over the steady-state second period
+    // [max_start_cycle + max_interval, max_start_cycle + max_interval * 2) to avoid warmup boundary effects.
+    let steady_start_us = max_start_cycle
+        .saturating_add(max_interval)
+        .saturating_mul(ctx.cycle_time_us);
+    let steady_end_us = max_manager_cycle.saturating_mul(ctx.cycle_time_us);
+    let concurrency_stats = Some(crate::stats::compute_concurrency_stats(
+        &recorder.metrics,
+        steady_start_us,
+        steady_end_us,
+    ));
+
     log::info!("Finished plan simulation in {:?}", start_time.elapsed());
     Ok(SimulationResult::new(
         recorder.executions,
         recorder.metrics,
+        concurrency_stats,
         HashMap::new(),
     ))
 }
