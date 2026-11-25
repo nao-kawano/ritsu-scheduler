@@ -20,15 +20,27 @@
 // -----------------------------------------------------------------------------
 // Imports
 
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
+import { useApp } from '../composables/useApp';
 import { useConfig } from '../composables/useConfig';
 import { useSimulation } from '../composables/useSimulation';
+import { useExecutionLog } from '../composables/useExecutionLog';
+import { useStatsPanel } from '../composables/useStatsPanel';
+import { formatCid } from '../utils/format';
+import { formatAnomalySummary, getAnomalySeverity } from '../utils/stats';
+import type { ClientStats } from '../types/analyze';
+import type { ClientConfigUI } from '../types/config';
+import type { AnomalySeverity } from '../types/stats';
+import AppIcon from './AppIcon.vue';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
+const { mode } = useApp();
 const { activeConfig, openClientEdit, addClient, moveClientConfig } = useConfig();
 const { configErrors } = useSimulation();
+const { logSummaryAnalyzeMode } = useExecutionLog();
+const { activeTab, openSystem, openClient, isTargetActive } = useStatsPanel();
 
 // -----------------------------------------------------------------------------
 // Props & Emits
@@ -40,7 +52,16 @@ const emit = defineEmits<{
 // -----------------------------------------------------------------------------
 // Types & Interfaces
 
-// (none)
+interface ClientCardMeta {
+  severity: AnomalySeverity;
+  anomalySummary: string;
+}
+
+interface ClientCardRow {
+  clientWrap: ClientConfigUI;
+  errors: string[];
+  meta: ClientCardMeta | null;
+}
 
 // -----------------------------------------------------------------------------
 // Constants & Layout
@@ -62,6 +83,33 @@ let lastMouseY = 0;
 
 const draggingIndex = ref<number | null>(null);
 const targetIndex = ref<number | null>(null);
+
+// --- Statistics & Row Lookup ---
+
+const clientRows = computed<ClientCardRow[]>(() => {
+  const statsByCid = new Map<number, ClientStats>();
+  const clients = logSummaryAnalyzeMode.value?.stats.clients;
+  if (clients) {
+    for (const c of clients) {
+      statsByCid.set(c.cid, c);
+    }
+  }
+
+  return activeConfig.value.client_configs.map(clientWrap => {
+    const cid = clientWrap.data.client_id;
+    const stats = statsByCid.get(cid);
+    return {
+      clientWrap,
+      errors: configErrors.value[cid] || [],
+      meta: stats
+        ? {
+          severity: getAnomalySeverity(stats),
+          anomalySummary: formatAnomalySummary(stats)
+        }
+        : null
+    };
+  });
+});
 
 // -----------------------------------------------------------------------------
 // Methods & Logic
@@ -153,10 +201,20 @@ const stopScrollLoop = () => {
   scrollSpeed.value = 0;
 };
 
-// --- Validation and Error Helpers ---
+// --- Statistics Helpers ---
 
-const getErrors = (cid: number) => {
-  return configErrors.value[cid] || [];
+/**
+ * Returns whether the per-client statistics icon should be highlighted as active.
+ */
+const isClientStatsIconActive = (cid: number, hasAnomaly: boolean): boolean => {
+  return isTargetActive('client', cid) && (activeTab.value === 'stats' || !hasAnomaly);
+};
+
+/**
+ * Returns whether the per-client anomaly events icon should be highlighted as active.
+ */
+const isClientAnomalyIconActive = (cid: number): boolean => {
+  return isTargetActive('client', cid) && activeTab.value === 'events';
 };
 
 // -----------------------------------------------------------------------------
@@ -237,10 +295,18 @@ defineExpose({ scrollEl });
 <!-- ========================================================================== -->
 <template>
   <aside class="client-list-pane" :key="activeConfig.sessionId">
-    <div class="pane-header">Clients</div>
+    <div class="pane-header">
+      <span>Clients</span>
+      <button v-if="mode === 'Analyze'" type="button" class="rt-icon-btn"
+        :class="{ 'is-active': isTargetActive('system') }" :disabled="!logSummaryAnalyzeMode"
+        :title="logSummaryAnalyzeMode ? 'System Statistics (All Clients)' : 'Load a log file to view statistics'"
+        aria-label="System Statistics" @click="openSystem('stats')">
+        <AppIcon name="stats" />
+      </button>
+    </div>
     <div class="scroll-area client-list-scroll sb-hide-all" ref="scrollEl" @scroll="onScroll">
       <div class="client-list-content" style="position: relative;">
-        <template v-for="(clientWrap, index) in activeConfig.client_configs" :key="clientWrap.configId">
+        <template v-for="(row, index) in clientRows" :key="row.clientWrap.configId">
           <div class="drop-indicator" :class="{ 'is-active': targetIndex === index }"></div>
           <div class="client-row-wrapper" :class="{ 'is-dragging': draggingIndex === index }">
             <div class="drag-handle" @mousedown.prevent.stop="startDrag($event, index)">
@@ -253,22 +319,47 @@ defineExpose({ scrollEl });
                 <circle cx="10" cy="18" r="1.5" />
               </svg>
             </div>
-            <div class="client-card" :class="{ 'has-error': getErrors(clientWrap.data.client_id).length > 0 }"
-              @click="openClientEdit(clientWrap)" :title="getErrors(clientWrap.data.client_id).join('\n')">
+            <div class="client-card" :class="{ 'has-error': row.errors.length > 0 }"
+              @click="openClientEdit(row.clientWrap)" :title="row.errors.join('\n')">
               <div class="card-header">
                 <div class="cid">
-                  CID: {{ String(clientWrap.data.client_id).padStart(3, '0') }}
-                  <span v-if="clientWrap.data.display_name" class="display-name">
-                    ({{ clientWrap.data.display_name }})
+                  {{ formatCid(row.clientWrap.data.client_id) }}
+                  <span v-if="row.clientWrap.data.display_name" class="display-name">
+                    ({{ row.clientWrap.data.display_name }})
                   </span>
                 </div>
               </div>
-              <div class="card-meta">
-                <div class="details">S: {{ clientWrap.data.start_cycle }}, I: {{ clientWrap.data.interval }}, O: {{
-                  clientWrap.data.offset }}, D: {{
-                    clientWrap.data.expected_duration_ms }}ms</div>
-                <div class="depends" :class="{ 'no-deps': clientWrap.data.depends.length === 0 }">Deps: {{
-                  clientWrap.data.depends.length > 0 ? clientWrap.data.depends.join(', ') : '-' }}</div>
+              <div class="card-body">
+                <div class="card-meta">
+                  <div class="details">S: {{ row.clientWrap.data.start_cycle }}, I: {{ row.clientWrap.data.interval }},
+                    O: {{
+                      row.clientWrap.data.offset }}, D: {{
+                      row.clientWrap.data.expected_duration_ms }}ms</div>
+                  <div class="depends" :class="{ 'no-deps': row.clientWrap.data.depends.length === 0 }">Deps: {{
+                    row.clientWrap.data.depends.length > 0 ? row.clientWrap.data.depends.join(', ') : '-' }}</div>
+                </div>
+                <div v-if="mode === 'Analyze'" class="card-actions" @click.stop>
+                  <!-- Optional left slot: anomaly warning/error icon -->
+                  <button v-if="row.meta && row.meta.severity !== 'none'" type="button"
+                    class="rt-icon-btn card-anomaly-btn" :class="[
+                      `is-anomaly-${row.meta.severity}`,
+                      { 'is-active': isClientAnomalyIconActive(row.clientWrap.data.client_id) }
+                    ]" :title="`${row.meta.anomalySummary} (Click to view Events)`" aria-label="Client Anomaly Events"
+                    @click.stop="openClient(row.clientWrap.data.client_id, 'events')">
+                    <AppIcon name="anomaly" />
+                  </button>
+                  <!-- Fixed rightmost slot: client statistics icon -->
+                  <button type="button" class="rt-icon-btn" :class="{
+                    'is-active': isClientStatsIconActive(
+                      row.clientWrap.data.client_id,
+                      row.meta !== null && row.meta.severity !== 'none'
+                    )
+                  }" :disabled="!row.meta"
+                    :title="row.meta ? 'Client Statistics' : 'No log statistics available for this client'"
+                    aria-label="Client Statistics" @click.stop="openClient(row.clientWrap.data.client_id, 'stats')">
+                    <AppIcon name="stats" />
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -306,8 +397,9 @@ defineExpose({ scrollEl });
   display: flex;
   flex-shrink: 0;
   align-items: center;
+  justify-content: space-between;
   height: var(--header-row-height);
-  padding: 0 16px;
+  padding: 0 12px 0 16px;
   border-bottom: var(--rt-border-main);
   background: var(--rt-color-surface-header);
   font-size: var(--rt-font-xs);
@@ -380,27 +472,51 @@ defineExpose({ scrollEl });
   color: var(--rt-color-text-dim);
 }
 
-.card-meta {
+.card-body {
   display: flex;
-  flex-direction: column;
-  gap: 0px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  min-width: 0;
   margin-top: 1px;
 }
 
+.card-meta {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0px;
+  min-width: 0;
+}
+
 .card-meta .details {
+  overflow: hidden;
   font-size: var(--rt-font-xs);
   color: var(--rt-color-text-dim);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card-meta .depends {
+  overflow: hidden;
   font-size: var(--rt-font-xs);
   font-weight: bold;
   color: var(--rt-color-accent);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .card-meta .depends.no-deps {
   font-weight: normal;
   color: var(--rt-color-text-dim);
+}
+
+.card-actions {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
 }
 
 /* -----------------------------------------------------------------------------
@@ -484,8 +600,41 @@ defineExpose({ scrollEl });
 .client-card.has-error .display-name,
 .client-card.has-error .details,
 .client-card.has-error .depends,
-.client-card.has-error .depends.no-deps {
+.client-card.has-error .depends.no-deps,
+.client-card.has-error .rt-icon-btn:not(.is-active):not(:hover) {
   color: var(--rt-color-on-error-container);
+}
+
+/* --- Statistics & Anomaly Icon States --- */
+
+.card-anomaly-btn.is-anomaly-error {
+  color: var(--rt-color-error);
+}
+
+.card-anomaly-btn.is-anomaly-error:not(.is-active):hover {
+  background-color: var(--rt-color-error-container);
+  color: var(--rt-color-on-error-container);
+}
+
+.card-anomaly-btn.is-anomaly-error.is-active {
+  background-color: var(--rt-color-error);
+  box-shadow: var(--rt-bshadow-focus);
+  color: var(--rt-color-on-error);
+}
+
+.card-anomaly-btn.is-anomaly-warning {
+  color: var(--rt-color-warning);
+}
+
+.card-anomaly-btn.is-anomaly-warning:not(.is-active):hover {
+  background-color: var(--rt-color-warning-container);
+  color: var(--rt-color-on-warning-container);
+}
+
+.card-anomaly-btn.is-anomaly-warning.is-active {
+  background-color: var(--rt-color-warning);
+  box-shadow: var(--rt-bshadow-focus);
+  color: var(--rt-color-on-warning);
 }
 
 /* --- Interactive Element States --- */

@@ -19,6 +19,7 @@
 
 import { effectScope, ref, watch, type EffectScope } from 'vue';
 import { ANOMALY_EVENT_TYPES, type AnomalyEventType } from '../types/analyze';
+import type { StatsPanelTab, StatsTarget } from '../types/stats';
 import { useApp } from './useApp';
 import { useExecutionLog } from './useExecutionLog';
 
@@ -26,13 +27,7 @@ import { useExecutionLog } from './useExecutionLog';
 // Types & Constants
 // =============================================================================
 
-export type StatsTarget =
-  | { kind: 'system' }
-  | { kind: 'client'; cid: number }
-  | { kind: 'concurrency' }
-  | { kind: 'jitter' };
-
-export type StatsPanelTab = 'stats' | 'events' | 'outliers';
+// (none)
 
 // =============================================================================
 // Module State (Singleton)

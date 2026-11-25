@@ -60,7 +60,7 @@ const logRangeDataAnalyzeMode = ref<LogRangeData | null>(null);
 const isLogLoading = ref<boolean>(false);
 
 // Per-client budget overrides computed when expected_duration_ms is edited in Analyze Mode
-const budgetOverridesByCid = ref<Record<number, ClientBudgetStats | null>>({});
+const budgetOverridesByCid = ref<Map<number, ClientBudgetStats>>(new Map());
 
 // Internal range cache and flight state
 const cachedWindowRangeAnalyzeMode = ref<{ start_us: number; end_us: number } | null>(null);
@@ -131,7 +131,7 @@ export function useExecutionLog() {
 
       // Reset budget overrides and seed expected durations before restoring config to avoid spurious recomputation
       logSessionSeq += 1;
-      budgetOverridesByCid.value = {};
+      budgetOverridesByCid.value = new Map();
       recomputeSeqByCid.clear();
       lastExpectedDurationMsByCid.clear();
       for (const client of summary.config.client_configs) {
@@ -270,10 +270,13 @@ export function useExecutionLog() {
         return;
       }
 
-      budgetOverridesByCid.value = {
-        ...budgetOverridesByCid.value,
-        [cid]: result
-      };
+      const nextOverrides = new Map(budgetOverridesByCid.value);
+      if (result !== null) {
+        nextOverrides.set(cid, result);
+      } else {
+        nextOverrides.delete(cid);
+      }
+      budgetOverridesByCid.value = nextOverrides;
     } catch (e) {
       console.error(`Failed to recompute client budget for CID ${cid}:`, e);
     }
@@ -283,10 +286,11 @@ export function useExecutionLog() {
    * Returns the effective budget stats for a client, preferring any live override over the baseline.
    */
   const getEffectiveClientBudget = (cid: number): ClientBudgetStats | null => {
-    if (Object.prototype.hasOwnProperty.call(budgetOverridesByCid.value, cid)) {
-      return budgetOverridesByCid.value[cid];
-    }
-    return logSummaryAnalyzeMode.value?.stats.clients.find(c => c.cid === cid)?.budget ?? null;
+    return (
+      budgetOverridesByCid.value.get(cid) ??
+      logSummaryAnalyzeMode.value?.stats.clients.find(c => c.cid === cid)?.budget ??
+      null
+    );
   };
 
   // ---------------------------------------------------------------------------
@@ -331,9 +335,10 @@ export function useExecutionLog() {
             ) {
               // Invalidate any in-flight recomputation and restore baseline by removing override
               recomputeSeqByCid.set(cid, (recomputeSeqByCid.get(cid) ?? 0) + 1);
-              if (Object.prototype.hasOwnProperty.call(budgetOverridesByCid.value, cid)) {
-                const { [cid]: _removed, ...rest } = budgetOverridesByCid.value;
-                budgetOverridesByCid.value = rest;
+              if (budgetOverridesByCid.value.has(cid)) {
+                const nextOverrides = new Map(budgetOverridesByCid.value);
+                nextOverrides.delete(cid);
+                budgetOverridesByCid.value = nextOverrides;
               }
             } else {
               void recomputeClientBudget(cid, normalizedMs);

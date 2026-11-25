@@ -39,6 +39,17 @@ export const ANOMALY_EVENT_TYPES: readonly AnomalyEventType[] = Object.freeze([
 ]);
 
 /**
+ * Frozen display labels for anomaly event types.
+ */
+export const ANOMALY_EVENT_LABELS: Readonly<Record<AnomalyEventType, string>> = Object.freeze({
+  overrun: 'Overrun',
+  skip: 'Skip',
+  late: 'Late',
+  retransmit: 'Retransmit',
+  error: 'Error'
+});
+
+/**
  * Point-in-time event recorded during execution.
  */
 export interface ActualInstantEvent {

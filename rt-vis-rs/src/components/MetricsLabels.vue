@@ -20,12 +20,22 @@
 // -----------------------------------------------------------------------------
 // Imports
 
+import { computed } from 'vue';
+import { useApp } from '../composables/useApp';
 import { useConfig } from '../composables/useConfig';
+import { useExecutionLog } from '../composables/useExecutionLog';
+import { useSimulation } from '../composables/useSimulation';
+import { useStatsPanel } from '../composables/useStatsPanel';
+import AppIcon from './AppIcon.vue';
 
 // -----------------------------------------------------------------------------
 // Global State & Composables
 
+const { mode } = useApp();
 const { activeConfig } = useConfig();
+const { plannedConcurrencyStatsCreateMode } = useSimulation();
+const { logSummaryAnalyzeMode } = useExecutionLog();
+const { openConcurrency, openJitter, isTargetActive } = useStatsPanel();
 
 // -----------------------------------------------------------------------------
 // Props & Emits
@@ -45,7 +55,30 @@ const { activeConfig } = useConfig();
 // -----------------------------------------------------------------------------
 // Local State & Computed
 
-// (none)
+const hasConcurrencyStats = computed<boolean>(() => {
+  return mode.value === 'Create'
+    ? plannedConcurrencyStatsCreateMode.value !== null
+    : logSummaryAnalyzeMode.value !== null;
+});
+
+const hasJitterStats = computed<boolean>(() => {
+  return mode.value === 'Analyze' && logSummaryAnalyzeMode.value !== null;
+});
+
+const concurrencyTooltip = computed<string>(() => {
+  if (hasConcurrencyStats.value) {
+    return 'Concurrency Statistics';
+  }
+  return mode.value === 'Create'
+    ? 'Fix configuration errors to view statistics'
+    : 'Load a log file to view statistics';
+});
+
+const jitterTooltip = computed<string>(() => {
+  return hasJitterStats.value
+    ? 'Cycle Jitter Statistics'
+    : 'Load a log file to view statistics';
+});
 
 // -----------------------------------------------------------------------------
 // Methods & Logic
@@ -80,8 +113,22 @@ const { activeConfig } = useConfig();
   <div class="metrics-labels-pane" :key="activeConfig.sessionId">
     <div class="pane-header">Metrics Labels</div>
     <div class="metrics-labels">
-      <div class="metric-label">Concurrent Clients</div>
-      <div class="metric-label">Cycle Jitter</div>
+      <div class="metric-label">
+        <span>Concurrent Clients</span>
+        <button type="button" class="rt-icon-btn" :class="{ 'is-active': isTargetActive('concurrency') }"
+          :disabled="!hasConcurrencyStats" :title="concurrencyTooltip" aria-label="Concurrency Statistics"
+          @click="openConcurrency">
+          <AppIcon name="stats" />
+        </button>
+      </div>
+      <div class="metric-label">
+        <span>Cycle Jitter</span>
+        <button v-if="mode === 'Analyze'" type="button" class="rt-icon-btn"
+          :class="{ 'is-active': isTargetActive('jitter') }" :disabled="!hasJitterStats" :title="jitterTooltip"
+          aria-label="Cycle Jitter Statistics" @click="openJitter('stats')">
+          <AppIcon name="stats" />
+        </button>
+      </div>
     </div>
   </div>
 </template>
@@ -128,8 +175,10 @@ const { activeConfig } = useConfig();
   /* Matching ROW_HEIGHT and METRICS_HEIGHT for UI consistency */
   display: flex;
   align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   height: var(--row-height);
-  padding: 0 16px;
+  padding: 0 12px 0 16px;
   border-bottom: var(--rt-border-main);
   font-size: var(--rt-font-xs);
   color: var(--rt-color-text-dim);

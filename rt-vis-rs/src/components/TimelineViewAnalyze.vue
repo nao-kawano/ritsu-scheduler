@@ -1013,7 +1013,7 @@ defineExpose({
         <canvas ref="contentCanvasEl" class="canvas-layer"></canvas>
 
         <!-- Floating Tooltip Overlay -->
-        <div v-if="hoveredBar || (hoveredEvents && hoveredEvents.length > 0)" class="timeline-tooltip"
+        <div v-if="hoveredBar || (hoveredEvents && hoveredEvents.length > 0)" class="rt-tooltip timeline-tooltip"
           :style="tooltipStyle">
           <!-- Actual Bar Tooltip -->
           <div v-if="hoveredBar" class="tooltip-card">
@@ -1204,18 +1204,10 @@ defineExpose({
 .timeline-tooltip {
   position: absolute;
   z-index: 30;
-  width: max-content;
   max-width: 440px;
   padding: 10px 12px;
-  background-color: var(--rt-color-surface-elevated, #24272e);
-  border: var(--rt-border-main);
-  border-radius: var(--rt-radius-m, 6px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
-  color: var(--rt-color-text);
   font-size: var(--rt-font-s, 12px);
   line-height: 1.4;
-  user-select: none;
-  pointer-events: none;
 }
 
 .tooltip-card {

@@ -765,7 +765,7 @@ defineExpose({
         <div v-if="hoveredMetric" class="metrics-crosshair" :style="crosshairStyle"></div>
 
         <!-- Floating Tooltip Overlay -->
-        <div v-if="hoveredMetric" class="metrics-tooltip" :style="tooltipStyle">
+        <div v-if="hoveredMetric" class="rt-tooltip metrics-tooltip" :style="tooltipStyle">
           <div class="tooltip-card">
             <div class="tooltip-header">
               <span class="tooltip-cycle">Cycle #{{ hoveredMetric.cycle }}</span>
@@ -892,18 +892,10 @@ defineExpose({
   top: 0;
   left: 0;
   z-index: 30;
-  width: max-content;
   max-width: 360px;
   padding: 8px 12px;
-  background-color: var(--rt-color-surface-elevated, #24272e);
-  border: var(--rt-border-main);
-  border-radius: var(--rt-radius-m, 6px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
-  color: var(--rt-color-text);
   font-size: var(--rt-font-s, 12px);
   line-height: 1.4;
-  user-select: none;
-  pointer-events: none;
 }
 
 .tooltip-card {
