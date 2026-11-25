@@ -17,7 +17,7 @@
 // Imports
 // =============================================================================
 
-import { ref, reactive, computed, watch } from 'vue';
+import { ref, reactive, computed, effectScope, watch, type EffectScope } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { open, save } from '@tauri-apps/plugin-dialog';
 import type { SchedulerConfig, ServerConfig, ClientConfig, SchedulerConfigUI, ClientConfigUI } from '../types/config';
@@ -62,6 +62,8 @@ const isOpenServerAdvanced = ref<boolean>(false);
 
 // Client State
 const selectedClientWrap = ref<ClientConfigUI | null>(null);
+
+let configWatcherScope: EffectScope | null = null;
 
 // =============================================================================
 // Internal Helpers
@@ -313,11 +315,16 @@ export function useConfig() {
   // ---------------------------------------------------------------------------
   // Watchers & Reactive Triggers
 
-  // Reset dialogs when switching modes
-  watch(mode, () => {
-    closeServerAdvanced();
-    closeClientEdit();
-  });
+  // Register a single detached watcher to reset dialogs when switching modes
+  if (!configWatcherScope) {
+    configWatcherScope = effectScope(true);
+    configWatcherScope.run(() => {
+      watch(mode, () => {
+        closeServerAdvanced();
+        closeClientEdit();
+      });
+    });
+  }
 
   // ---------------------------------------------------------------------------
   // Lifecycle Hooks & Observers

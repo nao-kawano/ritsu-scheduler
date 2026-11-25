@@ -17,7 +17,7 @@
 // Imports
 // =============================================================================
 
-import { ref, watch } from 'vue';
+import { effectScope, ref, watch, type EffectScope } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import type {
   ConcurrencyStats,
@@ -53,6 +53,8 @@ const simulationError = ref<string | null>(null);
 
 // In-flight debounce timer
 let simulateTimeout: ReturnType<typeof setTimeout> | null = null;
+
+let simulationWatcherScope: EffectScope | null = null;
 
 // =============================================================================
 // Internal Helpers
@@ -141,24 +143,30 @@ export function useSimulation() {
   // ---------------------------------------------------------------------------
   // Watchers & Reactive Triggers
 
-  // Automatically trigger simulation whenever Create mode configuration changes
-  watch(configCreateMode, () => {
-    if (mode.value === 'Create') {
-      simulatePlan();
-    }
-  }, { deep: true, immediate: true });
+  // Register a single detached scope to keep simulation triggers synchronized across composable calls
+  if (!simulationWatcherScope) {
+    simulationWatcherScope = effectScope(true);
+    simulationWatcherScope.run(() => {
+      // Automatically trigger simulation whenever Create mode configuration changes
+      watch(configCreateMode, () => {
+        if (mode.value === 'Create') {
+          simulatePlan();
+        }
+      }, { deep: true, immediate: true });
 
-  // Automatically trigger simulation whenever Analyze mode configuration changes
-  watch(configAnalyzeMode, () => {
-    if (mode.value === 'Analyze') {
-      simulatePlan();
-    }
-  }, { deep: true, immediate: true });
+      // Automatically trigger simulation whenever Analyze mode configuration changes
+      watch(configAnalyzeMode, () => {
+        if (mode.value === 'Analyze') {
+          simulatePlan();
+        }
+      }, { deep: true, immediate: true });
 
-  // Trigger simulation when switching modes
-  watch(mode, () => {
-    simulatePlan();
-  });
+      // Trigger simulation when switching modes
+      watch(mode, () => {
+        simulatePlan();
+      });
+    });
+  }
 
   // ---------------------------------------------------------------------------
   // Lifecycle Hooks & Observers
