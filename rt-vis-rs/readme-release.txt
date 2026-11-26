@@ -19,12 +19,16 @@ Double-click "rt-vis.exe" to launch the application.
 - Create Mode:
   - Create, edit, load, and save schedule configuration files (config.toml).
   - Drag-and-drop schedule editing with real-time dependency and timing validation.
-  - Simulate ideal timeline execution and concurrent client load metrics.
+  - Simulate ideal timeline execution and inspect concurrent client load metrics and statistics.
 - Analyze Mode:
   - Load and inspect Ritsu Server execution log files.
   - Overlay planned schedules against actual execution timelines (normal, overrun, skip).
   - Visualize instant scheduling events (Ready, Overrun, Skip, Late, Error) with diamond markers.
   - Track server cycle jitter and concurrent running client metrics with interactive tooltips.
+  - Inspect quantitative execution statistics in the statistics panel:
+    - System health summary, per-client execution time distributions, and budget coverage.
+    - Concurrent client utilization and server cycle jitter distributions.
+    - Filtered anomaly events and top jitter outliers with direct jump to the timeline.
 
 ■ Log Files (for Analyze Mode)
 
