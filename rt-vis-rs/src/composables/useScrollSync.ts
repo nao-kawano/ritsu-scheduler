@@ -17,13 +17,14 @@
 // Imports
 // =============================================================================
 
-import type { Ref } from 'vue';
+import { watch, onUnmounted, type Ref } from 'vue';
 
 // =============================================================================
 // Types & Constants
 // =============================================================================
 
-// (none)
+// Standard line height (px) used when normalizing DOM_DELTA_LINE wheel events
+const WHEEL_LINE_HEIGHT_PX = 40;
 
 // =============================================================================
 // Module State (Singleton)
@@ -35,7 +36,58 @@ import type { Ref } from 'vue';
 // Internal Helpers
 // =============================================================================
 
-// (none)
+/**
+ * Normalizes a horizontal wheel delta (native deltaX or Shift + deltaY) into pixels.
+ */
+function normalizeHorizontalWheelDelta(event: WheelEvent, container: HTMLElement): number {
+  const rawDelta = event.deltaX !== 0 ? event.deltaX : (event.shiftKey ? event.deltaY : 0);
+  if (rawDelta === 0) return 0;
+
+  if (event.deltaMode === WheelEvent.DOM_DELTA_LINE) {
+    return rawDelta * WHEEL_LINE_HEIGHT_PX;
+  }
+  if (event.deltaMode === WheelEvent.DOM_DELTA_PAGE) {
+    return rawDelta * container.clientWidth;
+  }
+  return rawDelta;
+}
+
+/**
+ * Reactively binds a DOM event listener to an element ref and re-binds on DOM replacement.
+ * Returns a cleanup function that detaches the currently bound listener.
+ */
+function bindElementEvent<K extends keyof HTMLElementEventMap>(
+  elRef: Ref<HTMLElement | null>,
+  type: K,
+  listener: (event: HTMLElementEventMap[K]) => void,
+  options: AddEventListenerOptions,
+  onUnbind?: (oldEl: HTMLElement) => void
+): () => void {
+  let boundEl: HTMLElement | null = null;
+
+  const unbind = () => {
+    if (boundEl) {
+      boundEl.removeEventListener(type, listener);
+      onUnbind?.(boundEl);
+      boundEl = null;
+    }
+  };
+
+  watch(
+    elRef,
+    (newEl) => {
+      if (boundEl === newEl) return;
+      unbind();
+      boundEl = newEl;
+      if (boundEl) {
+        boundEl.addEventListener(type, listener, options);
+      }
+    },
+    { immediate: true, flush: 'post' }
+  );
+
+  return unbind;
+}
 
 // =============================================================================
 // Composable Implementation
@@ -44,8 +96,8 @@ import type { Ref } from 'vue';
 /**
  * Provides strict scroll synchronization between the main panes of the visualizer.
  *
- * Uses a "driving element" lock pattern to completely eliminate infinite echo loops
- * while allowing pixel-perfect native scrolling and momentum.
+ * Reactively binds passive `scroll` listeners to scrollable panes and horizontal `wheel`
+ * forwarders to time headers, using a "driving element" lock pattern to eliminate echo loops.
  */
 export function useScrollSync(
   clientListScroll: Ref<HTMLElement | null>,
@@ -67,6 +119,15 @@ export function useScrollSync(
 
   // ---------------------------------------------------------------------------
   // Methods & Actions
+
+  const releaseDrivingLockIf = (el: HTMLElement) => {
+    if (driving !== el) return;
+    driving = null;
+    if (drivingTimeout !== null) {
+      window.clearTimeout(drivingTimeout);
+      drivingTimeout = null;
+    }
+  };
 
   const onScroll = (e: Event) => {
     const target = e.target as HTMLElement;
@@ -108,22 +169,52 @@ export function useScrollSync(
     });
   };
 
+  const forwardHorizontalWheel = (event: WheelEvent, targetEl: HTMLElement | null) => {
+    if (!targetEl) return;
+
+    const deltaPx = normalizeHorizontalWheelDelta(event, targetEl);
+    if (deltaPx === 0) return;
+
+    // Prevent browser back/forward swipe navigation on horizontal overscroll
+    event.preventDefault();
+    targetEl.scrollLeft += deltaPx;
+  };
+
+  const onTimelineHeaderWheel = (event: WheelEvent) => {
+    forwardHorizontalWheel(event, timelineScroll.value);
+  };
+
+  const onMetricsHeaderWheel = (event: WheelEvent) => {
+    forwardHorizontalWheel(event, metricsChartScroll.value);
+  };
+
   // ---------------------------------------------------------------------------
   // Watchers & Reactive Triggers
 
-  // (none)
+  const cleanups: Array<() => void> = [
+    bindElementEvent(clientListScroll, 'scroll', onScroll, { passive: true }, releaseDrivingLockIf),
+    bindElementEvent(timelineScroll, 'scroll', onScroll, { passive: true }, releaseDrivingLockIf),
+    bindElementEvent(metricsChartScroll, 'scroll', onScroll, { passive: true }, releaseDrivingLockIf),
+    bindElementEvent(timelineHeaderScroll, 'wheel', onTimelineHeaderWheel, { passive: false }),
+    bindElementEvent(metricsHeaderScroll, 'wheel', onMetricsHeaderWheel, { passive: false })
+  ];
 
   // ---------------------------------------------------------------------------
   // Lifecycle Hooks & Observers
 
-  // (none)
+  onUnmounted(() => {
+    driving = null;
+    if (drivingTimeout !== null) {
+      window.clearTimeout(drivingTimeout);
+      drivingTimeout = null;
+    }
+    for (const cleanup of cleanups) {
+      cleanup();
+    }
+  });
 
   // ---------------------------------------------------------------------------
   // Public API (Return)
 
-  return {
-    onClientListScroll: onScroll,
-    onTimelineScroll: onScroll,
-    onMetricsScroll: onScroll
-  };
+  // (none)
 }

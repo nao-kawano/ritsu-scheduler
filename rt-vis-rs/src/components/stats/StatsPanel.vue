@@ -242,6 +242,7 @@ const onJump = (timeUs: number, cid?: number): void => {
   padding: 12px;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: none;
 }
 
 .stats-panel-pane .stats-card {

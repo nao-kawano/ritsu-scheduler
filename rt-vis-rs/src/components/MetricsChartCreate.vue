@@ -38,9 +38,7 @@ const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 // -----------------------------------------------------------------------------
 // Props & Emits
 
-const emit = defineEmits<{
-  (e: 'scroll', event: Event): void
-}>();
+// (none)
 
 // -----------------------------------------------------------------------------
 // Types & Interfaces
@@ -151,9 +149,7 @@ const linePath = computed(() => {
 // -----------------------------------------------------------------------------
 // Event Handlers
 
-const onScroll = (e: Event) => {
-  emit('scroll', e);
-};
+// (none)
 
 // -----------------------------------------------------------------------------
 // Watchers & Reactive Triggers
@@ -190,7 +186,7 @@ defineExpose({
     </div>
 
     <!-- Scrollable Content Area -->
-    <div class="scroll-area metrics-scroll sb-hide-v sb-pad-v" ref="contentScrollEl" @scroll="onScroll">
+    <div class="scroll-area metrics-scroll sb-hide-v sb-pad-v" ref="contentScrollEl">
       <div class="metrics-content" :style="{
         width: totalWidth + 'px',
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
@@ -282,6 +278,7 @@ defineExpose({
   height: 100%;
   overflow-x: scroll;
   overflow-y: hidden;
+  overscroll-behavior: none;
 }
 
 .metrics-content {

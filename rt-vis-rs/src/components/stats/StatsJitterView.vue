@@ -223,6 +223,7 @@ const jitter = computed<JitterStats | null>(() => {
   min-height: 0;
   overflow-x: hidden;
   overflow-y: auto;
+  overscroll-behavior: none;
 }
 
 /* -----------------------------------------------------------------------------

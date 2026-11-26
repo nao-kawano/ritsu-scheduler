@@ -97,7 +97,7 @@ const metricsHeaderScroll = computed(() => metricsChartRef.value?.headerScrollEl
 const metricsChartScroll = computed(() => metricsChartRef.value?.contentScrollEl || null);
 
 // Initialize Scroll Sync
-const { onClientListScroll, onTimelineScroll, onMetricsScroll } = useScrollSync(
+useScrollSync(
   clientListScroll,
   timelineHeaderScroll,
   timelineScroll,
@@ -156,11 +156,10 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
           <GlobalError :message="currentErrorMessage" class="floating-error" />
 
           <!-- Left Pane -->
-          <ClientList :key="mode" ref="clientListRef" @scroll="onClientListScroll" />
+          <ClientList :key="mode" ref="clientListRef" />
 
           <!-- Right Pane -->
-          <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewAnalyze" ref="timelineViewRef"
-            @scroll="onTimelineScroll" />
+          <component :is="mode === 'Create' ? TimelineViewCreate : TimelineViewAnalyze" ref="timelineViewRef" />
 
           <!-- Floating Zoom Control -->
           <ZoomControl class="floating-zoom" />
@@ -169,8 +168,7 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
         <!-- Bottom Pane -->
         <footer class="metrics-section">
           <MetricsLabels />
-          <component :is="mode === 'Create' ? MetricsChartCreate : MetricsChartAnalyze" ref="metricsChartRef"
-            @scroll="onMetricsScroll" />
+          <component :is="mode === 'Create' ? MetricsChartCreate : MetricsChartAnalyze" ref="metricsChartRef" />
         </footer>
       </div>
 
@@ -308,7 +306,6 @@ window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e)
 
 * {
   box-sizing: border-box;
-  overscroll-behavior: none;
 }
 
 body,
@@ -317,6 +314,7 @@ html {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  overscroll-behavior: none;
   background-color: var(--rt-color-bg);
   font-family: 'Inter', system-ui, -apple-system, sans-serif;
   font-size: var(--rt-font-m);

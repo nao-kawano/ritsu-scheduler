@@ -45,9 +45,7 @@ const { activeTab, openSystem, openClient, isTargetActive } = useStatsPanel();
 // -----------------------------------------------------------------------------
 // Props & Emits
 
-const emit = defineEmits<{
-  (e: 'scroll', event: Event): void
-}>();
+// (none)
 
 // -----------------------------------------------------------------------------
 // Types & Interfaces
@@ -220,12 +218,6 @@ const isClientAnomalyIconActive = (cid: number): boolean => {
 // -----------------------------------------------------------------------------
 // Event Handlers
 
-// --- Viewport Scrolling ---
-
-const onScroll = (e: Event) => {
-  emit('scroll', e);
-};
-
 // --- Drag and Drop Handlers ---
 
 /**
@@ -304,7 +296,7 @@ defineExpose({ scrollEl });
         <AppIcon name="stats" />
       </button>
     </div>
-    <div class="scroll-area client-list-scroll sb-hide-all" ref="scrollEl" @scroll="onScroll">
+    <div class="scroll-area client-list-scroll sb-hide-all" ref="scrollEl">
       <div class="client-list-content" style="position: relative;">
         <template v-for="(row, index) in clientRows" :key="row.clientWrap.configId">
           <div class="drop-indicator" :class="{ 'is-active': targetIndex === index }"></div>
@@ -419,6 +411,7 @@ defineExpose({ scrollEl });
 .client-list-scroll {
   overflow-x: hidden;
   overflow-y: scroll;
+  overscroll-behavior: none;
 }
 
 .client-row-wrapper {

@@ -50,9 +50,7 @@ const { getThemeStyles, prepareCanvas, renderTimelineHeader, renderBackgroundGri
 // -----------------------------------------------------------------------------
 // Props & Emits
 
-const emit = defineEmits<{
-  (e: 'scroll', event: Event): void
-}>();
+// (none)
 
 // -----------------------------------------------------------------------------
 // Types & Interfaces
@@ -556,7 +554,7 @@ const renderAll = () => {
 
 let renderRafId: number | null = null;
 
-const onScroll = (e: Event) => {
+const onScroll = () => {
   // Clear tooltip and crosshair when actively scrolling to prevent stale floating overlays
   hoveredMetric.value = null;
 
@@ -566,7 +564,6 @@ const onScroll = (e: Event) => {
       renderRafId = null;
     });
   }
-  emit('scroll', e);
 };
 
 /**
@@ -749,7 +746,7 @@ defineExpose({
 <template>
   <main class="metrics-pane" :key="activeConfig.sessionId">
     <!-- Time Header Section (Cycle and time markers in Canvas overlay) -->
-    <div class="timeline-header sb-hide-all sb-pad-v" ref="headerScrollEl" @scroll="onScroll">
+    <div class="timeline-header sb-hide-all sb-pad-v" ref="headerScrollEl">
       <div class="header-content" :style="{ width: totalWidth + 'px', height: '100%' }">
         <canvas ref="headerCanvasEl" class="canvas-layer"></canvas>
       </div>
@@ -846,6 +843,7 @@ defineExpose({
   height: 100%;
   overflow-x: scroll;
   overflow-y: hidden;
+  overscroll-behavior: none;
 }
 
 .metrics-content {

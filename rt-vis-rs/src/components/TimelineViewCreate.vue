@@ -41,9 +41,7 @@ const { totalCycles, gridInfo, totalWidth } = useCreateModeLayout();
 // -----------------------------------------------------------------------------
 // Props & Emits
 
-const emit = defineEmits<{
-  (e: 'scroll', event: Event): void
-}>();
+// (none)
 
 // -----------------------------------------------------------------------------
 // Types & Interfaces
@@ -270,12 +268,6 @@ const getBarY = (cid: number) => {
 // -----------------------------------------------------------------------------
 // Event Handlers
 
-// --- Viewport Scrolling ---
-
-const onScroll = (e: Event) => {
-  emit('scroll', e);
-};
-
 // --- Drag & Drop Handlers ---
 
 /**
@@ -391,7 +383,7 @@ defineExpose({
     </div>
 
     <!-- Scrollable Content Area -->
-    <div class="scroll-area timeline-scroll sb-hide-h" ref="contentScrollEl" @scroll="onScroll">
+    <div class="scroll-area timeline-scroll sb-hide-h" ref="contentScrollEl">
       <div class="timeline-content" :style="{
         width: totalWidth + 'px',
         backgroundSize: `${gridInfo.majorPx}px 100%, ${gridInfo.minorPx}px 100%`
@@ -540,6 +532,7 @@ defineExpose({
   height: 100%;
   overflow-x: scroll;
   overflow-y: scroll;
+  overscroll-behavior: none;
 }
 
 .timeline-content {
