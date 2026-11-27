@@ -21,14 +21,68 @@ Note: Ritsu targets predictable, soft real-time coordination and reproducible ex
 - **Multi-Language Support**: A simple messaging protocol supporting multiple programming languages.
   - Modular transport support (UDP-based by default).
   - This repository includes sample clients for **Rust**, **Python**, and **C/C++**.
-- **Simulation & Visualization**: Advanced tools for system planning and scheduling analysis.
+- **Simulation & Visualization**: Interactive GUI for designing schedules and analyzing runtime execution.
+  - Visual schedule editing and simulation with real-time timing validation.
+  - Execution log overlay against planned schedules with microsecond-precision timing deltas.
+  - Quantitative statistics (duration percentiles, budget margins, concurrency, cycle jitter) with instant jump to anomalies.
 
 **Visualizer Highlights:**
 
-| Create Mode | Analyze Mode |
-| :---: | :---: |
-| <img src="docs/assets/rt-vis_create-process-edit.png" width="350" /><br />Configure process periods, execution times, and dependencies interactively. | <img src="docs/assets/rt-vis_analyze-actual-overlay.png" width="350" /><br />Overlay actual execution logs onto scheduled plans to inspect timing deltas. |
-| <img src="docs/assets/rt-vis_create-realtime-validation.png" width="350" /><br />Interactive drag-and-drop editing immediately highlights deadline overruns and cascading delays. | <img src="docs/assets/rt-vis_analyze-concurrency.png" width="350" /><br />Track planned vs. actual concurrency to identify system load peaks and execution bottlenecks. |
+<table>
+  <thead>
+    <tr>
+      <th colspan="2">Create Mode</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center" width="50%">
+        <img src="docs/assets/rt-vis_create-client-edit.png" width="400" /><br />
+        <strong>Client &amp; DAG Configuration</strong><br />
+        Configure client intervals, offsets, start cycles, expected durations, and DAG dependencies interactively.
+      </td>
+      <td align="center" width="50%">
+        <img src="docs/assets/rt-vis_create-realtime-validation.png" width="400" /><br />
+        <strong>Real-Time Validation &amp; Planned Load</strong><br />
+        Drag-and-drop editing immediately highlights deadline overruns and skipped cycles alongside planned concurrency metrics.
+      </td>
+    </tr>
+  </tbody>
+</table>
+
+<table>
+  <thead>
+    <tr>
+      <th colspan="2">Analyze Mode</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td align="center" width="50%">
+        <img src="docs/assets/rt-vis_analyze-actual-overlay.png" width="400" /><br />
+        <strong>Actual vs. Planned Overlay &amp; Client Stats</strong><br />
+        Overlay actual execution logs onto planned schedules with microsecond deltas, expected budget margins, and duration histograms.
+      </td>
+      <td align="center" width="50%">
+        <img src="docs/assets/rt-vis_analyze-system-health.png" width="400" /><br />
+        <strong>System Health Overview</strong><br />
+        Inspect clean cycle rates, aggregated anomaly counts, and per-client health status at a glance.
+      </td>
+    </tr>
+    <tr>
+      <td align="center" width="50%">
+        <img src="docs/assets/rt-vis_analyze-events.png" width="400" /><br />
+        <strong>Anomaly Filtering &amp; Timeline Jump</strong><br />
+        Filter anomaly events and jump directly to the exact cycle on the timeline.
+      </td>
+      <td align="center" width="50%">
+        <img src="docs/assets/rt-vis_analyze-jitter-concurrency.png" width="400" /><br />
+        <strong>Cycle Jitter &amp; Concurrency Analysis</strong><br />
+        Track cycle-to-cycle jitter bias, percentiles, and distribution alongside planned vs. actual concurrency.
+      </td>
+    </tr>
+  </tbody>
+</table>
 
 ## Why Ritsu?
 
@@ -71,7 +125,7 @@ Experience Ritsu's deterministic scheduling through self-contained reference dem
      ```
 
 2. **Inspect with the visualizer (`rt-vis`)**:  
-   Launch `rt-vis` and open `demo/<demo-name>/logs/rt-server.log` in **Analyze** mode to inspect scheduled vs. actual timelines, safety slack margins, and `SKIP` behavior:
+   Launch `rt-vis` and open `demo/<demo-name>/logs/rt-server.log` in **Analyze** mode to inspect scheduled vs. actual timelines, timing and jitter statistics, budget margins, and anomaly events:
    - **Pre-built binary (Windows):** Download the latest release from [GitHub Releases](https://github.com/nao-kawano/ritsu-scheduler/releases) and run `rt-vis.exe`.
    - **From source (Windows / Linux / macOS, requires Node.js >= 18):**
      ```bash
@@ -131,7 +185,7 @@ sequenceDiagram
 - **[rt-client-rs](./rt-client-rs)**: Client library for Rust.
 - **[rt-client-py](./rt-client-py)**: Client library for Python.
 - **[rt-client-c](./rt-client-c)**: Client library for C/C++.
-- **[rt-vis-rs](./rt-vis-rs)**: Tauri-based visualizer application for process scheduling simulation and configuration editing.
+- **[rt-vis-rs](./rt-vis-rs)**: Tauri-based visualizer application for schedule configuration, simulation, execution log analysis, and timing statistics.
 - **[demo](./demo)**: Reference demos showcasing multi-language DAG orchestration and external data-plane integration.
 
 ## Documentation
